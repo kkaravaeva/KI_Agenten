@@ -1,0 +1,21 @@
+Mindestanforderung:
+Springen 
+rechts links
+vorne hinten
+Sinnesorgane
+Vorschlag:
+KI Agent navigiert durch ein Labyrint. Ziel ist es den Ausgang zu finden.
+Der Agent kann sich nach rechts, links, vorne und nach hinten bewegen. Ausserdem kann er springen.
+Der KI Agent besitzt Sinnesorgane in Form von Sensoren.
+Es gibt mehrere Maps
+Alle Maps unterscheiden sich
+Maps koennen Hindernisse beinhalten, wie bsp Lava ueber die man springen muss, Loecher in die man fallen kann u. nicht vorbeikommt. Beliebig erweiterbar 
+Interaktionen mit Hindernissen wird bewertet. z.b In Lava oder Loch fallen = negativ, ueber Lava drueberspringen = positiv
+Der Agent wird durch dass absolvieren mehrerer Maps trainiert. Der Agent erkennt durch Sinnesorgane/Sensoren Hindernisse und soll dann lernen auf diese zu reagieren. 
+Der Agent wird auf mehreren maps trainiert damit er nicht die maps auswendig lernt sondern ein bestimmtes Verhalten bei Hindernissen lernt.
+Projektziel ist es, dass der Agent auf einer ihm unbekannten Map Hindernisse ueberwaeltigt und einen ausgang aus einem Labyrint findet.
+Moegliche Hindernisse: 
+Lava und Loch an denen der KI Agent nicht vorbeikommt. 
+(Loch oder Lava) mit Bruecke = Hindernis kann nur durch dass springen auf die Bruecke ueberwunden werden.
+Sackgassen = KI Agent kommt nicht weiter und muss umdrehen
+Beliebig erweiterbar evtl noch knopf einbauen etc.
