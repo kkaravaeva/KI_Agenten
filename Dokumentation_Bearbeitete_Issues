@@ -1,0 +1,122 @@
+# Issue 3-5, 7-8
+
+## Übersicht
+
+Es wurde ein tile-basiertes Map-System für Unity 2021.3 implementiert.
+Das System besteht aus einer Datenstruktur, die eine Map abstrakt beschreibt,
+und einem Generator, der diese Beschreibung in reale GameObjects in der Szene übersetzt.
+
+---
+
+## Ordnerstruktur
+
+```
+Assets/
+├── Scripts/
+│   └── Map/          # Alle Scripts zur Map-Logik
+├── Prefabs/
+│   └── Map/
+│       └── Obstacles/ # Obstacle-Prefabs separat
+└── Scenes/
+    └── Training/      # Entwicklungs- und Testszene
+```
+
+---
+
+## Datenmodell
+
+### CellType.cs
+Ein Enum das alle möglichen Zelltypen der Map definiert:
+
+- `Empty` – leere Zelle, wird nicht instanziiert
+- `Floor` – Bodenfeld
+- `Wall` – Wand
+- `Obstacle` – Hindernis
+- `Goal` – Zielobjekt
+- `SpawnPoint` – Spawnpunkt des Agenten
+
+### MapData.cs
+Ein ScriptableObject das die Map als eindimensionales Array von CellTypes speichert.
+Es definiert Breite (`width`) und Höhe (`height`) der Map.
+Über `GetCell(x, y)` und `SetCell(x, y, type)` wird auf einzelne Zellen zugegriffen.
+Die interne Speicherung erfolgt als flaches Array mit der Formel `index = y * width + x`.
+
+MapData fungiert als abstrakter Bauplan – es beschreibt nur was wo ist,
+nicht wie es aussieht. Das Asset wird im Project-Fenster erstellt über:
+Rechtsklick → Create → Map → MapData
+
+---
+
+## Map-Generator
+
+### MapGenerator.cs
+MonoBehaviour-Komponente die am GameObject `MapController` in der Szene hängt.
+Sie liest das MapData-Modell aus und instanziiert für jede Zelle das passende Prefab.
+
+**Inspector-Felder:**
+- `Map Data` – Referenz auf das MapData Asset
+- `Floor Prefab` – Prefab für Bodenfelder
+- `Wall Prefab` – Prefab für Wände
+- `Obstacle Prefabs` – Array mit allen Obstacle-Varianten
+- `Goal Prefab` – Prefab für das Zielobjekt
+- `Spawn Point Prefab` – Prefab für den Spawnpunkt
+- `Cell Size` – Abstand zwischen den Zellen in Unity-Einheiten (Standard: 1)
+
+**Ablauf bei GenerateMap():**
+1. MapData wird auf Vollständigkeit geprüft
+2. Bestehende Map-Objekte werden gelöscht (`ClearMap()`)
+3. Jede Zelle wird durchlaufen
+4. Für den jeweiligen CellType wird das passende Prefab ermittelt
+5. Das Prefab wird an der berechneten Weltposition instanziiert
+6. Alle instanziierten Objekte werden unter `MapRoot` eingeordnet
+7. Alle instanziierten Objekte werden in `spawnedObjects` gespeichert
+
+**Positionsberechnung:**
+```
+x-Position = x * cellSize
+z-Position = y * cellSize
+y-Position = 0 (Bodenebene)
+```
+
+**Obstacle-Logik:**
+Für Obstacles gibt es kein einzelnes Prefab sondern ein Array (`obstaclePrefabs`).
+Bei jeder Obstacle-Zelle wird zufällig eines der eingetragenen Prefabs gewählt.
+So entsteht Variation ohne zusätzliche CellTypes.
+
+**ClearMap():**
+Zerstört alle in `spawnedObjects` gespeicherten Objekte und leert die Liste.
+Damit ist das System vorbereitet für spätere Map-Resets.
+
+---
+
+## Prefabs
+
+Alle Prefabs liegen unter `Prefabs/Map/`, Obstacles unter `Prefabs/Map/Obstacles/`.
+Jedes Prefab besteht aus einem 3D Primitive mit Box Collider.
+
+| Prefab | Beschreibung |
+|---|---|
+| Floor | Flacher Cube, Scale (1, 0.1, 1) |
+| Wall | Hoher Cube, Scale (1, 2, 1) |
+| Obstacle_Placeholder | Generischer Cube als Platzhalter, wird später ausgebaut |
+| Goal | Sphere oder markierter Cube |
+| SpawnPoint | Flacher Marker-Cube |
+
+Obstacle-Prefabs sind bewusst als Platzhalter belassen worden
+und müssen in einem späteren Schritt visuell ausgestaltet werden.
+
+---
+
+## Szenen-Aufbau
+
+In der Trainingsszene (`Scenes/Training/`) gibt es ein GameObject `MapController`.
+Daran hängt die `MapGenerator` Komponente mit allen befüllten Inspector-Feldern.
+Der Generator erstellt beim Start automatisch ein Kind-GameObject `MapRoot`,
+unter dem alle instanziierten Map-Objekte eingeordnet werden.
+
+---
+
+## Aktueller Stand
+
+Das System ist vollständig aufgesetzt. Das MapData Asset (`MapData_Training`) existiert,
+ist aber noch leer – es enthält noch keine Zelltypen.
