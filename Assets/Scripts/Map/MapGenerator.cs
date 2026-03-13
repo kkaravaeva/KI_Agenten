@@ -4,8 +4,8 @@ using UnityEngine;
 public class MapGenerator : MonoBehaviour
 {
     [Header("Map Data")]
-    public MapData mapData;
-
+    public MapData[] availableMaps;
+    private MapData currentMapData;
     [Header("Prefabs")]
     public GameObject floorPrefab;
     public GameObject wallPrefab;
@@ -27,28 +27,30 @@ public class MapGenerator : MonoBehaviour
 
     void Start()
     {
+        SelectMapLayout();
         GenerateMap();
     }
 
     public void GenerateMap()
     {
-        if (mapData == null)
+        if (currentMapData == null)
         {
-            Debug.LogError("MapGenerator: Kein MapData zugewiesen!");
+            Debug.LogError("MapGenerator: Kein aktuelles Map-Layout ausgewählt!");
             return;
         }
-        if (mapData.cells == null || mapData.cells.Length != mapData.width * mapData.height)
+
+        if (currentMapData.cells == null || currentMapData.cells.Length != currentMapData.width * currentMapData.height)
         {
-            mapData.Init();
+            currentMapData.Init();
         }
 
         ClearMap();
 
-        for (int y = 0; y < mapData.height; y++)
+        for (int y = 0; y < currentMapData.height; y++)
         {
-            for (int x = 0; x < mapData.width; x++)
+            for (int x = 0; x < currentMapData.width; x++)
             {
-                CellType cellType = mapData.GetCell(x, y);
+                CellType cellType = currentMapData.GetCell(x, y);
                 GameObject prefab = GetPrefabForCell(cellType);
 
                 if (prefab == null) continue;
@@ -99,13 +101,23 @@ public class MapGenerator : MonoBehaviour
             default: return null;
         }
     }
+  
     public Vector3 GetSpawnPosition()
     {
-        for (int y = 0; y < mapData.height; y++)
+        if (currentMapData == null)
         {
-            for (int x = 0; x < mapData.width; x++)
+            Debug.LogWarning("Kein aktuelles Map-Layout ausgewählt!");
+            return Vector3.zero;
+        }
+        if (currentMapData.cells == null || currentMapData.cells.Length != currentMapData.width * currentMapData.height)
+        {
+            currentMapData.Init();
+        }
+        for (int y = 0; y < currentMapData.height; y++)
+        {
+            for (int x = 0; x < currentMapData.width; x++)
             {
-                if (mapData.GetCell(x, y) == CellType.SpawnPoint)
+                if (currentMapData.GetCell(x, y) == CellType.SpawnPoint)
                 {
                     return new Vector3(x * cellSize, 0f, y * cellSize);
                 }
@@ -114,5 +126,23 @@ public class MapGenerator : MonoBehaviour
 
         Debug.LogWarning("Kein SpawnPoint definiert!");
         return Vector3.zero;
+    }
+    private void SelectMapLayout()
+    {
+        if (availableMaps == null || availableMaps.Length == 0)
+        {
+            Debug.LogError("MapGenerator: Keine Map-Layouts im Inspector zugewiesen!");
+            currentMapData = null;
+            return;
+        }
+
+        if (availableMaps[0] == null)
+        {
+            Debug.LogError("MapGenerator: Das erste Map-Layout ist null!");
+            currentMapData = null;
+            return;
+        }
+
+        currentMapData = availableMaps[0];
     }
 }
