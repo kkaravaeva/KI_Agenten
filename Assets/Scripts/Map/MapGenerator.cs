@@ -70,7 +70,21 @@ public class MapGenerator : MonoBehaviour
         }
         spawnedObjects.Clear();
     }
+    public void ResetMap()
+    {
+        ClearMap();
+        GenerateMap();
+    }
 
+    //Diese Methode dient nur zum manuellen Testen des Resets per Tastendruck
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            ResetMap();
+            Debug.Log("ResetMap wird aufgerufen");
+        }
+    }
     private GameObject GetPrefabForCell(CellType type)
     {
         switch (type)
