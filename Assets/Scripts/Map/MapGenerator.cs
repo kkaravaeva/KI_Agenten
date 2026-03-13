@@ -37,6 +37,10 @@ public class MapGenerator : MonoBehaviour
             Debug.LogError("MapGenerator: Kein MapData zugewiesen!");
             return;
         }
+        if (mapData.cells == null || mapData.cells.Length != mapData.width * mapData.height)
+        {
+            mapData.Init();
+        }
 
         ClearMap();
 
