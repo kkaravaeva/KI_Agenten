@@ -99,4 +99,20 @@ public class MapGenerator : MonoBehaviour
             default: return null;
         }
     }
+    public Vector3 GetSpawnPosition()
+    {
+        for (int y = 0; y < mapData.height; y++)
+        {
+            for (int x = 0; x < mapData.width; x++)
+            {
+                if (mapData.GetCell(x, y) == CellType.SpawnPoint)
+                {
+                    return new Vector3(x * cellSize, 0f, y * cellSize);
+                }
+            }
+        }
+
+        Debug.LogWarning("Kein SpawnPoint definiert!");
+        return Vector3.zero;
+    }
 }
