@@ -3,8 +3,11 @@ using UnityEngine;
 
 public class MapGenerator : MonoBehaviour
 {
-    [Header("Map Data")]
-    public MapData mapData;
+    [Header("Map Layouts")]
+    public MapData[] mapLayouts;
+
+    [Header("Preview Selection")]
+    public int selectedLayoutIndex = 0;
 
     [Header("Prefabs")]
     public GameObject floorPrefab;
@@ -21,23 +24,59 @@ public class MapGenerator : MonoBehaviour
 
     void Awake()
     {
-        mapRoot = new GameObject("MapRoot").transform;
-        mapRoot.SetParent(this.transform);
+        if (mapRoot == null)
+        {
+            Transform existing = transform.Find("MapRoot");
+            if (existing != null)
+            {
+                mapRoot = existing;
+            }
+            else
+            {
+                mapRoot = new GameObject("MapRoot").transform;
+                mapRoot.SetParent(this.transform);
+            }
+        }
     }
 
     void Start()
     {
-        GenerateMap();
+        GenerateSelectedMap();
     }
 
-    public void GenerateMap()
+    public void GenerateSelectedMap()
     {
-        if (mapData == null)
+        if (mapLayouts == null || mapLayouts.Length == 0)
         {
-            Debug.LogError("MapGenerator: Kein MapData zugewiesen!");
+            Debug.LogError("MapGenerator: Keine Map-Layouts zugewiesen!");
             return;
         }
 
+        if (selectedLayoutIndex < 0 || selectedLayoutIndex >= mapLayouts.Length)
+        {
+            Debug.LogError("MapGenerator: selectedLayoutIndex ist außerhalb des gültigen Bereichs!");
+            return;
+        }
+
+        MapData selectedMap = mapLayouts[selectedLayoutIndex];
+
+        if (selectedMap == null)
+        {
+            Debug.LogError("MapGenerator: Ausgewähltes Layout ist null!");
+            return;
+        }
+
+        if (selectedMap.cells == null || selectedMap.cells.Length != selectedMap.width * selectedMap.height)
+        {
+            Debug.LogError($"MapGenerator: Layout '{selectedMap.name}' hat keine gültigen cells!");
+            return;
+        }
+
+        GenerateMap(selectedMap);
+    }
+
+    public void GenerateMap(MapData mapData)
+    {
         ClearMap();
 
         for (int y = 0; y < mapData.height; y++)
@@ -62,23 +101,48 @@ public class MapGenerator : MonoBehaviour
         foreach (var obj in spawnedObjects)
         {
             if (obj != null)
-                Destroy(obj);
+                DestroyImmediate(obj);
         }
+
         spawnedObjects.Clear();
+    }
+
+    public void NextLayout()
+    {
+        if (mapLayouts == null || mapLayouts.Length == 0) return;
+
+        selectedLayoutIndex = (selectedLayoutIndex + 1) % mapLayouts.Length;
+        GenerateSelectedMap();
+    }
+
+    public void PreviousLayout()
+    {
+        if (mapLayouts == null || mapLayouts.Length == 0) return;
+
+        selectedLayoutIndex--;
+        if (selectedLayoutIndex < 0)
+            selectedLayoutIndex = mapLayouts.Length - 1;
+
+        GenerateSelectedMap();
     }
 
     private GameObject GetPrefabForCell(CellType type)
     {
         switch (type)
         {
-            case CellType.Floor: return floorPrefab;
-            case CellType.Wall: return wallPrefab;
+            case CellType.Floor:
+                return floorPrefab;
+            case CellType.Wall:
+                return wallPrefab;
             case CellType.Obstacle:
                 if (obstaclePrefabs == null || obstaclePrefabs.Length == 0) return null;
-                return obstaclePrefabs[Random.Range(0, obstaclePrefabs.Length)];
-            case CellType.Goal: return goalPrefab;
-            case CellType.SpawnPoint: return spawnPointPrefab;
-            default: return null;
+                return obstaclePrefabs[0];
+            case CellType.Goal:
+                return goalPrefab;
+            case CellType.SpawnPoint:
+                return spawnPointPrefab;
+            default:
+                return null;
         }
     }
 }
