@@ -12,10 +12,16 @@ public class MapData : ScriptableObject
         cells = new CellType[width * height];
     }
 
-    public CellType GetCell(int x, int y)
+   public CellType GetCell(int x, int y)
+{
+    if (cells == null || cells.Length != width * height)
     {
-        return cells[y * width + x];
+        Debug.LogError($"MapData ist nicht korrekt initialisiert. Erwartet: {width * height}, Tatsächlich: {(cells == null ? 0 : cells.Length)}");
+        return CellType.Empty;
     }
+
+    return cells[y * width + x];
+}
 
     public void SetCell(int x, int y, CellType type)
     {
