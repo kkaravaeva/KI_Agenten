@@ -1,6 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.SceneManagement;
+#endif
+
+[ExecuteAlways]
 public class MapGenerator : MonoBehaviour
 {
     [Header("Map Layouts")]
@@ -19,29 +25,68 @@ public class MapGenerator : MonoBehaviour
     [Header("Settings")]
     public float cellSize = 1f;
 
-    private Transform mapRoot;
-    private List<GameObject> spawnedObjects = new List<GameObject>();
+    [Header("Editor Preview")]
+    public bool previewInEditMode = true;
+    public bool ignoreDynamicElements = true;
 
-    void Awake()
+    private Transform mapRoot;
+    private readonly List<GameObject> spawnedObjects = new List<GameObject>();
+
+    private void Awake()
     {
-        if (mapRoot == null)
-        {
-            Transform existing = transform.Find("MapRoot");
-            if (existing != null)
-            {
-                mapRoot = existing;
-            }
-            else
-            {
-                mapRoot = new GameObject("MapRoot").transform;
-                mapRoot.SetParent(this.transform);
-            }
-        }
+        EnsureMapRoot();
     }
 
-    void Start()
+    private void OnEnable()
     {
-        GenerateSelectedMap();
+        EnsureMapRoot();
+
+    }
+
+    #if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (selectedLayoutIndex < 0)
+            selectedLayoutIndex = 0;
+
+        if (cellSize < 0.01f)
+            cellSize = 0.01f;
+    }
+    #endif
+
+    private void EnsureMapRoot()
+    {
+        if (mapRoot != null) return;
+
+        Transform existing = transform.Find("MapRoot");
+        if (existing != null)
+        {
+            mapRoot = existing;
+            CacheExistingChildren();
+            return;
+        }
+
+        GameObject root = new GameObject("MapRoot");
+        root.transform.SetParent(transform);
+        root.transform.localPosition = Vector3.zero;
+        root.transform.localRotation = Quaternion.identity;
+        root.transform.localScale = Vector3.one;
+        mapRoot = root.transform;
+    }
+
+    private void CacheExistingChildren()
+    {
+        spawnedObjects.Clear();
+
+        if (mapRoot == null) return;
+
+        foreach (Transform child in mapRoot)
+        {
+            if (child != null)
+            {
+                spawnedObjects.Add(child.gameObject);
+            }
+        }
     }
 
     public void GenerateSelectedMap()
@@ -72,11 +117,26 @@ public class MapGenerator : MonoBehaviour
             return;
         }
 
+        MapData runtimeMap = selectedMap;
+
+        if (Application.isPlaying)
+        {
+            runtimeMap = Instantiate(selectedMap);
+        }
+
         GenerateMap(selectedMap);
     }
 
     public void GenerateMap(MapData mapData)
     {
+        EnsureMapRoot();
+
+        if (mapData == null)
+        {
+            Debug.LogError("MapGenerator: mapData ist null!");
+            return;
+        }
+
         ClearMap();
 
         for (int y = 0; y < mapData.height; y++)
@@ -88,23 +148,73 @@ public class MapGenerator : MonoBehaviour
 
                 if (prefab == null) continue;
 
-                Vector3 position = new Vector3(x * cellSize, 0, y * cellSize);
-                GameObject instance = Instantiate(prefab, position, Quaternion.identity, mapRoot);
+                Vector3 position = new Vector3(x * cellSize, 0f, y * cellSize);
+                GameObject instance;
+
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                {
+                    instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, mapRoot);
+                    if (instance == null)
+                    {
+                        instance = Instantiate(prefab, mapRoot);
+                    }
+                }
+                else
+                {
+                    instance = Instantiate(prefab, mapRoot);
+                }
+#else
+                instance = Instantiate(prefab, mapRoot);
+#endif
+
+                instance.transform.localPosition = position;
+                instance.transform.localRotation = Quaternion.identity;
                 instance.name = $"{cellType}_{x}_{y}";
                 spawnedObjects.Add(instance);
             }
         }
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+#endif
     }
 
     public void ClearMap()
     {
-        foreach (var obj in spawnedObjects)
+        EnsureMapRoot();
+        CacheExistingChildren();
+
+        for (int i = spawnedObjects.Count - 1; i >= 0; i--)
         {
-            if (obj != null)
+            GameObject obj = spawnedObjects[i];
+            if (obj == null) continue;
+
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
                 DestroyImmediate(obj);
+            }
+            else
+            {
+                Destroy(obj);
+            }
+#else
+            Destroy(obj);
+#endif
         }
 
         spawnedObjects.Clear();
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+#endif
     }
 
     public void NextLayout()
@@ -132,15 +242,30 @@ public class MapGenerator : MonoBehaviour
         {
             case CellType.Floor:
                 return floorPrefab;
+
             case CellType.Wall:
                 return wallPrefab;
+
+            case CellType.Obstacle:
+            case CellType.Goal:
+            case CellType.SpawnPoint:
+                if (ignoreDynamicElements)
+                    return null;
+                break;
+        }
+
+        switch (type)
+        {
             case CellType.Obstacle:
                 if (obstaclePrefabs == null || obstaclePrefabs.Length == 0) return null;
                 return obstaclePrefabs[0];
+
             case CellType.Goal:
                 return goalPrefab;
+
             case CellType.SpawnPoint:
                 return spawnPointPrefab;
+
             default:
                 return null;
         }
