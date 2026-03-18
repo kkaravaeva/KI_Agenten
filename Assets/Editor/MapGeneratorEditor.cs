@@ -17,6 +17,11 @@ public class MapGeneratorEditor : Editor
             generator.GenerateSelectedMap();
         }
 
+        if (GUILayout.Button("Generate Runtime Layout / Reset"))
+        {
+            generator.ResetMap();
+        }
+
         if (GUILayout.Button("Previous Layout"))
         {
             generator.PreviousLayout();

@@ -57,32 +57,27 @@ public class MapGenerator : MonoBehaviour
 
     private void EnsureMapRoot()
     {
-        if (mapRoot != null) return;
+        if (mapRoot != null)
+            return;
 
         Transform existing = transform.Find("MapRoot");
         if (existing != null)
         {
             mapRoot = existing;
+            return;
         }
-        else
-        {
-            GameObject root = new GameObject("MapRoot");
-            mapRoot = root.transform;
-            mapRoot.SetParent(transform);
-            mapRoot.localPosition = Vector3.zero;
-            mapRoot.localRotation = Quaternion.identity;
-            mapRoot.localScale = Vector3.one;
-        }
+
+        GameObject root = new GameObject("MapRoot");
+        mapRoot = root.transform;
+        mapRoot.SetParent(transform);
+        mapRoot.localPosition = Vector3.zero;
+        mapRoot.localRotation = Quaternion.identity;
+        mapRoot.localScale = Vector3.one;
     }
 
     public void GenerateRuntimeMap()
     {
-        SelectMapLayout();
-
-        if (currentMapData == null)
-            return;
-
-        GenerateMap(currentMapData);
+        ResetMap();
     }
 
     public void GenerateSelectedMap()
@@ -94,6 +89,23 @@ public class MapGenerator : MonoBehaviour
         currentMapData = selectedMap;
 
         GenerateMap(currentMapData);
+    }
+
+    public void ResetMap()
+    {
+        EnsureMapRoot();
+
+        // 1) Entfernen aller bestehenden Map-Objekte unter dem MapRoot
+        ClearMap();
+
+        // 2) Auswahl eines Layouts aus der Layout-Sammlung
+        SelectMapLayout();
+
+        if (currentMapData == null)
+            return;
+
+        // 3) Generierung der Map auf Basis dieses Layouts
+        BuildMap(currentMapData);
     }
 
     private void SelectMapLayout()
@@ -206,7 +218,11 @@ public class MapGenerator : MonoBehaviour
         ClearMap();
 
         currentMapData = mapData;
+        BuildMap(mapData);
+    }
 
+    private void BuildMap(MapData mapData)
+    {
         for (int y = 0; y < mapData.height; y++)
         {
             for (int x = 0; x < mapData.width; x++)
@@ -242,11 +258,6 @@ public class MapGenerator : MonoBehaviour
         }
 
         spawnedObjects.Clear();
-    }
-
-    public void ResetMap()
-    {
-        GenerateRuntimeMap();
     }
 
     public void NextLayout()
