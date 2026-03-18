@@ -77,7 +77,20 @@ public class LabyrinthAgent : Agent
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        // Wird spaeter implementiert: Manuelle Steuerung zum Testen
+        var discreteActions = actionsOut.DiscreteActions;
+
+        // Branch 0: Bewegung (Default = 0 = Idle)
+        discreteActions[0] = 0;
+
+        if (Input.GetKey(KeyCode.W)) discreteActions[0] = 1; // Vorwaerts
+        else if (Input.GetKey(KeyCode.S)) discreteActions[0] = 2; // Rueckwaerts
+        else if (Input.GetKey(KeyCode.A)) discreteActions[0] = 3; // Links
+        else if (Input.GetKey(KeyCode.D)) discreteActions[0] = 4; // Rechts
+
+        // Branch 1: Sprung (Default = 0 = Kein Sprung)
+        discreteActions[1] = 0;
+
+        if (Input.GetKey(KeyCode.Space)) discreteActions[1] = 1; // Springen
     }
 
     private void FixedUpdate()
@@ -87,19 +100,16 @@ public class LabyrinthAgent : Agent
 
     private void GroundCheck()
     {
-        // Raycast vom Collider-Zentrum nach unten
-        // CapsuleCollider Center ist bei Y=0.5, also Raycast-Startpunkt = transform.position + Y=0.5
         Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
-        float rayLength = 0.5f + groundCheckDistance;
+        float rayLength = 1.0f + groundCheckDistance;
 
         isGrounded = Physics.Raycast(rayOrigin, Vector3.down, rayLength, groundLayer);
     }
 
-    // Debug-Visualisierung des Ground-Check-Rays im Scene View
     private void OnDrawGizmosSelected()
     {
         Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
-        float rayLength = 0.5f + groundCheckDistance;
+        float rayLength = 1.0f + groundCheckDistance;
 
         Gizmos.color = isGrounded ? Color.green : Color.red;
         Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * rayLength);
