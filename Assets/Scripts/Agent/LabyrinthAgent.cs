@@ -7,7 +7,13 @@ public class LabyrinthAgent : Agent
 {
     [Header("Bewegung")]
     public float moveSpeed = 3f;
-    public float jumpForce = 5f;
+
+    [Header("Sprung")]
+    public float jumpForce = 4.5f;
+
+    [Header("Ground Check")]
+    public float groundCheckDistance = 0.15f;
+    public LayerMask groundLayer;
 
     private Rigidbody rb;
     private bool isGrounded;
@@ -29,31 +35,43 @@ public class LabyrinthAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        int action = actions.DiscreteActions[0];
+        // Branch 0: Bewegung (0=Idle, 1=Vorwaerts, 2=Rueckwaerts, 3=Links, 4=Rechts)
+        int moveAction = actions.DiscreteActions[0];
 
-        switch (action)
+        // Branch 1: Sprung (0=Kein Sprung, 1=Springen)
+        int jumpAction = actions.DiscreteActions[1];
+
+        // Bewegung ausfuehren
+        Vector3 direction = Vector3.zero;
+
+        switch (moveAction)
         {
-            case 0: // Idle – keine Bewegung
+            case 0: // Idle
                 break;
             case 1: // Vorwaerts (+Z)
-                rb.MovePosition(transform.position + Vector3.forward * moveSpeed * Time.fixedDeltaTime);
+                direction = Vector3.forward;
                 break;
             case 2: // Rueckwaerts (-Z)
-                rb.MovePosition(transform.position + Vector3.back * moveSpeed * Time.fixedDeltaTime);
+                direction = Vector3.back;
                 break;
             case 3: // Links (-X)
-                rb.MovePosition(transform.position + Vector3.left * moveSpeed * Time.fixedDeltaTime);
+                direction = Vector3.left;
                 break;
             case 4: // Rechts (+X)
-                rb.MovePosition(transform.position + Vector3.right * moveSpeed * Time.fixedDeltaTime);
+                direction = Vector3.right;
                 break;
-            case 5: // Springen
-                if (isGrounded)
-                {
-                    rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-                    isGrounded = false;
-                }
-                break;
+        }
+
+        if (direction != Vector3.zero)
+        {
+            rb.MovePosition(transform.position + direction * moveSpeed * Time.fixedDeltaTime);
+        }
+
+        // Sprung ausfuehren
+        if (jumpAction == 1 && isGrounded)
+        {
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+            isGrounded = false;
         }
     }
 
@@ -62,12 +80,28 @@ public class LabyrinthAgent : Agent
         // Wird spaeter implementiert: Manuelle Steuerung zum Testen
     }
 
-    private void OnCollisionEnter(Collision collision)
+    private void FixedUpdate()
     {
-        // Pruefen ob Agent den Boden beruehrt
-        if (collision.gameObject.CompareTag("Floor") || collision.gameObject.CompareTag("Untagged"))
-        {
-            isGrounded = true;
-        }
+        GroundCheck();
+    }
+
+    private void GroundCheck()
+    {
+        // Raycast vom Collider-Zentrum nach unten
+        // CapsuleCollider Center ist bei Y=0.5, also Raycast-Startpunkt = transform.position + Y=0.5
+        Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
+        float rayLength = 0.5f + groundCheckDistance;
+
+        isGrounded = Physics.Raycast(rayOrigin, Vector3.down, rayLength, groundLayer);
+    }
+
+    // Debug-Visualisierung des Ground-Check-Rays im Scene View
+    private void OnDrawGizmosSelected()
+    {
+        Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
+        float rayLength = 0.5f + groundCheckDistance;
+
+        Gizmos.color = isGrounded ? Color.green : Color.red;
+        Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * rayLength);
     }
 }
