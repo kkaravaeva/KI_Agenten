@@ -97,6 +97,7 @@ GameObject:
   - component: {fileID: 2005369938280201365}
   - component: {fileID: 1796869691452497927}
   - component: {fileID: 7923783401106350268}
+  - component: {fileID: 2890537491626014832}
   m_Layer: 0
   m_Name: Agent
   m_TagString: Untagged
@@ -210,3 +211,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   DecisionPeriod: 5
   TakeActionsBetweenDecisions: 1
+--- !u!114 &2890537491626014832
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5707536180783015882}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 717bc6a72bed34449bbfaa45cf6d46e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  agentParameters:
+    maxStep: 0
+  hasUpgradedFromAgentParameters: 1
+  MaxStep: 0

@@ -54,7 +54,7 @@ public class MapGenerator : MonoBehaviour
 
         if (selectedLayoutIndex < 0 || selectedLayoutIndex >= mapLayouts.Length)
         {
-            Debug.LogError("MapGenerator: selectedLayoutIndex ist au�erhalb des g�ltigen Bereichs!");
+            Debug.LogError("MapGenerator: selectedLayoutIndex ist ausserhalb des gueltigen Bereichs!");
             return;
         }
 
@@ -62,13 +62,13 @@ public class MapGenerator : MonoBehaviour
 
         if (selectedMap == null)
         {
-            Debug.LogError("MapGenerator: Ausgew�hltes Layout ist null!");
+            Debug.LogError("MapGenerator: Ausgewaehltes Layout ist null!");
             return;
         }
 
         if (selectedMap.cells == null || selectedMap.cells.Length != selectedMap.width * selectedMap.height)
         {
-            Debug.LogError($"MapGenerator: Layout '{selectedMap.name}' hat keine g�ltigen cells!");
+            Debug.LogError($"MapGenerator: Layout '{selectedMap.name}' hat keine gueltigen cells!");
             return;
         }
 
@@ -79,11 +79,11 @@ public class MapGenerator : MonoBehaviour
     {
         ClearMap();
 
-        for (int y = 0; y < currentMapData.height; y++)
+        for (int y = 0; y < mapData.height; y++)
         {
-            for (int x = 0; x < currentMapData.width; x++)
+            for (int x = 0; x < mapData.width; x++)
             {
-                CellType cellType = currentMapData.GetCell(x, y);
+                CellType cellType = mapData.GetCell(x, y);
                 GameObject prefab = GetPrefabForCell(cellType);
 
                 if (prefab == null) continue;
@@ -106,10 +106,11 @@ public class MapGenerator : MonoBehaviour
 
         spawnedObjects.Clear();
     }
+
     public void ResetMap()
     {
         ClearMap();
-        GenerateMap();
+        GenerateSelectedMap();
     }
 
     public void NextLayout()
@@ -150,23 +151,33 @@ public class MapGenerator : MonoBehaviour
                 return null;
         }
     }
-  
+
     public Vector3 GetSpawnPosition()
     {
-        if (currentMapData == null)
+        if (mapLayouts == null || selectedLayoutIndex < 0 || selectedLayoutIndex >= mapLayouts.Length)
         {
-            Debug.LogWarning("Kein aktuelles Map-Layout ausgewählt!");
+            Debug.LogWarning("Kein aktuelles Map-Layout ausgewaehlt!");
             return Vector3.zero;
         }
-        if (currentMapData.cells == null || currentMapData.cells.Length != currentMapData.width * currentMapData.height)
+
+        MapData selectedMap = mapLayouts[selectedLayoutIndex];
+
+        if (selectedMap == null)
         {
-            currentMapData.Init();
+            Debug.LogWarning("Kein aktuelles Map-Layout ausgewaehlt!");
+            return Vector3.zero;
         }
-        for (int y = 0; y < currentMapData.height; y++)
+
+        if (selectedMap.cells == null || selectedMap.cells.Length != selectedMap.width * selectedMap.height)
         {
-            for (int x = 0; x < currentMapData.width; x++)
+            selectedMap.Init();
+        }
+
+        for (int y = 0; y < selectedMap.height; y++)
+        {
+            for (int x = 0; x < selectedMap.width; x++)
             {
-                if (currentMapData.GetCell(x, y) == CellType.SpawnPoint)
+                if (selectedMap.GetCell(x, y) == CellType.SpawnPoint)
                 {
                     return new Vector3(x * cellSize, 0f, y * cellSize);
                 }
@@ -175,23 +186,5 @@ public class MapGenerator : MonoBehaviour
 
         Debug.LogWarning("Kein SpawnPoint definiert!");
         return Vector3.zero;
-    }
-    private void SelectMapLayout()
-    {
-        if (availableMaps == null || availableMaps.Length == 0)
-        {
-            Debug.LogError("MapGenerator: Keine Map-Layouts im Inspector zugewiesen!");
-            currentMapData = null;
-            return;
-        }
-
-        if (availableMaps[0] == null)
-        {
-            Debug.LogError("MapGenerator: Das erste Map-Layout ist null!");
-            currentMapData = null;
-            return;
-        }
-
-        currentMapData = availableMaps[0];
     }
 }
