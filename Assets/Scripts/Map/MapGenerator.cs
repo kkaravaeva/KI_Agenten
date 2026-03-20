@@ -48,6 +48,9 @@ public class MapGenerator : MonoBehaviour
     private Vector2Int currentSpawnCell = new Vector2Int(-1, -1);
     private Vector3 currentSpawnWorldPosition = Vector3.zero;
 
+    private Vector2Int currentGoalCell = new Vector2Int(-1, -1);
+    private Vector3 currentGoalWorldPosition = Vector3.zero;
+
     private void Awake()
     {
         EnsureMapRoot();
@@ -216,6 +219,12 @@ public class MapGenerator : MonoBehaviour
             ? new Vector3(spawnCell.x * cellSize, 0f, spawnCell.y * cellSize)
             : Vector3.zero;
 
+        Vector2Int goalCell = SelectRandomGoalCell(mapData, currentSpawnCell);
+        currentGoalCell = goalCell;
+        currentGoalWorldPosition = goalCell.x >= 0 && goalCell.y >= 0
+            ? new Vector3(goalCell.x * cellSize, 0f, goalCell.y * cellSize)
+            : Vector3.zero;
+
         for (int y = 0; y < mapData.height; y++)
         {
             for (int x = 0; x < mapData.width; x++)
@@ -237,6 +246,14 @@ public class MapGenerator : MonoBehaviour
                     GameObject spawnInstance = Instantiate(spawnPointPrefab, spawnPosition, Quaternion.identity, mapRoot);
                     spawnInstance.name = $"RuntimeSpawnPoint_{x}_{y}";
                     spawnedObjects.Add(spawnInstance);
+                }
+
+                if (goalPrefab != null && x == currentGoalCell.x && y == currentGoalCell.y)
+                {
+                    Vector3 goalPosition = new Vector3(x * cellSize, 0f, y * cellSize);
+                    GameObject goalInstance = Instantiate(goalPrefab, goalPosition, Quaternion.identity, mapRoot);
+                    goalInstance.name = $"RuntimeGoal_{x}_{y}";
+                    spawnedObjects.Add(goalInstance);
                 }
             }
         }
@@ -261,6 +278,8 @@ public class MapGenerator : MonoBehaviour
         spawnedObjects.Clear();
         currentSpawnCell = new Vector2Int(-1, -1);
         currentSpawnWorldPosition = Vector3.zero;
+        currentGoalCell = new Vector2Int(-1, -1);
+        currentGoalWorldPosition = Vector3.zero;
     }
 
     public void ResetMap()
@@ -306,7 +325,9 @@ public class MapGenerator : MonoBehaviour
                 return obstaclePrefabs[0];
 
             case CellType.Goal:
-                return goalPrefab;
+                // Zielobjekte werden zur Laufzeit zufällig auf einer Floor-Zelle erzeugt.
+                // Bereits im Layout gespeicherte Goal-Zellen werden deshalb wie Floor behandelt.
+                return floorPrefab;
 
             case CellType.SpawnPoint:
                 // Spawnpunkte werden zur Laufzeit zufällig auf einer Floor-Zelle erzeugt.
@@ -331,7 +352,7 @@ public class MapGenerator : MonoBehaviour
             {
                 CellType cellType = mapData.GetCell(x, y);
 
-                if (cellType == CellType.Floor || cellType == CellType.SpawnPoint)
+                if (cellType == CellType.Floor || cellType == CellType.SpawnPoint || cellType == CellType.Goal)
                 {
                     validSpawnCells.Add(new Vector2Int(x, y));
                 }
@@ -345,6 +366,46 @@ public class MapGenerator : MonoBehaviour
         }
 
         return validSpawnCells[Random.Range(0, validSpawnCells.Count)];
+    }
+
+    private Vector2Int SelectRandomGoalCell(MapData mapData, Vector2Int spawnCell)
+    {
+        if (mapData == null || mapData.cells == null || mapData.cells.Length != mapData.width * mapData.height)
+            return new Vector2Int(-1, -1);
+
+        List<Vector2Int> validGoalCells = new List<Vector2Int>();
+        List<Vector2Int> fallbackGoalCells = new List<Vector2Int>();
+
+        for (int y = 0; y < mapData.height; y++)
+        {
+            for (int x = 0; x < mapData.width; x++)
+            {
+                CellType cellType = mapData.GetCell(x, y);
+
+                if (cellType == CellType.Floor || cellType == CellType.Goal || cellType == CellType.SpawnPoint)
+                {
+                    Vector2Int candidate = new Vector2Int(x, y);
+                    fallbackGoalCells.Add(candidate);
+
+                    if (candidate != spawnCell)
+                    {
+                        validGoalCells.Add(candidate);
+                    }
+                }
+            }
+        }
+
+        if (validGoalCells.Count > 0)
+            return validGoalCells[Random.Range(0, validGoalCells.Count)];
+
+        if (fallbackGoalCells.Count > 0)
+        {
+            Debug.LogWarning($"MapGenerator: Layout '{mapData.name}' enthält nur eine gültige Ziel-Zelle. Spawn und Ziel können identisch sein.");
+            return fallbackGoalCells[Random.Range(0, fallbackGoalCells.Count)];
+        }
+
+        Debug.LogWarning($"MapGenerator: Layout '{mapData.name}' enthält keine gültige Floor-Zelle für das Zielobjekt.");
+        return new Vector2Int(-1, -1);
     }
 
     public Vector3 GetSpawnPosition()
@@ -368,6 +429,30 @@ public class MapGenerator : MonoBehaviour
         }
 
         Debug.LogWarning("MapGenerator: Keine gültige Spawn-Position gefunden!");
+        return Vector3.zero;
+    }
+
+    public Vector3 GetGoalPosition()
+    {
+        if (currentGoalCell.x >= 0 && currentGoalCell.y >= 0)
+            return currentGoalWorldPosition;
+
+        if (currentMapData == null)
+        {
+            Debug.LogWarning("MapGenerator: Kein aktuelles Map-Layout ausgewählt!");
+            return Vector3.zero;
+        }
+
+        Vector2Int fallbackGoalCell = SelectRandomGoalCell(currentMapData, currentSpawnCell);
+
+        if (fallbackGoalCell.x >= 0 && fallbackGoalCell.y >= 0)
+        {
+            currentGoalCell = fallbackGoalCell;
+            currentGoalWorldPosition = new Vector3(fallbackGoalCell.x * cellSize, 0f, fallbackGoalCell.y * cellSize);
+            return currentGoalWorldPosition;
+        }
+
+        Debug.LogWarning("MapGenerator: Keine gültige Ziel-Position gefunden!");
         return Vector3.zero;
     }
 
