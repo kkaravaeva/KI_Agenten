@@ -28,6 +28,10 @@ public class MapGenerator : MonoBehaviour
     public GameObject goalPrefab;
     public GameObject spawnPointPrefab;
 
+    [Header("Runtime Obstacles")]
+    [Min(0)] public int runtimeObstacleCount = 3;
+    public bool randomizeObstaclePrefab = true;
+
     [Header("Map Settings")]
     public float cellSize = 1f;
 
@@ -50,6 +54,8 @@ public class MapGenerator : MonoBehaviour
 
     private Vector2Int currentGoalCell = new Vector2Int(-1, -1);
     private Vector3 currentGoalWorldPosition = Vector3.zero;
+
+    private readonly List<Vector2Int> currentRuntimeObstacleCells = new List<Vector2Int>();
 
     private void Awake()
     {
@@ -216,14 +222,17 @@ public class MapGenerator : MonoBehaviour
         Vector2Int spawnCell = SelectRandomSpawnCell(mapData);
         currentSpawnCell = spawnCell;
         currentSpawnWorldPosition = spawnCell.x >= 0 && spawnCell.y >= 0
-            ? new Vector3(spawnCell.x * cellSize, 0f, spawnCell.y * cellSize)
+            ? CellToWorld(spawnCell)
             : Vector3.zero;
 
         Vector2Int goalCell = SelectRandomGoalCell(mapData, currentSpawnCell);
         currentGoalCell = goalCell;
         currentGoalWorldPosition = goalCell.x >= 0 && goalCell.y >= 0
-            ? new Vector3(goalCell.x * cellSize, 0f, goalCell.y * cellSize)
+            ? CellToWorld(goalCell)
             : Vector3.zero;
+
+        currentRuntimeObstacleCells.Clear();
+        PlaceRuntimeObstacles(mapData, currentSpawnCell, currentGoalCell);
 
         for (int y = 0; y < mapData.height; y++)
         {
@@ -239,26 +248,181 @@ public class MapGenerator : MonoBehaviour
                     instance.name = $"{cellType}_{x}_{y}";
                     spawnedObjects.Add(instance);
                 }
-
-                if (spawnPointPrefab != null && x == currentSpawnCell.x && y == currentSpawnCell.y)
-                {
-                    Vector3 spawnPosition = new Vector3(x * cellSize, 0f, y * cellSize);
-                    GameObject spawnInstance = Instantiate(spawnPointPrefab, spawnPosition, Quaternion.identity, mapRoot);
-                    spawnInstance.name = $"RuntimeSpawnPoint_{x}_{y}";
-                    spawnedObjects.Add(spawnInstance);
-                }
-
-                if (goalPrefab != null && x == currentGoalCell.x && y == currentGoalCell.y)
-                {
-                    Vector3 goalPosition = new Vector3(x * cellSize, 0f, y * cellSize);
-                    GameObject goalInstance = Instantiate(goalPrefab, goalPosition, Quaternion.identity, mapRoot);
-                    goalInstance.name = $"RuntimeGoal_{x}_{y}";
-                    spawnedObjects.Add(goalInstance);
-                }
             }
         }
 
+        SpawnRuntimeMarkersAndObstacles();
         FrameCameraToCurrentMap();
+    }
+
+    private void SpawnRuntimeMarkersAndObstacles()
+    {
+        if (spawnPointPrefab != null && IsValidCell(currentSpawnCell))
+        {
+            GameObject spawnInstance = Instantiate(spawnPointPrefab, CellToWorld(currentSpawnCell), Quaternion.identity, mapRoot);
+            spawnInstance.name = $"RuntimeSpawnPoint_{currentSpawnCell.x}_{currentSpawnCell.y}";
+            spawnedObjects.Add(spawnInstance);
+        }
+
+        if (goalPrefab != null && IsValidCell(currentGoalCell))
+        {
+            GameObject goalInstance = Instantiate(goalPrefab, CellToWorld(currentGoalCell), Quaternion.identity, mapRoot);
+            goalInstance.name = $"RuntimeGoal_{currentGoalCell.x}_{currentGoalCell.y}";
+            spawnedObjects.Add(goalInstance);
+        }
+
+        if (obstaclePrefabs == null || obstaclePrefabs.Length == 0)
+            return;
+
+        foreach (Vector2Int obstacleCell in currentRuntimeObstacleCells)
+        {
+            GameObject obstaclePrefab = GetRuntimeObstaclePrefab();
+            if (obstaclePrefab == null)
+                continue;
+
+            GameObject obstacleInstance = Instantiate(obstaclePrefab, CellToWorld(obstacleCell), Quaternion.identity, mapRoot);
+            obstacleInstance.name = $"RuntimeObstacle_{obstacleCell.x}_{obstacleCell.y}";
+            spawnedObjects.Add(obstacleInstance);
+        }
+    }
+
+    private GameObject GetRuntimeObstaclePrefab()
+    {
+        if (obstaclePrefabs == null || obstaclePrefabs.Length == 0)
+            return null;
+
+        if (!randomizeObstaclePrefab || obstaclePrefabs.Length == 1)
+            return obstaclePrefabs[0];
+
+        return obstaclePrefabs[Random.Range(0, obstaclePrefabs.Length)];
+    }
+
+    private void PlaceRuntimeObstacles(MapData mapData, Vector2Int spawnCell, Vector2Int goalCell)
+    {
+        if (runtimeObstacleCount <= 0)
+            return;
+
+        List<Vector2Int> candidates = GetObstacleCandidateCells(mapData, spawnCell, goalCell);
+        Shuffle(candidates);
+
+        int requestedCount = Mathf.Min(runtimeObstacleCount, candidates.Count);
+
+        for (int i = 0; i < candidates.Count && currentRuntimeObstacleCells.Count < requestedCount; i++)
+        {
+            Vector2Int candidate = candidates[i];
+            currentRuntimeObstacleCells.Add(candidate);
+
+            if (!HasWalkablePath(mapData, spawnCell, goalCell, currentRuntimeObstacleCells))
+            {
+                currentRuntimeObstacleCells.RemoveAt(currentRuntimeObstacleCells.Count - 1);
+            }
+        }
+
+        if (requestedCount > 0 && currentRuntimeObstacleCells.Count < requestedCount)
+        {
+            Debug.LogWarning(
+                $"MapGenerator: Es konnten nur {currentRuntimeObstacleCells.Count} von {requestedCount} Hindernissen platziert werden, damit der Pfad zwischen Spawn und Ziel begehbar bleibt.");
+        }
+    }
+
+    private List<Vector2Int> GetObstacleCandidateCells(MapData mapData, Vector2Int spawnCell, Vector2Int goalCell)
+    {
+        List<Vector2Int> candidates = new List<Vector2Int>();
+
+        for (int y = 0; y < mapData.height; y++)
+        {
+            for (int x = 0; x < mapData.width; x++)
+            {
+                CellType cellType = mapData.GetCell(x, y);
+                Vector2Int candidate = new Vector2Int(x, y);
+
+                if (!IsWalkableCellType(cellType))
+                    continue;
+
+                if (candidate == spawnCell || candidate == goalCell)
+                    continue;
+
+                candidates.Add(candidate);
+            }
+        }
+
+        return candidates;
+    }
+
+    private bool HasWalkablePath(MapData mapData, Vector2Int start, Vector2Int goal, List<Vector2Int> blockedCells)
+    {
+        if (!IsValidCell(start) || !IsValidCell(goal))
+            return false;
+
+        HashSet<Vector2Int> blocked = new HashSet<Vector2Int>(blockedCells);
+        if (blocked.Contains(start) || blocked.Contains(goal))
+            return false;
+
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
+
+        queue.Enqueue(start);
+        visited.Add(start);
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.down,
+            Vector2Int.left,
+            Vector2Int.right
+        };
+
+        while (queue.Count > 0)
+        {
+            Vector2Int current = queue.Dequeue();
+            if (current == goal)
+                return true;
+
+            for (int i = 0; i < directions.Length; i++)
+            {
+                Vector2Int next = current + directions[i];
+
+                if (visited.Contains(next) || blocked.Contains(next))
+                    continue;
+
+                if (next.x < 0 || next.x >= mapData.width || next.y < 0 || next.y >= mapData.height)
+                    continue;
+
+                if (!IsWalkableCellType(mapData.GetCell(next.x, next.y)))
+                    continue;
+
+                visited.Add(next);
+                queue.Enqueue(next);
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsWalkableCellType(CellType cellType)
+    {
+        return cellType == CellType.Floor || cellType == CellType.SpawnPoint || cellType == CellType.Goal || cellType == CellType.Obstacle;
+    }
+
+    private bool IsValidCell(Vector2Int cell)
+    {
+        return cell.x >= 0 && cell.y >= 0;
+    }
+
+    private Vector3 CellToWorld(Vector2Int cell)
+    {
+        return new Vector3(cell.x * cellSize, 0f, cell.y * cellSize);
+    }
+
+    private void Shuffle<T>(List<T> list)
+    {
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            T temp = list[i];
+            list[i] = list[j];
+            list[j] = temp;
+        }
     }
 
     public void ClearMap()
@@ -280,6 +444,7 @@ public class MapGenerator : MonoBehaviour
         currentSpawnWorldPosition = Vector3.zero;
         currentGoalCell = new Vector2Int(-1, -1);
         currentGoalWorldPosition = Vector3.zero;
+        currentRuntimeObstacleCells.Clear();
     }
 
     public void ResetMap()
@@ -320,9 +485,9 @@ public class MapGenerator : MonoBehaviour
                 return wallPrefab;
 
             case CellType.Obstacle:
-                if (obstaclePrefabs == null || obstaclePrefabs.Length == 0)
-                    return null;
-                return obstaclePrefabs[0];
+                // Hindernisse werden zur Laufzeit zufällig auf Floor-Zellen erzeugt.
+                // Bereits im Layout gesetzte Obstacle-Zellen werden deshalb wie Floor behandelt.
+                return floorPrefab;
 
             case CellType.Goal:
                 // Zielobjekte werden zur Laufzeit zufällig auf einer Floor-Zelle erzeugt.
@@ -352,7 +517,7 @@ public class MapGenerator : MonoBehaviour
             {
                 CellType cellType = mapData.GetCell(x, y);
 
-                if (cellType == CellType.Floor || cellType == CellType.SpawnPoint || cellType == CellType.Goal)
+                if (cellType == CellType.Floor || cellType == CellType.SpawnPoint || cellType == CellType.Goal || cellType == CellType.Obstacle)
                 {
                     validSpawnCells.Add(new Vector2Int(x, y));
                 }
@@ -382,7 +547,7 @@ public class MapGenerator : MonoBehaviour
             {
                 CellType cellType = mapData.GetCell(x, y);
 
-                if (cellType == CellType.Floor || cellType == CellType.Goal || cellType == CellType.SpawnPoint)
+                if (cellType == CellType.Floor || cellType == CellType.Goal || cellType == CellType.SpawnPoint || cellType == CellType.Obstacle)
                 {
                     Vector2Int candidate = new Vector2Int(x, y);
                     fallbackGoalCells.Add(candidate);
@@ -424,7 +589,7 @@ public class MapGenerator : MonoBehaviour
         if (fallbackSpawnCell.x >= 0 && fallbackSpawnCell.y >= 0)
         {
             currentSpawnCell = fallbackSpawnCell;
-            currentSpawnWorldPosition = new Vector3(fallbackSpawnCell.x * cellSize, 0f, fallbackSpawnCell.y * cellSize);
+            currentSpawnWorldPosition = CellToWorld(fallbackSpawnCell);
             return currentSpawnWorldPosition;
         }
 
@@ -448,7 +613,7 @@ public class MapGenerator : MonoBehaviour
         if (fallbackGoalCell.x >= 0 && fallbackGoalCell.y >= 0)
         {
             currentGoalCell = fallbackGoalCell;
-            currentGoalWorldPosition = new Vector3(fallbackGoalCell.x * cellSize, 0f, fallbackGoalCell.y * cellSize);
+            currentGoalWorldPosition = CellToWorld(fallbackGoalCell);
             return currentGoalWorldPosition;
         }
 
