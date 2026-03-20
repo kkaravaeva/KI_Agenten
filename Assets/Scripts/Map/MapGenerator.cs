@@ -45,6 +45,9 @@ public class MapGenerator : MonoBehaviour
     private MapData currentMapData;
     private int currentLayoutIndex = -1;
 
+    private Vector2Int currentSpawnCell = new Vector2Int(-1, -1);
+    private Vector3 currentSpawnWorldPosition = Vector3.zero;
+
     private void Awake()
     {
         EnsureMapRoot();
@@ -57,27 +60,32 @@ public class MapGenerator : MonoBehaviour
 
     private void EnsureMapRoot()
     {
-        if (mapRoot != null)
-            return;
+        if (mapRoot != null) return;
 
         Transform existing = transform.Find("MapRoot");
         if (existing != null)
         {
             mapRoot = existing;
-            return;
         }
-
-        GameObject root = new GameObject("MapRoot");
-        mapRoot = root.transform;
-        mapRoot.SetParent(transform);
-        mapRoot.localPosition = Vector3.zero;
-        mapRoot.localRotation = Quaternion.identity;
-        mapRoot.localScale = Vector3.one;
+        else
+        {
+            GameObject root = new GameObject("MapRoot");
+            mapRoot = root.transform;
+            mapRoot.SetParent(transform);
+            mapRoot.localPosition = Vector3.zero;
+            mapRoot.localRotation = Quaternion.identity;
+            mapRoot.localScale = Vector3.one;
+        }
     }
 
     public void GenerateRuntimeMap()
     {
-        ResetMap();
+        SelectMapLayout();
+
+        if (currentMapData == null)
+            return;
+
+        GenerateMap(currentMapData);
     }
 
     public void GenerateSelectedMap()
@@ -89,23 +97,6 @@ public class MapGenerator : MonoBehaviour
         currentMapData = selectedMap;
 
         GenerateMap(currentMapData);
-    }
-
-    public void ResetMap()
-    {
-        EnsureMapRoot();
-
-        // 1) Entfernen aller bestehenden Map-Objekte unter dem MapRoot
-        ClearMap();
-
-        // 2) Auswahl eines Layouts aus der Layout-Sammlung
-        SelectMapLayout();
-
-        if (currentMapData == null)
-            return;
-
-        // 3) Generierung der Map auf Basis dieses Layouts
-        BuildMap(currentMapData);
     }
 
     private void SelectMapLayout()
@@ -218,11 +209,13 @@ public class MapGenerator : MonoBehaviour
         ClearMap();
 
         currentMapData = mapData;
-        BuildMap(mapData);
-    }
 
-    private void BuildMap(MapData mapData)
-    {
+        Vector2Int spawnCell = SelectRandomSpawnCell(mapData);
+        currentSpawnCell = spawnCell;
+        currentSpawnWorldPosition = spawnCell.x >= 0 && spawnCell.y >= 0
+            ? new Vector3(spawnCell.x * cellSize, 0f, spawnCell.y * cellSize)
+            : Vector3.zero;
+
         for (int y = 0; y < mapData.height; y++)
         {
             for (int x = 0; x < mapData.width; x++)
@@ -230,13 +223,21 @@ public class MapGenerator : MonoBehaviour
                 CellType cellType = mapData.GetCell(x, y);
                 GameObject prefab = GetPrefabForCell(cellType);
 
-                if (prefab == null)
-                    continue;
+                if (prefab != null)
+                {
+                    Vector3 position = new Vector3(x * cellSize, 0f, y * cellSize);
+                    GameObject instance = Instantiate(prefab, position, Quaternion.identity, mapRoot);
+                    instance.name = $"{cellType}_{x}_{y}";
+                    spawnedObjects.Add(instance);
+                }
 
-                Vector3 position = new Vector3(x * cellSize, 0f, y * cellSize);
-                GameObject instance = Instantiate(prefab, position, Quaternion.identity, mapRoot);
-                instance.name = $"{cellType}_{x}_{y}";
-                spawnedObjects.Add(instance);
+                if (spawnPointPrefab != null && x == currentSpawnCell.x && y == currentSpawnCell.y)
+                {
+                    Vector3 spawnPosition = new Vector3(x * cellSize, 0f, y * cellSize);
+                    GameObject spawnInstance = Instantiate(spawnPointPrefab, spawnPosition, Quaternion.identity, mapRoot);
+                    spawnInstance.name = $"RuntimeSpawnPoint_{x}_{y}";
+                    spawnedObjects.Add(spawnInstance);
+                }
             }
         }
 
@@ -258,6 +259,13 @@ public class MapGenerator : MonoBehaviour
         }
 
         spawnedObjects.Clear();
+        currentSpawnCell = new Vector2Int(-1, -1);
+        currentSpawnWorldPosition = Vector3.zero;
+    }
+
+    public void ResetMap()
+    {
+        GenerateRuntimeMap();
     }
 
     public void NextLayout()
@@ -301,50 +309,65 @@ public class MapGenerator : MonoBehaviour
                 return goalPrefab;
 
             case CellType.SpawnPoint:
-                return spawnPointPrefab;
+                // Spawnpunkte werden zur Laufzeit zufällig auf einer Floor-Zelle erzeugt.
+                // Bereits im Layout gespeicherte SpawnPoint-Zellen werden deshalb wie Floor behandelt.
+                return floorPrefab;
 
             default:
                 return null;
         }
     }
 
+    private Vector2Int SelectRandomSpawnCell(MapData mapData)
+    {
+        if (mapData == null || mapData.cells == null || mapData.cells.Length != mapData.width * mapData.height)
+            return new Vector2Int(-1, -1);
+
+        List<Vector2Int> validSpawnCells = new List<Vector2Int>();
+
+        for (int y = 0; y < mapData.height; y++)
+        {
+            for (int x = 0; x < mapData.width; x++)
+            {
+                CellType cellType = mapData.GetCell(x, y);
+
+                if (cellType == CellType.Floor || cellType == CellType.SpawnPoint)
+                {
+                    validSpawnCells.Add(new Vector2Int(x, y));
+                }
+            }
+        }
+
+        if (validSpawnCells.Count == 0)
+        {
+            Debug.LogWarning($"MapGenerator: Layout '{mapData.name}' enthält keine gültige Floor-Zelle für den Spawnpunkt.");
+            return new Vector2Int(-1, -1);
+        }
+
+        return validSpawnCells[Random.Range(0, validSpawnCells.Count)];
+    }
+
     public Vector3 GetSpawnPosition()
     {
+        if (currentSpawnCell.x >= 0 && currentSpawnCell.y >= 0)
+            return currentSpawnWorldPosition;
+
         if (currentMapData == null)
         {
             Debug.LogWarning("MapGenerator: Kein aktuelles Map-Layout ausgewählt!");
             return Vector3.zero;
         }
 
-        if (currentMapData.cells == null || currentMapData.cells.Length != currentMapData.width * currentMapData.height)
+        Vector2Int fallbackSpawnCell = SelectRandomSpawnCell(currentMapData);
+
+        if (fallbackSpawnCell.x >= 0 && fallbackSpawnCell.y >= 0)
         {
-            Debug.LogWarning("MapGenerator: currentMapData hat keine gültigen cells.");
-            return Vector3.zero;
+            currentSpawnCell = fallbackSpawnCell;
+            currentSpawnWorldPosition = new Vector3(fallbackSpawnCell.x * cellSize, 0f, fallbackSpawnCell.y * cellSize);
+            return currentSpawnWorldPosition;
         }
 
-        for (int y = 0; y < currentMapData.height; y++)
-        {
-            for (int x = 0; x < currentMapData.width; x++)
-            {
-                if (currentMapData.GetCell(x, y) == CellType.SpawnPoint)
-                {
-                    return new Vector3(x * cellSize, 0f, y * cellSize);
-                }
-            }
-        }
-
-        for (int y = 0; y < currentMapData.height; y++)
-        {
-            for (int x = 0; x < currentMapData.width; x++)
-            {
-                if (currentMapData.GetCell(x, y) == CellType.Floor)
-                {
-                    return new Vector3(x * cellSize, 0f, y * cellSize);
-                }
-            }
-        }
-
-        Debug.LogWarning("MapGenerator: Kein SpawnPoint und keine Floor-Zelle gefunden!");
+        Debug.LogWarning("MapGenerator: Keine gültige Spawn-Position gefunden!");
         return Vector3.zero;
     }
 
