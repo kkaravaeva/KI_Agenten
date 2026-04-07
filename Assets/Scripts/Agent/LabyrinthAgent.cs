@@ -21,21 +21,25 @@ public class LabyrinthAgent : Agent
 
     private Rigidbody rb;
     private bool isGrounded;
+    private Transform goalTransform;
 
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
+        FindGoal();
     }
 
     public override void OnEpisodeBegin()
     {
         // Wird spaeter implementiert: Position zuruecksetzen, Map laden etc.
+
+        // Goal-Referenz aktualisieren falls Map neu geladen wurde
+        FindGoal();
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // 3 Boden-Raycasts: unter Agent, 1 Zelle voraus, 2 Zellen voraus
-        // Jeder Raycast liefert 2 Werte: Typ-Code + normalisierte Distanz = 6 Observations total
+        // === Boden-Sensor (6 Observations) ===
         Vector3[] checkOffsets = new Vector3[]
         {
             Vector3.zero,
@@ -50,7 +54,6 @@ public class LabyrinthAgent : Agent
 
             if (Physics.Raycast(rayOrigin, Vector3.down, out hit, groundSensorRange))
             {
-                // Typ-Code: 1.0 = Floor/sicher, -1.0 = Lava, -0.5 = Hole, 0.5 = Bridge, 0.0 = unbekannt
                 float typeCode = 0f;
                 if (hit.collider.CompareTag("Floor")) typeCode = 1f;
                 else if (hit.collider.CompareTag("Lava")) typeCode = -1f;
@@ -58,44 +61,55 @@ public class LabyrinthAgent : Agent
                 else if (hit.collider.CompareTag("Bridge")) typeCode = 0.5f;
 
                 sensor.AddObservation(typeCode);
-                sensor.AddObservation(hit.distance / groundSensorRange); // normalisiert 0-1
+                sensor.AddObservation(hit.distance / groundSensorRange);
             }
             else
             {
-                // Kein Treffer = kein Boden = Abgrund
-                sensor.AddObservation(-0.5f); // wie Hole
-                sensor.AddObservation(1f);    // maximale Distanz
+                sensor.AddObservation(-0.5f);
+                sensor.AddObservation(1f);
             }
+        }
+
+        // === Eigengeschwindigkeit normalisiert (3 Observations) ===
+        Vector3 normalizedVelocity = rb.velocity / moveSpeed;
+        sensor.AddObservation(normalizedVelocity.x);
+        sensor.AddObservation(normalizedVelocity.y);
+        sensor.AddObservation(normalizedVelocity.z);
+
+        // === Ground-Status (1 Observation) ===
+        sensor.AddObservation(isGrounded ? 1f : 0f);
+
+        // === Richtung zum Ziel normalisiert (3 Observations) ===
+        if (goalTransform != null)
+        {
+            Vector3 directionToGoal = (goalTransform.position - transform.position).normalized;
+            sensor.AddObservation(directionToGoal.x);
+            sensor.AddObservation(directionToGoal.y);
+            sensor.AddObservation(directionToGoal.z);
+        }
+        else
+        {
+            // Fallback falls kein Goal gefunden
+            sensor.AddObservation(0f);
+            sensor.AddObservation(0f);
+            sensor.AddObservation(0f);
         }
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        // Branch 0: Bewegung (0=Idle, 1=Vorwaerts, 2=Rueckwaerts, 3=Links, 4=Rechts)
         int moveAction = actions.DiscreteActions[0];
-
-        // Branch 1: Sprung (0=Kein Sprung, 1=Springen)
         int jumpAction = actions.DiscreteActions[1];
 
-        // Bewegung ausfuehren
         Vector3 direction = Vector3.zero;
 
         switch (moveAction)
         {
-            case 0: // Idle
-                break;
-            case 1: // Vorwaerts (+Z)
-                direction = Vector3.forward;
-                break;
-            case 2: // Rueckwaerts (-Z)
-                direction = Vector3.back;
-                break;
-            case 3: // Links (-X)
-                direction = Vector3.left;
-                break;
-            case 4: // Rechts (+X)
-                direction = Vector3.right;
-                break;
+            case 0: break;
+            case 1: direction = Vector3.forward; break;
+            case 2: direction = Vector3.back; break;
+            case 3: direction = Vector3.left; break;
+            case 4: direction = Vector3.right; break;
         }
 
         if (direction != Vector3.zero)
@@ -103,7 +117,6 @@ public class LabyrinthAgent : Agent
             rb.MovePosition(transform.position + direction * moveSpeed * Time.fixedDeltaTime);
         }
 
-        // Sprung ausfuehren
         if (jumpAction == 1 && isGrounded)
         {
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
@@ -115,18 +128,14 @@ public class LabyrinthAgent : Agent
     {
         var discreteActions = actionsOut.DiscreteActions;
 
-        // Branch 0: Bewegung (Default = 0 = Idle)
         discreteActions[0] = 0;
+        if (Input.GetKey(KeyCode.W)) discreteActions[0] = 1;
+        else if (Input.GetKey(KeyCode.S)) discreteActions[0] = 2;
+        else if (Input.GetKey(KeyCode.A)) discreteActions[0] = 3;
+        else if (Input.GetKey(KeyCode.D)) discreteActions[0] = 4;
 
-        if (Input.GetKey(KeyCode.W)) discreteActions[0] = 1; // Vorwaerts
-        else if (Input.GetKey(KeyCode.S)) discreteActions[0] = 2; // Rueckwaerts
-        else if (Input.GetKey(KeyCode.A)) discreteActions[0] = 3; // Links
-        else if (Input.GetKey(KeyCode.D)) discreteActions[0] = 4; // Rechts
-
-        // Branch 1: Sprung (Default = 0 = Kein Sprung)
         discreteActions[1] = 0;
-
-        if (Input.GetKey(KeyCode.Space)) discreteActions[1] = 1; // Springen
+        if (Input.GetKey(KeyCode.Space)) discreteActions[1] = 1;
     }
 
     private void FixedUpdate()
@@ -140,6 +149,20 @@ public class LabyrinthAgent : Agent
         float rayLength = 1.0f + groundCheckDistance;
 
         isGrounded = Physics.Raycast(rayOrigin, Vector3.down, rayLength, groundLayer);
+    }
+
+    private void FindGoal()
+    {
+        GameObject goalObject = GameObject.FindWithTag("Goal");
+        if (goalObject != null)
+        {
+            goalTransform = goalObject.transform;
+        }
+        else
+        {
+            goalTransform = null;
+            Debug.LogWarning("LabyrinthAgent: Kein GameObject mit Tag 'Goal' gefunden!");
+        }
     }
 
     private void OnDrawGizmosSelected()
@@ -176,6 +199,15 @@ public class LabyrinthAgent : Agent
                 Gizmos.color = Color.magenta;
                 Gizmos.DrawLine(origin, origin + Vector3.down * groundSensorRange);
             }
+        }
+
+        // Zielrichtung Gizmo
+        if (goalTransform != null)
+        {
+            Gizmos.color = Color.yellow;
+            Vector3 dirToGoal = (goalTransform.position - transform.position).normalized;
+            Gizmos.DrawLine(transform.position + Vector3.up * 0.5f,
+                            transform.position + Vector3.up * 0.5f + dirToGoal * 2f);
         }
     }
 }
