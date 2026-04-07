@@ -15,6 +15,10 @@ public class LabyrinthAgent : Agent
     public float groundCheckDistance = 0.15f;
     public LayerMask groundLayer;
 
+    [Header("Boden-Sensor")]
+    public float groundSensorRange = 2.0f;
+    public float groundSensorHeight = 0.5f;
+
     private Rigidbody rb;
     private bool isGrounded;
 
@@ -30,7 +34,39 @@ public class LabyrinthAgent : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // Wird spaeter implementiert: Observations an das neuronale Netz uebergeben
+        // 3 Boden-Raycasts: unter Agent, 1 Zelle voraus, 2 Zellen voraus
+        // Jeder Raycast liefert 2 Werte: Typ-Code + normalisierte Distanz = 6 Observations total
+        Vector3[] checkOffsets = new Vector3[]
+        {
+            Vector3.zero,
+            transform.forward * 1f,
+            transform.forward * 2f
+        };
+
+        foreach (Vector3 offset in checkOffsets)
+        {
+            Vector3 rayOrigin = transform.position + offset + Vector3.up * groundSensorHeight;
+            RaycastHit hit;
+
+            if (Physics.Raycast(rayOrigin, Vector3.down, out hit, groundSensorRange))
+            {
+                // Typ-Code: 1.0 = Floor/sicher, -1.0 = Lava, -0.5 = Hole, 0.5 = Bridge, 0.0 = unbekannt
+                float typeCode = 0f;
+                if (hit.collider.CompareTag("Floor")) typeCode = 1f;
+                else if (hit.collider.CompareTag("Lava")) typeCode = -1f;
+                else if (hit.collider.CompareTag("Hole")) typeCode = -0.5f;
+                else if (hit.collider.CompareTag("Bridge")) typeCode = 0.5f;
+
+                sensor.AddObservation(typeCode);
+                sensor.AddObservation(hit.distance / groundSensorRange); // normalisiert 0-1
+            }
+            else
+            {
+                // Kein Treffer = kein Boden = Abgrund
+                sensor.AddObservation(-0.5f); // wie Hole
+                sensor.AddObservation(1f);    // maximale Distanz
+            }
+        }
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -108,10 +144,38 @@ public class LabyrinthAgent : Agent
 
     private void OnDrawGizmosSelected()
     {
+        // Ground Check Gizmo
         Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
         float rayLength = 1.0f + groundCheckDistance;
 
         Gizmos.color = isGrounded ? Color.green : Color.red;
         Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * rayLength);
+
+        // Boden-Sensor Gizmos
+        Vector3[] checkOffsets = new Vector3[]
+        {
+            Vector3.zero,
+            transform.forward * 1f,
+            transform.forward * 2f
+        };
+
+        foreach (Vector3 offset in checkOffsets)
+        {
+            Vector3 origin = transform.position + offset + Vector3.up * groundSensorHeight;
+            RaycastHit hit;
+
+            if (Physics.Raycast(origin, Vector3.down, out hit, groundSensorRange))
+            {
+                bool safe = hit.collider.CompareTag("Floor") || hit.collider.CompareTag("Bridge");
+                Gizmos.color = safe ? Color.cyan : Color.magenta;
+                Gizmos.DrawLine(origin, hit.point);
+                Gizmos.DrawWireSphere(hit.point, 0.1f);
+            }
+            else
+            {
+                Gizmos.color = Color.magenta;
+                Gizmos.DrawLine(origin, origin + Vector3.down * groundSensorRange);
+            }
+        }
     }
 }
