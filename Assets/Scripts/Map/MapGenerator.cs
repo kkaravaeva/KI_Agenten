@@ -19,6 +19,12 @@ public class MapGenerator : MonoBehaviour
     [Header("Settings")]
     public float cellSize = 1f;
 
+    [Header("Spawn Settings")]
+    [Tooltip("false = erster SpawnPoint wird verwendet, true = zufaelliger SpawnPoint")]
+    public bool useRandomSpawnPoint = false;
+    [Tooltip("false = Vector3.zero bei fehlendem SpawnPoint, true = Mitte der Map")]
+    public bool useCenterFallback = false;
+
     private Transform mapRoot;
     private List<GameObject> spawnedObjects = new List<GameObject>();
 
@@ -156,7 +162,7 @@ public class MapGenerator : MonoBehaviour
     {
         if (mapLayouts == null || selectedLayoutIndex < 0 || selectedLayoutIndex >= mapLayouts.Length)
         {
-            Debug.LogWarning("Kein aktuelles Map-Layout ausgewaehlt!");
+            Debug.LogWarning("MapGenerator: Kein aktuelles Map-Layout ausgewaehlt!");
             return Vector3.zero;
         }
 
@@ -164,7 +170,7 @@ public class MapGenerator : MonoBehaviour
 
         if (selectedMap == null)
         {
-            Debug.LogWarning("Kein aktuelles Map-Layout ausgewaehlt!");
+            Debug.LogWarning("MapGenerator: Kein aktuelles Map-Layout ausgewaehlt!");
             return Vector3.zero;
         }
 
@@ -173,18 +179,43 @@ public class MapGenerator : MonoBehaviour
             selectedMap.Init();
         }
 
+        // Alle SpawnPoints sammeln
+        List<Vector3> spawnPositions = new List<Vector3>();
+
         for (int y = 0; y < selectedMap.height; y++)
         {
             for (int x = 0; x < selectedMap.width; x++)
             {
                 if (selectedMap.GetCell(x, y) == CellType.SpawnPoint)
                 {
-                    return new Vector3(x * cellSize, 0f, y * cellSize);
+                    spawnPositions.Add(new Vector3(x * cellSize, 0f, y * cellSize));
                 }
             }
         }
 
-        Debug.LogWarning("Kein SpawnPoint definiert!");
+        // SpawnPoint(s) gefunden
+        if (spawnPositions.Count > 0)
+        {
+            if (useRandomSpawnPoint)
+            {
+                return spawnPositions[Random.Range(0, spawnPositions.Count)];
+            }
+            else
+            {
+                return spawnPositions[0];
+            }
+        }
+
+        // Kein SpawnPoint gefunden — Fallback
+        Debug.LogWarning($"MapGenerator: Kein SpawnPoint in Layout '{selectedMap.name}' definiert!");
+
+        if (useCenterFallback)
+        {
+            float centerX = (selectedMap.width - 1) * cellSize * 0.5f;
+            float centerZ = (selectedMap.height - 1) * cellSize * 0.5f;
+            return new Vector3(centerX, 0f, centerZ);
+        }
+
         return Vector3.zero;
     }
 }
