@@ -40,7 +40,8 @@ public class LabyrinthAgent : Agent
         if (mapGenerator != null)
         {
             Vector3 spawnPos = mapGenerator.GetSpawnPosition();
-            transform.localPosition = spawnPos;
+            transform.localPosition = spawnPos + Vector3.up * 0.5f;
+            transform.localRotation = Quaternion.identity;
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
         }
