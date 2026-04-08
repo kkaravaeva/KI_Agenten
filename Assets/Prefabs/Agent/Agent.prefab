@@ -219,6 +219,7 @@ MonoBehaviour:
     m_Bits: 64
   groundSensorRange: 2
   groundSensorHeight: 0.5
+  debugSensors: 1
 --- !u!114 &4916842271875814223
 MonoBehaviour:
   m_ObjectHideFlags: 0

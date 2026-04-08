@@ -19,6 +19,9 @@ public class LabyrinthAgent : Agent
     public float groundSensorRange = 2.0f;
     public float groundSensorHeight = 0.5f;
 
+    [Header("Debug")]
+    public bool debugSensors = false;
+
     private Rigidbody rb;
     private bool isGrounded;
     private Transform goalTransform;
@@ -47,9 +50,11 @@ public class LabyrinthAgent : Agent
             transform.forward * 2f
         };
 
-        foreach (Vector3 offset in checkOffsets)
+        string[] offsetNames = new string[] { "Unter Agent", "1 Zelle voraus", "2 Zellen voraus" };
+
+        for (int i = 0; i < checkOffsets.Length; i++)
         {
-            Vector3 rayOrigin = transform.position + offset + Vector3.up * groundSensorHeight;
+            Vector3 rayOrigin = transform.position + checkOffsets[i] + Vector3.up * groundSensorHeight;
             RaycastHit hit;
 
             if (Physics.Raycast(rayOrigin, Vector3.down, out hit, groundSensorRange))
@@ -62,11 +67,21 @@ public class LabyrinthAgent : Agent
 
                 sensor.AddObservation(typeCode);
                 sensor.AddObservation(hit.distance / groundSensorRange);
+
+                if (debugSensors)
+                {
+                    Debug.Log($"[BodenSensor] {offsetNames[i]}: Tag={hit.collider.tag} TypeCode={typeCode} Dist={hit.distance / groundSensorRange:F2}");
+                }
             }
             else
             {
                 sensor.AddObservation(-0.5f);
                 sensor.AddObservation(1f);
+
+                if (debugSensors)
+                {
+                    Debug.Log($"[BodenSensor] {offsetNames[i]}: KEIN TREFFER (Abgrund)");
+                }
             }
         }
 
@@ -86,13 +101,27 @@ public class LabyrinthAgent : Agent
             sensor.AddObservation(directionToGoal.x);
             sensor.AddObservation(directionToGoal.y);
             sensor.AddObservation(directionToGoal.z);
+
+            if (debugSensors)
+            {
+                Debug.Log($"[Zielrichtung] Dir=({directionToGoal.x:F2}, {directionToGoal.y:F2}, {directionToGoal.z:F2})");
+            }
         }
         else
         {
-            // Fallback falls kein Goal gefunden
             sensor.AddObservation(0f);
             sensor.AddObservation(0f);
             sensor.AddObservation(0f);
+
+            if (debugSensors)
+            {
+                Debug.LogWarning("[Zielrichtung] Kein Goal gefunden!");
+            }
+        }
+
+        if (debugSensors)
+        {
+            Debug.Log($"[Status] Velocity=({normalizedVelocity.x:F2}, {normalizedVelocity.y:F2}, {normalizedVelocity.z:F2}) isGrounded={isGrounded}");
         }
     }
 
