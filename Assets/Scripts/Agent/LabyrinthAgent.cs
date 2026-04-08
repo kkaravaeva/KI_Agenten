@@ -19,6 +19,9 @@ public class LabyrinthAgent : Agent
     public float groundSensorRange = 2.0f;
     public float groundSensorHeight = 0.5f;
 
+    [Header("Map")]
+    public MapGenerator mapGenerator;
+
     [Header("Debug")]
     public bool debugSensors = false;
 
@@ -34,9 +37,18 @@ public class LabyrinthAgent : Agent
 
     public override void OnEpisodeBegin()
     {
-        // Wird spaeter implementiert: Position zuruecksetzen, Map laden etc.
+        if (mapGenerator != null)
+        {
+            Vector3 spawnPos = mapGenerator.GetSpawnPosition();
+            transform.localPosition = spawnPos;
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+        else
+        {
+            Debug.LogWarning("LabyrinthAgent: Kein MapGenerator zugewiesen!");
+        }
 
-        // Goal-Referenz aktualisieren falls Map neu geladen wurde
         FindGoal();
     }
 
