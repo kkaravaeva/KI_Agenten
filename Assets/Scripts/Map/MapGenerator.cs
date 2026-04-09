@@ -35,6 +35,10 @@ public class MapGenerator : MonoBehaviour
     [Header("Map Settings")]
     public float cellSize = 1f;
 
+    [Header("Spawn Settings")]
+    [Tooltip("false = Vector3.zero bei fehlendem SpawnPoint, true = Mitte der Map")]
+    public bool useCenterFallback = false;
+
     [Header("Camera Framing")]
     public bool autoFrameCamera = true;
     public Camera targetCamera;
@@ -485,18 +489,12 @@ public class MapGenerator : MonoBehaviour
                 return wallPrefab;
 
             case CellType.Obstacle:
-                // Hindernisse werden zur Laufzeit zufällig auf Floor-Zellen erzeugt.
-                // Bereits im Layout gesetzte Obstacle-Zellen werden deshalb wie Floor behandelt.
                 return floorPrefab;
 
             case CellType.Goal:
-                // Zielobjekte werden zur Laufzeit zufällig auf einer Floor-Zelle erzeugt.
-                // Bereits im Layout gespeicherte Goal-Zellen werden deshalb wie Floor behandelt.
                 return floorPrefab;
 
             case CellType.SpawnPoint:
-                // Spawnpunkte werden zur Laufzeit zufällig auf einer Floor-Zelle erzeugt.
-                // Bereits im Layout gespeicherte SpawnPoint-Zellen werden deshalb wie Floor behandelt.
                 return floorPrefab;
 
             default:
@@ -581,7 +579,7 @@ public class MapGenerator : MonoBehaviour
         if (currentMapData == null)
         {
             Debug.LogWarning("MapGenerator: Kein aktuelles Map-Layout ausgewählt!");
-            return Vector3.zero;
+            return GetFallbackPosition();
         }
 
         Vector2Int fallbackSpawnCell = SelectRandomSpawnCell(currentMapData);
@@ -594,7 +592,7 @@ public class MapGenerator : MonoBehaviour
         }
 
         Debug.LogWarning("MapGenerator: Keine gültige Spawn-Position gefunden!");
-        return Vector3.zero;
+        return GetFallbackPosition();
     }
 
     public Vector3 GetGoalPosition()
@@ -618,6 +616,18 @@ public class MapGenerator : MonoBehaviour
         }
 
         Debug.LogWarning("MapGenerator: Keine gültige Ziel-Position gefunden!");
+        return Vector3.zero;
+    }
+
+    private Vector3 GetFallbackPosition()
+    {
+        if (useCenterFallback && currentMapData != null)
+        {
+            float centerX = (currentMapData.width - 1) * cellSize * 0.5f;
+            float centerZ = (currentMapData.height - 1) * cellSize * 0.5f;
+            return new Vector3(centerX, 0f, centerZ);
+        }
+
         return Vector3.zero;
     }
 

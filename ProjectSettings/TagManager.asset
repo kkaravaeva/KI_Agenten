@@ -3,7 +3,14 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - Wall
+  - Obstacle
+  - Goal
+  - Floor
+  - Lava
+  - Hole
+  - Bridge
   layers:
   - Default
   - TransparentFX
