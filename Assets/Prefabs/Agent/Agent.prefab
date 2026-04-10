@@ -219,6 +219,7 @@ MonoBehaviour:
     m_Bits: 64
   groundSensorRange: 2
   groundSensorHeight: 0.5
+  mapGenerator: {fileID: 0}
   debugSensors: 1
 --- !u!114 &4916842271875814223
 MonoBehaviour:
@@ -241,7 +242,7 @@ MonoBehaviour:
   - Goal
   - Bridge
   m_RaysPerDirection: 5
-  m_MaxRayDegrees: 180
+  m_MaxRayDegrees: 60
   m_SphereCastRadius: 0.25
   m_RayLength: 12
   m_RayLayerMask:
@@ -251,4 +252,4 @@ MonoBehaviour:
   rayHitColor: {r: 1, g: 0, b: 0, a: 1}
   rayMissColor: {r: 1, g: 1, b: 1, a: 1}
   m_StartVerticalOffset: 0.25
-  m_EndVerticalOffset: 0.5
+  m_EndVerticalOffset: 0.25

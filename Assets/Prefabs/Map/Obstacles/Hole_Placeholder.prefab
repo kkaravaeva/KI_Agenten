@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 3195462702539918921}
   - component: {fileID: 8822745857553714459}
   m_Layer: 0
-  m_Name: Hole_Placeholer
+  m_Name: Hole_Placeholder
   m_TagString: Hole
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
