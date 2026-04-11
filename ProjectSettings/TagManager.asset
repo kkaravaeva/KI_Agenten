@@ -11,6 +11,7 @@ TagManager:
   - Lava
   - Hole
   - Bridge
+  - KillZone
   layers:
   - Default
   - TransparentFX

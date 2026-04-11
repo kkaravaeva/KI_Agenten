@@ -265,6 +265,7 @@ public class MapGenerator : MonoBehaviour
         }
 
         SpawnRuntimeMarkersAndObstacles();
+        SpawnKillZone();
         FrameCameraToCurrentMap();
     }
 
@@ -297,6 +298,37 @@ public class MapGenerator : MonoBehaviour
             obstacleInstance.name = $"RuntimeObstacle_{obstacleCell.x}_{obstacleCell.y}";
             spawnedObjects.Add(obstacleInstance);
         }
+    }
+
+    /// <summary>
+    /// Erzeugt eine unsichtbare Trigger-Box unter der gesamten Map.
+    /// Wenn der Agent durch ein Hole fällt und diese Box berührt, wird die Episode beendet.
+    /// </summary>
+    private void SpawnKillZone()
+    {
+        if (currentMapData == null) return;
+
+        float mapWidth = currentMapData.width * cellSize;
+        float mapHeight = currentMapData.height * cellSize;
+
+        float killZoneY = -20f;
+        float killZoneThickness = 1f;
+
+        GameObject killZone = new GameObject("KillZone");
+        killZone.transform.SetParent(mapRoot);
+        killZone.tag = "KillZone";
+
+        // Zentriert unter der Map positionieren
+        killZone.transform.localPosition = new Vector3(
+            (mapWidth - cellSize) / 2f,
+            killZoneY,
+            (mapHeight - cellSize) / 2f
+        );
+
+        BoxCollider col = killZone.AddComponent<BoxCollider>();
+        col.isTrigger = true;
+        col.size = new Vector3(mapWidth, killZoneThickness, mapHeight);
+        col.center = Vector3.zero;
     }
 
     private GameObject GetRuntimeObstaclePrefab()

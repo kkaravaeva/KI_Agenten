@@ -23250,7 +23250,7 @@ GameObject:
   - component: {fileID: 1356364720}
   - component: {fileID: 1356364719}
   m_Layer: 0
-  m_Name: GameObject
+  m_Name: MapController
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -23271,14 +23271,16 @@ MonoBehaviour:
   mapLayouts:
   - {fileID: 11400000, guid: da4e8ac14059ab446a2dc181c1dff7cf, type: 2}
   selectionMode: 0
-  selectedLayoutIndex: 1
+  selectedLayoutIndex: 0
   avoidImmediateRepeat: 1
   floorPrefab: {fileID: 678713394316869038, guid: 9596b4a822167084e97bf8c03edab0c7, type: 3}
   wallPrefab: {fileID: 4557065121233283939, guid: 432e0ccf81a073a46bcdd2c2f64157d4, type: 3}
-  obstaclePrefabs: []
+  obstaclePrefabs:
+  - {fileID: 6639229938518352162, guid: 817ac5049f50fb04fabf1e776e3d59d7, type: 3}
+  - {fileID: 1731627195010591464, guid: 9eeb94ebae36b734198085a4b31e23e2, type: 3}
   goalPrefab: {fileID: 7204363102397234984, guid: 7a37c70ac7cc62e409447935d738f350, type: 3}
   spawnPointPrefab: {fileID: 5666449684032058527, guid: a55a5d7a6f85d0b40987e1c9528414eb, type: 3}
-  obstaclePlacementMode: 0
+  obstaclePlacementMode: 1
   runtimeObstacleCount: 3
   randomizeObstaclePrefab: 1
   cellSize: 1

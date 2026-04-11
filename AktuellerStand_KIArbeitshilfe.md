@@ -724,3 +724,28 @@ Nebeneinanderliegende Obstacle-Marker erhalten aktuell unabhängig voneinander e
  3. Todeslogik
 
 `OnTriggerEnter` für Lava/Hole und Episode-Reset bei Kontakt steht noch aus (Milestone 4, Issue 4.2).
+
+## Issue 84:
+Zusammenfassung für Issue 84 — Dokumentation
+Designentscheidung: Variante (a) — echtes Loch mit Durchfallen
+Der Agent fällt physisch durch das Hole. Die Episode endet erst, wenn der Agent eine Kill-Box 20 Einheiten unter der Map berührt. Dies wurde gewählt statt der ursprünglich im Issue beschriebenen Variante "sofort sterben bei Betreten", weil das Durchfallen ein realistischeres Abgrund-Verhalten darstellt.
+Durchgeführte Änderungen:
+1. Neuer Layer HoleSurface (Layer 6):
+Ermöglicht die Trennung von physischer Kollision und Raycast-Erkennung. Die Physics Collision Matrix wurde so konfiguriert, dass Default ↔ HoleSurface nicht kollidiert. Dadurch fällt der Agent physisch durch, aber der Boden-Sensor-Raycast (ohne LayerMask) trifft den Collider trotzdem.
+2. Hole-Prefab angepasst:
+
+Layer: HoleSurface (Layer 6)
+Scale: (1, 0.1, 1) — flach auf Bodenhöhe
+Material: Hole_Mat (schwarz) — visuell als Abgrund erkennbar
+BoxCollider: IsTrigger = false, Size (1, 1, 1), Center (0, 0, 0) — normaler Collider für Raycast-Erkennung
+
+3. Neuer Tag KillZone (Tag 7):
+Für die Kill-Box unter der Map.
+4. MapGenerator.cs — neue Methode SpawnKillZone():
+Erzeugt bei jeder Map-Generierung automatisch eine unsichtbare Trigger-Box (BoxCollider, IsTrigger = true, Tag KillZone) 20 Einheiten unter der Map. Die Box spannt die gesamte Map-Fläche auf. Wird in GenerateMap() nach SpawnRuntimeMarkersAndObstacles() aufgerufen.
+5. LabyrinthAgent.cs — Boden-Sensor Fallback-Wert:
+Der typeCode bei "kein Raycast-Treffer" wurde von -0.5f auf -1.5f geändert, damit das neuronale Netz Hole (-0.5f) von echtem Abgrund/Map-Ende (-1.5f) unterscheiden kann.
+Offene Punkte für Folge-Issues:
+
+Todeslogik (Issue 4.2): OnTriggerEnter im LabyrinthAgent muss auf Tag KillZone reagieren und EndEpisode() aufrufen (+ negativer Reward)
+GroundCheck über Hole: Der Agent erkennt isGrounded = false über dem Hole, weil HoleSurface nicht im groundLayer enthalten ist. Das ist korrekt und gewollt.

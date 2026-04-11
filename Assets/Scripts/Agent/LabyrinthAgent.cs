@@ -88,7 +88,7 @@ public class LabyrinthAgent : Agent
             }
             else
             {
-                sensor.AddObservation(-0.5f);
+                sensor.AddObservation(-1.5f);
                 sensor.AddObservation(1f);
 
                 if (debugSensors)
