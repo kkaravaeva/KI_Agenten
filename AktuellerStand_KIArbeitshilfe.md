@@ -603,3 +603,124 @@ Size auf (1, 4, 1) und Center auf (0, 2.5, 0) gesetzt. Durch die Scale (Y=0.1) e
 | Visuell deutlich von Floor unterscheidbar | Erfüllt — eigenes Material `M_Lava01` (rot/orange) |
 | BoxCollider ist IsTrigger = true | Erfüllt |
 | Trigger-Höhe kalibriert (Laufen löst aus, Springen nicht) | Rechnerisch hergeleitet, praktischer Test ausstehend |
+
+## Issue Map Rework (ohne nummer)
+ Issue: Konfigurierbare Hindernis-Platzierung (ObstaclePlacementMode)
+
+**Datum:** 11.04.2026
+**Betroffene Datei:** `Assets/Scripts/Map/MapGenerator.cs`
+**Keine Änderungen an:** `CellType.cs`, `MapData.cs`, `LabyrinthAgent.cs`, `MapGeneratorEditor.cs`, `MapDataEditor.cs`, Prefabs
+
+---
+
+ Ausgangslage
+
+- Hindernisse wurden ausschließlich zufällig auf beliebigen begehbaren Floor-Zellen platziert (Issue 42)
+- Layouts enthielten nur `Wall` und `Floor` — keine Möglichkeit, Hindernis-Positionen im Layout vorzudefinieren
+- `CellType.Obstacle` existierte im Enum, wurde im Code aber als Floor gerendert und als begehbar behandelt
+
+---
+
+ Umgesetzte Änderungen
+
+ 1. Neues Enum `ObstaclePlacementMode`
+
+```csharp
+public enum ObstaclePlacementMode
+{
+    RandomOnFloor,
+    PredefinedSpawnPoints
+}
+```
+
+Definiert oberhalb der `MapGenerator`-Klasse, analog zu `MapSelectionMode`.
+
+ 2. Neues Inspector-Feld
+
+```csharp
+[Header("Obstacle Placement")]
+public ObstaclePlacementMode obstaclePlacementMode = ObstaclePlacementMode.RandomOnFloor;
+```
+
+Default: `RandomOnFloor` (bisheriges Verhalten). Erscheint automatisch im Inspector, da `MapGeneratorEditor.cs` `DrawDefaultInspector()` verwendet.
+
+ 3. `GetObstacleCandidateCells()` — Modusunterscheidung
+
+- **`RandomOnFloor`:** Alle begehbaren Zellen sind Kandidaten (Verhalten unverändert)
+- **`PredefinedSpawnPoints`:** Nur Zellen mit `CellType.Obstacle` aus dem Layout sind Kandidaten
+
+ 4. `SelectRandomSpawnCell()` — Obstacle-Zellen ausgeschlossen
+
+Im Modus `PredefinedSpawnPoints` werden `CellType.Obstacle`-Zellen aus der Spawn-Kandidatenliste entfernt. Agent spawnt nur auf `Floor`, `SpawnPoint` oder `Goal`-Zellen.
+
+ 5. `SelectRandomGoalCell()` — Obstacle-Zellen ausgeschlossen
+
+Analog zu `SelectRandomSpawnCell()`: Im Modus `PredefinedSpawnPoints` wird das Goal nicht auf Obstacle-Markern platziert.
+
+---
+
+ Getroffene Entscheidungen
+
+ Entscheidung 1: Obstacle-Zellen aus Spawn/Goal-Auswahl ausschließen
+
+**Gewählt:** Ausschließen im Modus `PredefinedSpawnPoints`
+
+**Begründung:** Obstacle-Marker sind für Hindernisse reserviert. Wenn Spawn/Goal diese Positionen belegen, reduziert das die verfügbaren Hindernispositionen und unterläuft die Kontrolle des Level-Designers. Der Aufwand ist minimal (eine Bedingung pro Methode).
+
+ Entscheidung 2: Unbelegte Obstacle-Marker als Floor belassen
+
+**Gewählt:** Keine Änderung — unbelegte Marker werden als Floor gerendert und sind begehbar
+
+**Begründung:**
+- Kein zusätzlicher Code nötig
+- Trainingsfreundlich: Agent lernt, dass Positionen episodenabhängig variieren
+- `GetPrefabForCell(CellType.Obstacle)` gibt bereits `floorPrefab` zurück
+
+---
+
+ Nicht geänderte Stellen (geprüft)
+
+| Stelle | Begründung |
+|---|---|
+| `CellType.cs` | `Obstacle` existiert bereits, kein neuer Wert nötig |
+| `MapData.cs` | Generisch, keine Anpassung |
+| `LabyrinthAgent.cs` | Nutzt nur `GetSpawnPosition()` und `FindWithTag("Goal")` — Schnittstellen unverändert |
+| `MapGeneratorEditor.cs` | Verwendet `DrawDefaultInspector()`, neues Feld erscheint automatisch |
+| `MapDataEditor.cs` | Paint Tool unterstützt `CellType.Obstacle` bereits (Label „O", Farbe Orange) |
+| `IsWalkableCellType()` | Obstacle bleibt begehbar — korrekt für BFS (unbelegte Marker sind passierbar) |
+| `HasWalkablePath()` | Belegte Marker werden über `blockedCells`-Parameter blockiert — funktioniert ohne Änderung |
+| `PlaceRuntimeObstacles()` | Iteriert über Kandidaten aus `GetObstacleCandidateCells()` — Modusunterscheidung dort |
+| `SpawnRuntimeMarkersAndObstacles()` | Instanziiert aus `currentRuntimeObstacleCells` — generisch genug |
+| `GetRuntimeObstaclePrefab()` | Wählt zufällig aus `obstaclePrefabs[]` — unverändert |
+| Prefabs | Keine Prefab-Änderungen |
+
+---
+
+ Layout-Status
+
+Alle fünf Layouts wurden mit `CellType.Obstacle`-Zellen (`03`) erweitert:
+
+| Layout | Größe | Obstacle | Goal | SpawnPoint | Floor |
+|---|---|---|---|---|---|
+| Layout_01 | 25×30 | 10 | 1 | 1 | 257 |
+| Layout_02 | 25×30 | 4 | 1 | 1 | 208 |
+| Layout_03 | 25×30 | 12 | 0 | 0 | 218 |
+| Layout_04 | 25×30 | 21 | 1 | 1 | 217 |
+| Layout_05 | 18×30 | 30 | 0 | 1 | 172 |
+
+Layouts ohne Goal/SpawnPoint-Zellen funktionieren korrekt — Spawn und Goal werden dynamisch auf Floor-Zellen platziert.
+
+
+ Offene Punkte
+
+ 1. Zusammenhängende Obstacle-Gruppen gleicher Typ
+
+Nebeneinanderliegende Obstacle-Marker erhalten aktuell unabhängig voneinander einen zufälligen Typ (Lava oder Hole). Gewünscht: Benachbarte Marker sollen denselben Hindernistyp erhalten. Erfordert Cluster-Erkennung in `PlaceRuntimeObstacles()` oder `SpawnRuntimeMarkersAndObstacles()` (z. B. Flood-Fill auf Obstacle-Markern, dann pro Cluster einen Typ zuweisen).
+
+ 2. Hole-Prefab Collider/Trigger
+
+`Hole_Placeholder` hat noch `IsTrigger = false` und Scale `(1,1,1)`. Muss analog zu `Lava_Placeholder` angepasst werden (Milestone 4, Issue 4.2: Todeslogik).
+
+ 3. Todeslogik
+
+`OnTriggerEnter` für Lava/Hole und Episode-Reset bei Kontakt steht noch aus (Milestone 4, Issue 4.2).

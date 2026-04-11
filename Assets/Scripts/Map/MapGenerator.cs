@@ -11,6 +11,12 @@ public enum MapSelectionMode
     Random
 }
 
+public enum ObstaclePlacementMode
+{
+    RandomOnFloor,
+    PredefinedSpawnPoints
+}
+
 public class MapGenerator : MonoBehaviour
 {
     [Header("Map Layouts")]
@@ -27,6 +33,9 @@ public class MapGenerator : MonoBehaviour
     public GameObject[] obstaclePrefabs;
     public GameObject goalPrefab;
     public GameObject spawnPointPrefab;
+
+    [Header("Obstacle Placement")]
+    public ObstaclePlacementMode obstaclePlacementMode = ObstaclePlacementMode.RandomOnFloor;
 
     [Header("Runtime Obstacles")]
     [Min(0)] public int runtimeObstacleCount = 3;
@@ -329,6 +338,12 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Gibt die Kandidaten-Zellen für Hindernisse zurück, abhängig vom gewählten ObstaclePlacementMode.
+    /// 
+    /// RandomOnFloor: Alle begehbaren Zellen (Floor, SpawnPoint, Goal, Obstacle) außer Spawn- und Goal-Zelle.
+    /// PredefinedSpawnPoints: Nur CellType.Obstacle-Zellen aus dem Layout, außer Spawn- und Goal-Zelle.
+    /// </summary>
     private List<Vector2Int> GetObstacleCandidateCells(MapData mapData, Vector2Int spawnCell, Vector2Int goalCell)
     {
         List<Vector2Int> candidates = new List<Vector2Int>();
@@ -340,11 +355,21 @@ public class MapGenerator : MonoBehaviour
                 CellType cellType = mapData.GetCell(x, y);
                 Vector2Int candidate = new Vector2Int(x, y);
 
-                if (!IsWalkableCellType(cellType))
-                    continue;
-
                 if (candidate == spawnCell || candidate == goalCell)
                     continue;
+
+                if (obstaclePlacementMode == ObstaclePlacementMode.PredefinedSpawnPoints)
+                {
+                    // Nur Zellen mit CellType.Obstacle sind gültige Hindernis-Spawnpunkte
+                    if (cellType != CellType.Obstacle)
+                        continue;
+                }
+                else
+                {
+                    // RandomOnFloor: Alle begehbaren Zellen sind Kandidaten
+                    if (!IsWalkableCellType(cellType))
+                        continue;
+                }
 
                 candidates.Add(candidate);
             }
@@ -502,6 +527,12 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Wählt eine zufällige Spawn-Zelle für den Agenten.
+    /// 
+    /// Im Modus PredefinedSpawnPoints werden CellType.Obstacle-Zellen ausgeschlossen,
+    /// damit Hindernis-Spawnpunkte nicht als Agenten-Spawn verwendet werden.
+    /// </summary>
     private Vector2Int SelectRandomSpawnCell(MapData mapData)
     {
         if (mapData == null || mapData.cells == null || mapData.cells.Length != mapData.width * mapData.height)
@@ -515,9 +546,21 @@ public class MapGenerator : MonoBehaviour
             {
                 CellType cellType = mapData.GetCell(x, y);
 
-                if (cellType == CellType.Floor || cellType == CellType.SpawnPoint || cellType == CellType.Goal || cellType == CellType.Obstacle)
+                if (obstaclePlacementMode == ObstaclePlacementMode.PredefinedSpawnPoints)
                 {
-                    validSpawnCells.Add(new Vector2Int(x, y));
+                    // Obstacle-Zellen sind für Hindernisse reserviert, nicht für Agent-Spawn
+                    if (cellType == CellType.Floor || cellType == CellType.SpawnPoint || cellType == CellType.Goal)
+                    {
+                        validSpawnCells.Add(new Vector2Int(x, y));
+                    }
+                }
+                else
+                {
+                    // RandomOnFloor: Alle begehbaren Zellen inkl. Obstacle
+                    if (cellType == CellType.Floor || cellType == CellType.SpawnPoint || cellType == CellType.Goal || cellType == CellType.Obstacle)
+                    {
+                        validSpawnCells.Add(new Vector2Int(x, y));
+                    }
                 }
             }
         }
@@ -531,6 +574,12 @@ public class MapGenerator : MonoBehaviour
         return validSpawnCells[Random.Range(0, validSpawnCells.Count)];
     }
 
+    /// <summary>
+    /// Wählt eine zufällige Goal-Zelle.
+    /// 
+    /// Im Modus PredefinedSpawnPoints werden CellType.Obstacle-Zellen ausgeschlossen,
+    /// damit Hindernis-Spawnpunkte nicht als Zielposition verwendet werden.
+    /// </summary>
     private Vector2Int SelectRandomGoalCell(MapData mapData, Vector2Int spawnCell)
     {
         if (mapData == null || mapData.cells == null || mapData.cells.Length != mapData.width * mapData.height)
@@ -545,7 +594,20 @@ public class MapGenerator : MonoBehaviour
             {
                 CellType cellType = mapData.GetCell(x, y);
 
-                if (cellType == CellType.Floor || cellType == CellType.Goal || cellType == CellType.SpawnPoint || cellType == CellType.Obstacle)
+                bool isValidGoalType;
+
+                if (obstaclePlacementMode == ObstaclePlacementMode.PredefinedSpawnPoints)
+                {
+                    // Obstacle-Zellen sind für Hindernisse reserviert, nicht für Goal
+                    isValidGoalType = (cellType == CellType.Floor || cellType == CellType.Goal || cellType == CellType.SpawnPoint);
+                }
+                else
+                {
+                    // RandomOnFloor: Alle begehbaren Zellen inkl. Obstacle
+                    isValidGoalType = (cellType == CellType.Floor || cellType == CellType.Goal || cellType == CellType.SpawnPoint || cellType == CellType.Obstacle);
+                }
+
+                if (isValidGoalType)
                 {
                     Vector2Int candidate = new Vector2Int(x, y);
                     fallbackGoalCells.Add(candidate);
