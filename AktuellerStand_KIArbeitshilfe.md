@@ -749,3 +749,134 @@ Offene Punkte für Folge-Issues:
 
 Todeslogik (Issue 4.2): OnTriggerEnter im LabyrinthAgent muss auf Tag KillZone reagieren und EndEpisode() aufrufen (+ negativer Reward)
 GroundCheck über Hole: Der Agent erkennt isGrounded = false über dem Hole, weil HoleSurface nicht im groundLayer enthalten ist. Das ist korrekt und gewollt.
+
+## Issue 85: 4.1.4 MapGenerator um neue Hindernistypen erweitern
+
+**Entscheidung aus Issue 4.0:** Tag-basierter Ansatz gewählt — keine dedizierten CellTypes für Lava/Hole.
+
+**Status: Erledigt ✅**
+
+- `CellType.cs` hat keine Lava/Hole-Einträge — korrekt für tag-basierten Ansatz
+- `Lava_Placeholder.prefab` (Tag: `"Lava"`) und `Hole_Placeholder.prefab` (Tag: `"Hole"`) existieren unter `Assets/Prefabs/Map/Obstacles/`
+- Beide Prefabs sind im `obstaclePrefabs`-Array des MapGenerator in `KI.unity`, `KI_Agenten_Unity.unity` und `MapGenerator_Test.unity` zugewiesen
+- `LabyrinthAgent.cs` wertet `CompareTag("Lava")` und `CompareTag("Hole")` für die Observation aus (Zeilen 77–78)
+- `MapGenerator.cs` enthält `SpawnKillZone()` für Hole-Sturz-Detektion
+- `SampleScene.unity`: `obstaclePrefabs: []` — noch leer, niedrige Priorität
+
+Kann geschlossen werden mit Kommentar: *Tag-basierter Ansatz gewählt. Lava_Placeholder und Hole_Placeholder mit korrekten Tags im obstaclePrefabs-Array konfiguriert. Keine CellType-Erweiterung notwendig.*
+
+---
+
+## Issue 86: 4.1.5 Hindernisse in die bestehenden Map-Layouts einbauen
+
+**Status: Größtenteils erledigt, ein Akzeptanzkriterium nicht strikt erfüllt ⚠️**
+
+Die 5 genutzten Layout-Assets (in `KI.unity` referenziert) enthalten alle `CellType.Obstacle`-Zellen:
+
+| Layout | Größe | Obstacle-Zellen |
+|--------|-------|----------------|
+| Layout_01 | 25x30 | 10 |
+| Layout_02 | 25x30 | 4 |
+| Layout_03 | 25x30 | 12 |
+| Layout_04 | 25x30 | 21 |
+| Layout_05 | 18x30 | 30 |
+
+**Erfüllt:**
+- Alle 5 Maps haben walkable Zellen und Obstacle-Spawnpunkte ✅
+- `obstaclePrefabs` enthält Lava + Hole in `KI.unity` ✅
+- Lösbarkeit gesichert (BFS-Check im MapGenerator + `runtimeObstacleCount: 3`) ✅
+
+**Offenes Problem:**
+- `KI.unity` setzt `obstaclePlacementMode` nicht explizit → Default `RandomOnFloor`
+- Obstacles werden zufällig auf beliebigen Floor-Zellen platziert, nicht gezielt auf den markierten Obstacle-Zellen
+- `randomizeObstaclePrefab: 1` + nur 3 Obstacles → **kein garantiertes "mindestens 1 Lava UND 1 Hole" pro Episode** (statistisch ~75%)
+- Strategische Platzierung ("Lava auf Hauptpfad, Holes als Sackgassen") nicht umgesetzt
+
+**Lösungsoptionen:**
+1. `obstaclePlacementMode = PredefinedSpawnPoints` in `KI.unity` setzen → nutzt die markierten Obstacle-Zellen gezielt
+2. `runtimeObstacleCount` erhöhen (z.B. auf 6+) für höhere statistische Sicherheit beider Typen pro Episode
+3. Anforderung als "statistisch ausreichend" akzeptieren
+
+---
+
+## Issue 87: Todeslogik
+
+### Ausgangslage / Problem
+Die ursprüngliche Issue-Beschreibung sah ein separates `DeathZone.cs`-Script auf Hindernis-Prefabs vor. Dieser Ansatz wurde verworfen, da er architektonisch inkonsistent gewesen wäre: Der Agent ist bereits die zentrale Instanz für Reward-Vergabe und Episodensteuerung. Logik auf einzelnen Prefabs hätte diese Verantwortung fragmentiert.
+
+---
+
+### Umgesetzte Architektur: Zwei Todesmechaniken, eine zentrale Stelle
+
+Die gesamte Todeslogik liegt in `LabyrinthAgent.cs` → `OnTriggerEnter()`. Kein externes Script auf Prefabs.
+
+```csharp
+private void OnTriggerEnter(Collider other)
+{
+    if (other.CompareTag("Lava") || other.CompareTag("KillZone"))
+    {
+        AddReward(-1f);
+        EndEpisode();
+    }
+}
+```
+
+---
+
+### Mechanik 1: Lava — sofortiger Tod
+
+- **Lava-Prefab**: `BoxCollider` mit `isTrigger: true`
+- Agent betritt den Trigger → `OnTriggerEnter` schlägt an → Episode endet sofort
+
+---
+
+### Mechanik 2: Hole — physikalisches Fallen + verzögerter Tod
+
+Zwei Komponenten arbeiten zusammen:
+
+**Hole-Prefab** (`Hole_Placeholder.prefab`):
+- `BoxCollider` mit `isTrigger: true`
+- Trigger = keine physische Kollision → Agent fällt durch
+- Trigger-Collider bleibt erhalten damit der **Boden-Sensor-Raycast** das Hole erkennt (`TypeCode = -0.5`)
+
+**Floor-Collider-Deaktivierung** (`MapGenerator.cs` → `SpawnRuntimeMarkersAndObstacles()`):
+- Der Floor-Tile existiert unter jedem Hole (MapGenerator spawnt ihn für jede begehbare Zelle)
+- Beim Platzieren eines Hole-Obstacles: Suche per Weltposition in `spawnedObjects` nach dem Tile an dieser Stelle, deaktiviere dessen `BoxCollider`
+- Suche ist positions-basiert (nicht namens-basiert), da der Tile-Name vom `CellType` abhängt (`Floor_x_y`, `Obstacle_x_y` etc.) und Holes auf verschiedenen CellTypes landen können
+
+```csharp
+if (obstacleInstance.CompareTag("Hole"))
+{
+    Vector3 holePos = CellToWorld(obstacleCell);
+    foreach (GameObject spawnedObj in spawnedObjects)
+    {
+        if (spawnedObj == null) continue;
+        if (Vector3.Distance(spawnedObj.transform.position, holePos) > 0.01f) continue;
+        BoxCollider col = spawnedObj.GetComponent<BoxCollider>();
+        if (col != null && !col.isTrigger)
+        {
+            col.enabled = false;
+            break;
+        }
+    }
+}
+```
+
+**KillZone** (`MapGenerator.cs` → `SpawnKillZone()`):
+- Zur Laufzeit erzeugte unsichtbare Trigger-Box, 20 Einheiten unterhalb der Map
+- Deckt die gesamte Map-Ausdehnung ab
+- Agent fällt durch das Hole → trifft KillZone → `OnTriggerEnter` → Episode endet
+
+---
+
+### Entschieden gegen
+- ❌ `DeathZone.cs` auf Prefabs: Logik-Fragmentierung, erhöhte Kopplung
+- ❌ CellType-Erweiterung (Hole/Lava als eigene CellTypes): hätte das Obstacle-Randomisierungssystem außer Kraft gesetzt
+- ❌ Physics-Layer-Matrix allein: hätte das Floor-Tile-Problem nicht gelöst
+
+### Vollständig erhalten
+- ✅ Zufällige Hole-Platzierung im `RandomOnFloor`-Modus
+- ✅ Zufällige Hole-Platzierung an vordefinierten Stellen im `PredefinedSpawnPoints`-Modus
+- ✅ Gemischte Obstacle-Arrays (Hole + Lava + andere im selben `obstaclePrefabs[]`)
+
+Hinweis: Die `MapData_Training_*`-Assets werden in keiner aktiven Trainingsszene referenziert und sind nicht relevant für das Training.

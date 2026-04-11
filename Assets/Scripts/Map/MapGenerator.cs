@@ -297,6 +297,23 @@ public class MapGenerator : MonoBehaviour
             GameObject obstacleInstance = Instantiate(obstaclePrefab, CellToWorld(obstacleCell), Quaternion.identity, mapRoot);
             obstacleInstance.name = $"RuntimeObstacle_{obstacleCell.x}_{obstacleCell.y}";
             spawnedObjects.Add(obstacleInstance);
+
+            if (obstacleInstance.CompareTag("Hole"))
+            {
+                Vector3 holePos = CellToWorld(obstacleCell);
+                foreach (GameObject spawnedObj in spawnedObjects)
+                {
+                    if (spawnedObj == null) continue;
+                    if (Vector3.Distance(spawnedObj.transform.position, holePos) > 0.01f) continue;
+
+                    BoxCollider col = spawnedObj.GetComponent<BoxCollider>();
+                    if (col != null && !col.isTrigger)
+                    {
+                        col.enabled = false;
+                        break;
+                    }
+                }
+            }
         }
     }
 
