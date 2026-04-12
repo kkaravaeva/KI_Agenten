@@ -163,6 +163,7 @@ public class LabyrinthAgent : Agent
         if (direction != Vector3.zero)
         {
             rb.MovePosition(transform.position + direction * moveSpeed * Time.fixedDeltaTime);
+            rb.MoveRotation(Quaternion.LookRotation(direction));
         }
 
         if (jumpAction == 1 && isGrounded)

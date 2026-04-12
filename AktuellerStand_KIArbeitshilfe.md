@@ -956,3 +956,102 @@ Die gesamte Todeslogik bleibt in `LabyrinthAgent.cs`. Das entspricht der in Issu
 | Reward-Wert ist im Inspector konfigurierbar | Erfüllt — zwei `[SerializeField]`-Felder |
 | Debug-Log zeigt Todesgrund und Reward-Wert | Erfüllt |
 | Lava-Tod und Hole-Tod sind als separate Todesursachen unterscheidbar | Erfüllt |
+
+---
+
+## Issue 107: Third-Person-Kamera & Agenten-Rotation
+
+**Betroffene Dateien:**
+- `Assets/Scripts/Agent/LabyrinthAgent.cs` — Agenten-Rotation ergänzt
+- `Assets/Scripts/Camera/ThirdPersonCamera.cs` — neu erstellt
+- Szene `MapGenerator_Test.unity` — Kamera-Komponente manuell zugewiesen
+
+**Keine Änderungen an:** `MapGenerator.cs`, Prefabs, `CellType.cs`, Action-Space, sonstigen Scripts
+
+---
+
+### Ausgangslage
+
+Die Kamera war statisch und wurde von `MapGenerator.cs` einmalig beim Kartenaufbau positioniert (`FrameCameraToCurrentMap()`), um die gesamte Map zu rahmen. Der Agent bewegte sich world-aligned (W = Welt-Z+, A = Welt-X- usw.) und rotierte nie — `transform.localRotation` blieb dauerhaft `Quaternion.identity`. Es existierte kein Camera-Follow-System.
+
+Zusätzlich wurden die Labyrinthwände in der Szene `MapGenerator_Test.unity` auf Scale Y = 4.5 erhöht, damit der Agent nicht mehr über die Wände springen kann.
+
+---
+
+### Umgesetzte Änderungen
+
+**1. Agenten-Rotation in `LabyrinthAgent.cs`**
+
+In `OnActionReceived()` wird der Agent nach jedem Bewegungsschritt per `rb.MoveRotation()` in die Bewegungsrichtung gedreht:
+
+```csharp
+if (direction != Vector3.zero)
+{
+    rb.MovePosition(transform.position + direction * moveSpeed * Time.fixedDeltaTime);
+    rb.MoveRotation(Quaternion.LookRotation(direction));  // NEU
+}
+```
+
+`rb.MoveRotation()` wird statt `transform.rotation =` verwendet, da die Rotation über den Rigidbody gesteuert wird und so keine Physics-Artefakte entstehen. Die Rotation ist ein Snap (keine Interpolation), da eine geglättete Rotation die Sensor-Semantik verzögern würde.
+
+**Nebeneffekt auf Boden-Sensoren:** Die Raycast-Offsets `transform.forward * 1f` und `transform.forward * 2f` in `CollectObservations()` zeigen nun in die tatsächliche Bewegungsrichtung des Agenten statt immer in Welt-Z+. Das ist inhaltlich korrekt und verbessert die Qualität der Observations für das ML-Training.
+
+**2. Neues Script `ThirdPersonCamera.cs`**
+
+Neues MonoBehaviour unter `Assets/Scripts/Camera/ThirdPersonCamera.cs`:
+
+```csharp
+public class ThirdPersonCamera : MonoBehaviour
+{
+    public Transform target;
+    public float heightOffset = 3f;
+    public float distanceOffset = 5f;
+    public float positionSmoothTime = 0.1f;
+    public float rotationSmoothSpeed = 5f;
+}
+```
+
+Kernlogik in `LateUpdate()`:
+- **Position:** Zielposition = `target.position + target.rotation * (0, heightOffset, -distanceOffset)` → Kamera hinter und über dem Agenten in dessen lokalem Raum. Geglättet per `Vector3.SmoothDamp`.
+- **Rotation:** Kamera schaut auf `target.position + Vector3.up * 1f` (leicht über Agent-Mitte). Geglättet per `Quaternion.Slerp` mit `rotationSmoothSpeed`.
+- `LateUpdate()` statt `Update()`, damit die Kamera erst nach Agentbewegung (FixedUpdate) aktualisiert wird — kein Frame-Lag zwischen Agentposition und Kameraposition.
+
+**3. Manueller Unity-Schritt (Szene `MapGenerator_Test.unity`)**
+
+- `ThirdPersonCamera`-Script auf das `Main Camera`-GameObject gezogen
+- `target`-Feld im Inspector auf den Agent-Transform gesetzt
+
+---
+
+### Steuerung im Heuristic-Modus
+
+Die Tastenbelegung bleibt unverändert (W/A/S/D + Space). Der Agent dreht sich automatisch in die zuletzt gedrückte Bewegungsrichtung — keine separate Rotationstaste nötig. Die Kamera schwenkt daraufhin hinter den Agenten in seine neue Blickrichtung.
+
+---
+
+### Getroffene Entscheidungen
+
+**Entscheidung 1: Snap-Rotation statt Smooth-Rotation am Agenten**
+Eine interpolierte Rotation am Agenten hätte die Sensor-Offsets (`transform.forward`) während der Drehung in Zwischenzustände versetzt, die für den Beobachtungsraum irreführend wären. Snap-Rotation hält Sensor- und Bewegungsrichtung synchron.
+
+**Entscheidung 2: Rotation über `rb.MoveRotation()` statt `transform.rotation`**
+Direktes Setzen von `transform.rotation` bei einem Rigidbody-Objekt kann Physics-Inkonsistenzen erzeugen. `rb.MoveRotation()` ist die korrekte Rigidbody-API für kinematisch gesteuerte Rotation.
+
+**Entscheidung 3: Kein Eingriff in `MapGenerator.FrameCameraToCurrentMap()`**
+`ThirdPersonCamera.LateUpdate()` überschreibt jede Frame die Kameraposition. Die einmalige Map-Framing-Logik im MapGenerator ist damit funktionslos, solange `target` gesetzt ist — ein Eingriff wäre unnötige Kopplung.
+
+**Entscheidung 4: Keine Änderung am Action-Space**
+Die Rotation ist eine rein visuelle/sensorische Konsequenz der bestehenden Bewegungsaktionen. Der Action-Space (5 Bewegungsoptionen, 2 Sprungoptionen) bleibt unverändert — bestehende Trainingsläufe sind strukturell kompatibel.
+
+---
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| Kamera folgt Agent-Position (inkl. Sprung) | Erfüllt — `SmoothDamp` in `LateUpdate()` |
+| Kamera dreht sich mit Agenten-Y-Rotation | Erfüllt — Offset in lokalem Agenten-Raum |
+| Agent dreht sich visuell in Bewegungsrichtung | Erfüllt — `rb.MoveRotation(Quaternion.LookRotation(direction))` |
+| Boden-Sensoren zeigen in Bewegungsrichtung | Erfüllt — Nebeneffekt der Agenten-Rotation |
+| Steuerung im Heuristic-Modus unverändert | Erfüllt — keine neue Taste, keine Action-Space-Änderung |
+| Agent kann Wände nicht mehr überspringen | Erfüllt — Wandhöhe in `MapGenerator_Test.unity` auf Scale Y = 4.5 erhöht |
