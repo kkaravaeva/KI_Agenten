@@ -23307,6 +23307,7 @@ MonoBehaviour:
   runtimeObstacleCount: 3
   randomizeObstaclePrefab: 1
   cellSize: 1
+  spawnPlacementMode: 1
   useCenterFallback: 0
   autoFrameCamera: 1
   targetCamera: {fileID: 0}
