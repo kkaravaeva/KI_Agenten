@@ -880,3 +880,79 @@ if (obstacleInstance.CompareTag("Hole"))
 - ✅ Gemischte Obstacle-Arrays (Hole + Lava + andere im selben `obstaclePrefabs[]`)
 
 Hinweis: Die `MapData_Training_*`-Assets werden in keiner aktiven Trainingsszene referenziert und sind nicht relevant für das Training.
+
+---
+
+## Issue 88: 4.2.2 Negativen Reward bei Tod vergeben
+
+**Betroffene Datei:** `Assets/Scripts/Agent/LabyrinthAgent.cs`
+**Keine Änderungen an:** `MapGenerator.cs`, Prefabs, Szenen, sonstigen Scripts
+
+---
+
+### Ausgangslage
+
+`OnTriggerEnter` war bereits implementiert (Issue 87) und unterschied per `CompareTag` zwischen Lava- und Hole-Tod. Beide Todesfälle wurden jedoch identisch behandelt: hardcoded `AddReward(-1f)`, kein Logging, keine Inspector-Konfigurierbarkeit.
+
+---
+
+### Umgesetzte Änderungen
+
+**1. Zwei serialisierte Penalty-Felder (statt einem hardcoded Wert)**
+
+```csharp
+[Header("Reward – Tod")]
+[SerializeField] private float lavaDeathPenalty = -1f;
+[SerializeField] private float holeDeathPenalty = -1f;
+```
+
+Beide Felder erscheinen im Inspector unter dem Header „Reward – Tod" und können dort unabhängig voneinander eingestellt werden — ohne Code-Änderung.
+
+**2. `OnTriggerEnter` aufgeteilt in zwei separate Branches**
+
+```csharp
+private void OnTriggerEnter(Collider other)
+{
+    if (other.CompareTag("Lava"))
+    {
+        AddReward(lavaDeathPenalty);
+        Debug.Log($"[Tod] Todesursache=Lava | Reward={lavaDeathPenalty}");
+        EndEpisode();
+    }
+    else if (other.CompareTag("KillZone"))
+    {
+        AddReward(holeDeathPenalty);
+        Debug.Log($"[Tod] Todesursache=Hole | Reward={holeDeathPenalty}");
+        EndEpisode();
+    }
+}
+```
+
+Vorher war es ein gemeinsames `if (... || ...)` mit gemeinsamem `AddReward(-1f)`. Jetzt hat jeder Todesfall seinen eigenen Reward-Wert und seinen eigenen Log-Eintrag.
+
+---
+
+### Getroffene Entscheidungen
+
+**Entscheidung 1: Zwei separate Felder statt eines gemeinsamen `deathPenalty`**
+
+Das Issue forderte, Lava- und Hole-Tod „mindestens vorzubereiten" für unterschiedliche Bestrafungen. Ein einzelnes `deathPenalty`-Feld hätte die Unterscheidbarkeit wieder aufgehoben. Zwei Felder kosten keine zusätzliche Komplexität und lassen die Tür für Experimente offen (z.B. Lava = -1.0, Hole = -0.5, falls der Agent Holes als weniger gefährlich einschätzen soll).
+
+**Entscheidung 2: `AddReward()` statt `SetReward()`**
+
+`AddReward()` akkumuliert den Reward für den aktuellen Step. Da `EndEpisode()` unmittelbar danach aufgerufen wird, ist das Verhalten identisch zu `SetReward()`. `AddReward()` ist die ML-Agents-Konvention für schrittweise Rewards und bleibt konsistent mit dem restlichen Agent-Code.
+
+**Entscheidung 3: Kein separates `DeathZone.cs` (unverändert aus Issue 87)**
+
+Die gesamte Todeslogik bleibt in `LabyrinthAgent.cs`. Das entspricht der in Issue 87 getroffenen Architekturentscheidung: Der Agent ist die zentrale Instanz für Reward und Episodensteuerung — keine Fragmentierung auf Prefab-Scripts.
+
+---
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| Negativer Reward wird bei Tod vergeben | Erfüllt |
+| Reward-Wert ist im Inspector konfigurierbar | Erfüllt — zwei `[SerializeField]`-Felder |
+| Debug-Log zeigt Todesgrund und Reward-Wert | Erfüllt |
+| Lava-Tod und Hole-Tod sind als separate Todesursachen unterscheidbar | Erfüllt |

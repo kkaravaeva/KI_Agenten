@@ -21,6 +21,10 @@ public class LabyrinthAgent : Agent
     [Header("Map")]
     public MapGenerator mapGenerator;
 
+    [Header("Reward – Tod")]
+    [SerializeField] private float lavaDeathPenalty = -1f;
+    [SerializeField] private float holeDeathPenalty = -1f;
+
     [Header("Debug")]
     public bool debugSensors = false;
 
@@ -224,9 +228,16 @@ public class LabyrinthAgent : Agent
     //    Episode endet erst beim Aufprall auf der KillZone-Box 20 Einheiten unter der Map
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Lava") || other.CompareTag("KillZone"))
+        if (other.CompareTag("Lava"))
         {
-            AddReward(-1f);
+            AddReward(lavaDeathPenalty);
+            Debug.Log($"[Tod] Todesursache=Lava | Reward={lavaDeathPenalty}");
+            EndEpisode();
+        }
+        else if (other.CompareTag("KillZone"))
+        {
+            AddReward(holeDeathPenalty);
+            Debug.Log($"[Tod] Todesursache=Hole | Reward={holeDeathPenalty}");
             EndEpisode();
         }
     }
