@@ -1055,3 +1055,65 @@ Die Rotation ist eine rein visuelle/sensorische Konsequenz der bestehenden Beweg
 | Boden-Sensoren zeigen in Bewegungsrichtung | Erfüllt — Nebeneffekt der Agenten-Rotation |
 | Steuerung im Heuristic-Modus unverändert | Erfüllt — keine neue Taste, keine Action-Space-Änderung |
 | Agent kann Wände nicht mehr überspringen | Erfüllt — Wandhöhe in `MapGenerator_Test.unity` auf Scale Y = 4.5 erhöht |
+
+---
+
+## Issue 105– SpawnPlacementMode
+
+**Datum:** 12.04.2026
+**Betroffene Datei:** `Assets/Scripts/Map/MapGenerator.cs`
+
+### Ausgangsproblem
+
+Beim Testen wurde festgestellt, dass der Spawnpunkt des Agenten bisher immer zufällig aus allen begehbaren Zellen gewählt wurde — unabhängig davon, ob im Layout eine explizit markierte `CellType.SpawnPoint`-Zelle vorhanden war. Die Spawn-Platzierung war damit nicht klar steuerbar.
+
+### Umgesetzte Änderungen
+
+**1. Neues Enum `SpawnPlacementMode`** (oberhalb der Klasse, analog zu `ObstaclePlacementMode`)
+
+```csharp
+public enum SpawnPlacementMode
+{
+    RandomSpawnPoints,
+    PredefinedSpawnPoints
+}
+```
+
+**2. Neues Inspector-Feld** in `[Header("Spawn Settings")]`:
+
+```csharp
+public SpawnPlacementMode spawnPlacementMode = SpawnPlacementMode.RandomSpawnPoints;
+```
+
+**3. Erweiterung von `SelectRandomSpawnCell()`**
+
+Die Methode verzweigt jetzt auf Basis von `spawnPlacementMode`:
+
+- **`RandomSpawnPoints`**: Bisheriges Verhalten — alle begehbaren Zellen sind Kandidaten. `CellType.Obstacle`-Zellen werden ausgeschlossen, wenn `obstaclePlacementMode == PredefinedSpawnPoints`, da diese für Hindernisse reserviert sind.
+- **`PredefinedSpawnPoints`**: Nur `CellType.SpawnPoint`-Zellen aus dem Layout werden als Kandidaten zugelassen. Enthält das Layout keine solchen Zellen, wird eine `LogWarning` ausgegeben und auf das `RandomSpawnPoints`-Verhalten zurückgefallen.
+
+### Getroffene Entscheidungen
+
+**Entscheidung 1: Eigenes Enum statt Erweiterung von `ObstaclePlacementMode`**
+Spawn- und Hindernis-Platzierung sind unabhängige Konfigurationsachsen. Ein gemeinsames Enum hätte ungültige Kombinationen erzwungen und die Lesbarkeit im Inspector verschlechtert.
+
+**Entscheidung 2: Fallback auf Random statt hartem Fehler bei fehlendem SpawnPoint**
+Wenn `PredefinedSpawnPoints` gewählt ist, aber das Layout keine `CellType.SpawnPoint`-Zelle enthält, bricht die Episode nicht ab — stattdessen wird ein Warning geloggt und auf zufällige Zellen zurückgefallen. Das verhindert unkontrolliertes Verhalten bei falsch konfigurierten Layouts.
+
+**Entscheidung 3: `SelectRandomGoalCell()` und Obstacle-Logik unverändert**
+Die Goal- und Hindernis-Platzierung sind weiterhin ausschließlich an `obstaclePlacementMode` gebunden. Keine Kopplung an den neuen `spawnPlacementMode`.
+
+**Entscheidung 4: Nur ein Spawnpunkt zur Laufzeit**
+Der Code platziert `spawnPointPrefab` genau einmal (an `currentSpawnCell`). Bei `PredefinedSpawnPoints` mit genau einer markierten Zelle im Layout ergibt sich daraus automatisch ein deterministischer, einziger Spawn-Marker — keine zusätzliche Absicherung im Code nötig.
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| `SpawnPlacementMode` im Inspector auswählbar | Erfüllt — serialisiertes Feld unter „Spawn Settings" |
+| `RandomSpawnPoints` reproduziert bisheriges Verhalten | Erfüllt — identische Logik wie zuvor |
+| `PredefinedSpawnPoints` nutzt nur markierte SpawnPoint-Zellen | Erfüllt — explizite CellType-Prüfung |
+| Layout ohne SpawnPoint-Zellen bricht nicht ab | Erfüllt — Warning + Fallback auf Random |
+| Goal- und Obstacle-Logik unverändert | Erfüllt — keine Änderungen an `SelectRandomGoalCell()` oder `GetObstacleCandidateCells()` |
+| Keine Änderungen an Prefabs oder anderen Scripts | Erfüllt |
+
