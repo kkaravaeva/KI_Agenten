@@ -43,7 +43,9 @@ public class LabyrinthAgent : Agent
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
-        FindGoal();
+        // warnIfMissing=false: Map ist zu diesem Zeitpunkt noch nicht generiert (Start läuft nach Initialize).
+        // FindGoal() wird erneut in OnEpisodeBegin aufgerufen, wenn die Map bereit ist.
+        FindGoal(warnIfMissing: false);
     }
 
     public override void OnEpisodeBegin()
@@ -53,7 +55,7 @@ public class LabyrinthAgent : Agent
         if (mapGenerator != null)
         {
             Vector3 spawnPos = mapGenerator.GetSpawnPosition();
-            transform.localPosition = spawnPos + Vector3.up * 0.5f;
+            transform.position = spawnPos + Vector3.up * 0.5f;
             transform.localRotation = Quaternion.identity;
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
@@ -224,17 +226,17 @@ public class LabyrinthAgent : Agent
 
     private void FindGoal(bool warnIfMissing = true)
     {
-        GameObject goalObject = GameObject.FindWithTag("Goal");
-        if (goalObject != null)
+        if (mapGenerator != null)
         {
-            goalTransform = goalObject.transform;
+            goalTransform = mapGenerator.GetGoalTransform();
         }
         else
         {
             goalTransform = null;
-            if (warnIfMissing)
-                Debug.LogWarning("LabyrinthAgent: Kein GameObject mit Tag 'Goal' gefunden!");
         }
+
+        if (goalTransform == null && warnIfMissing)
+            Debug.LogWarning("LabyrinthAgent: Kein Goal-Transform gefunden! Ist MapGenerator zugewiesen und hat die Map ein Goal-Prefab?");
     }
 
     // === Architekturentscheidung: Zentrale Reward-Vergabe am Agent ===

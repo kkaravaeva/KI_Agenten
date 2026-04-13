@@ -1396,3 +1396,68 @@ mlagents-learn config/labyrinth_training.yaml --run-id=baseline_v1
 | `behavior_name` stimmt mit Agent überein | ✅ `LabyrinthNavigator` |
 | Datei ist syntaktisch valide | ✅ Python-YAML-Strukturcheck bestanden |
 
+---
+
+## Issue 97 – Multi-Area Setup
+
+**Branch:** `milestone-5-reward-system-training`
+
+### Was wurde gemacht
+
+Trainingsszene `Training_MultiArea.unity` mit 4 parallelen Training Areas aufgebaut. ML-Agents sammelt Erfahrungen von allen 4 Agenten gleichzeitig (~4× schnellere Datenmenge pro Zeiteinheit).
+
+### Code-Änderungen
+
+**`MapGenerator.cs`**
+
+- `CellToWorld()`: Position wird jetzt um `mapRoot.position` versetzt → Maps werden korrekt an der Weltposition der Area gerendert, nicht immer bei (0,0,0)
+- `GenerateMap()`: Tile-Instanziierung ebenfalls mit Area-Offset (`mapRoot.position + localPos`)
+- `currentGoalTransform`: neues privates Feld, wird in `SpawnRuntimeMarkersAndObstacles()` gesetzt und in `ClearMap()` genullt
+- `GetGoalTransform()`: neue öffentliche Methode, gibt den Transform des laufzeit-gespawnten Goals zurück
+
+**`LabyrinthAgent.cs`**
+
+- `FindGoal()`: ersetzt `GameObject.FindWithTag("Goal")` durch `mapGenerator.GetGoalTransform()` → jeder Agent findet nur das Goal seiner eigenen Area
+- `OnEpisodeBegin()`: `transform.localPosition` → `transform.position`, da Spawn-Position jetzt Weltkoordinaten sind
+- `Initialize()`: `FindGoal(warnIfMissing: false)` statt `FindGoal()`, da die Map zum Initialisierungszeitpunkt noch nicht generiert ist (`Start()` läuft nach `Initialize()`)
+
+### Designentscheidungen
+
+**Anzahl Areas: 4**
+Gutes Verhältnis aus Parallelität und Performance auf einem Standard-Entwicklerrechner. Einstiegswert — kann bei Bedarf auf 8 erhöht werden ohne Code-Änderung.
+
+**Area-Abstand: 50 Unity-Einheiten (X-Achse)**
+Die größten Layouts (25×30 Zellen) belegen maximal 30 Einheiten. 50 Einheiten Abstand garantiert keine physikalische Überlappung mit ausreichend Puffer.
+
+**`autoFrameCamera = false` an allen Areas**
+Der MapGenerator würde sonst bei jeder Episode die Kamera auf die jeweilige Area ausrichten. Für Training nicht benötigt; Kamera wird einmalig manuell positioniert.
+
+**Layout-Assets statt MapData-Assets**
+`MapData_Training_02`, `_04` und `_05` haben leere `cells`-Arrays (wurden angelegt, nie befüllt). Die `Layout_01`–`Layout_05`-Assets unter `Assets/Layouts/` enthalten valide Daten und werden stattdessen verwendet.
+
+**Alle generierten Objekte unter `MapGenerator/MapRoot`**
+Kein Namespace-Konflikt zwischen Areas. `MapRoot` wird von `EnsureMapRoot()` als Kind des jeweiligen `MapGenerator`-GameObjects angelegt.
+
+### Szenen-Hierarchie
+
+```
+TrainingArea (Prefab, 4× in Szene)
+├── MapGenerator
+│   └── MapRoot (Laufzeit)
+│       ├── Floor_x_y / Wall_x_y / ...
+│       ├── RuntimeGoal_x_y
+│       ├── RuntimeSpawnPoint_x_y
+│       └── KillZone
+└── Agent
+```
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| 4 Training Areas in Szene `Training_MultiArea.unity` | ✅ |
+| Jede Area generiert unabhängig Maps | ✅ |
+| Alle Agenten teilen `BehaviorName = LabyrinthNavigator` | ✅ (Prefab-Kopien) |
+| Kein physisches Überlappen der Areas | ✅ 50 Einheiten Abstand |
+| Anzahl der Areas dokumentiert und begründet | ✅ siehe oben |
+
