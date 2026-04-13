@@ -25,12 +25,17 @@ public class LabyrinthAgent : Agent
     [SerializeField] private float lavaDeathPenalty = -1f;
     [SerializeField] private float holeDeathPenalty = -1f;
 
+    [Header("Reward – Zeit")]
+    [SerializeField] private float stepPenalty = -0.001f;
+
     [Header("Debug")]
     public bool debugSensors = false;
 
     private Rigidbody rb;
     private bool isGrounded;
     private Transform goalTransform;
+    private int lastEpisodeStepCount = 0;
+    private float lastEpisodeCumulativeReward = 0f;
 
     public override void Initialize()
     {
@@ -40,6 +45,8 @@ public class LabyrinthAgent : Agent
 
     public override void OnEpisodeBegin()
     {
+        Debug.Log($"[Episode] Neue Episode. Steps letzte Episode: {lastEpisodeStepCount} | Letzter Cumulative Reward: {lastEpisodeCumulativeReward:F3}");
+
         if (mapGenerator != null)
         {
             Vector3 spawnPos = mapGenerator.GetSpawnPosition();
@@ -146,6 +153,10 @@ public class LabyrinthAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
+        AddReward(stepPenalty);
+        lastEpisodeStepCount = StepCount;
+        lastEpisodeCumulativeReward = GetCumulativeReward();
+
         int moveAction = actions.DiscreteActions[0];
         int jumpAction = actions.DiscreteActions[1];
 

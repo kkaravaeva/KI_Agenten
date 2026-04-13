@@ -1173,3 +1173,105 @@ Der Kommentar vor `OnTriggerEnter` in `LabyrinthAgent.cs` wurde zu einer vollst�
 | Lava-Tod und Hole-Tod sind als separate Todesursachen unterscheidbar | Erfüllt — getrennte Branches + separate Penalty-Felder |
 | Architekturentscheidung (zentral vs. verteilt) ist dokumentiert | Erfüllt — Kommentar in `LabyrinthAgent.cs` vor `OnTriggerEnter` |
 
+---
+
+## Issue 94: 5.1.3 Zeitlimit (MaxStep) & Step-Penalty implementieren
+
+### Kontext
+
+ML-Agents bietet eine eingebaute `MaxStep`-Property auf der `Agent`-Klasse. Wird sie gesetzt, ruft das Framework automatisch `EndEpisode()` auf, sobald der Agent die entsprechende Anzahl an Decisions erreicht hat. Dabei gibt es **keinen automatischen zusätzlichen Reward** — die Episode endet mit dem bis dahin akkumulierten Reward.
+
+### MaxStep — Begründung des Werts
+
+**Überschlagsrechnung (größte Map: 25×30 Zellen, Zellgröße 1.0 m):**
+
+| Parameter | Wert |
+|---|---|
+| `moveSpeed` | 3 m/s |
+| Unity FixedUpdate | 50 Hz (0.02 s/Step) |
+| ML-Agents Decision Period | 5 (Standard) |
+| Zeit pro Zelle | 1 m / 3 m/s = 0,33 s |
+| Physics-Steps pro Zelle | 0,33 s / 0,02 s = 16,7 |
+| Decisions pro Zelle | 16,7 / 5 ≈ 3,3 |
+| Längster realistischer Pfad | ~150 Zellen (Labyrinth, 25×30) |
+| Optimale Decisions minimal | 150 × 3,3 ≈ 500 |
+| **MaxStep (5× Puffer)** | **2500** |
+
+Der Faktor 5 gibt dem Agenten ausreichend Spielraum, auch bei suboptimalen Trajektorien während des Trainings die Map zu lösen, ohne bei gutem Verhalten in Timeout zu laufen.
+
+**→ MaxStep = 2500 wird im Unity Inspector am Agent-Prefab gesetzt.**
+
+### Timeout-Verhalten — Architekturentscheidung
+
+**Entscheidung: Option A — kein expliziter Timeout-Penalty.**
+
+Begründung:
+- Der Step-Penalty akkumuliert über die gesamte Episodenlänge: Bei `MaxStep = 2500` und `stepPenalty = -0.001f` ergibt sich ein kumulativer Timeout-Malus von `2500 × 0.001 = -2.5`. Timeout ist damit bereits indirekt bestraft — ohne einen separaten Reward-Aufruf.
+- Ein expliziter Timeout-Penalty (`-1.0f`) wäre redundant und könnte das Lernsignal verzerren, da er unabhängig vom bisherigen Episodenverlauf wirkt.
+- ML-Agents' automatisches `EndEpisode()` bei MaxStep ist ausreichend als Terminierungssignal.
+
+### Step-Penalty — Implementierung
+
+In `OnActionReceived()` wird zu Beginn jedes Steps ein kleiner negativer Reward addiert. Zusätzlich werden Step-Count und Cumulative Reward in privaten Feldern gesichert, da ML-Agents beide Werte zurücksetzt **bevor** `OnEpisodeBegin()` aufgerufen wird:
+
+```csharp
+[Header("Reward – Zeit")]
+[SerializeField] private float stepPenalty = -0.001f;
+
+private int lastEpisodeStepCount = 0;
+private float lastEpisodeCumulativeReward = 0f;
+
+public override void OnEpisodeBegin()
+{
+    Debug.Log($"[Episode] Neue Episode. Steps letzte Episode: {lastEpisodeStepCount} | Letzter Cumulative Reward: {lastEpisodeCumulativeReward:F3}");
+    // ...
+}
+
+public override void OnActionReceived(ActionBuffers actions)
+{
+    AddReward(stepPenalty);
+    lastEpisodeStepCount = StepCount;
+    lastEpisodeCumulativeReward = GetCumulativeReward();
+    // ... restliche Bewegungslogik
+}
+```
+
+**Begründung der Größenordnung (`-0.001f`):**
+
+| Szenario | Kumulativer Step-Penalty |
+|---|---|
+| Optimaler Pfad (~500 Steps) | -0,5 |
+| Timeout (2500 Steps) | -2,5 |
+| Lava/Hole-Tod | -1,0 (einmalig) |
+
+- Der Step-Penalty bei 500 Steps (`-0.5`) ist spürbar kleiner als ein Todesfall (`-1.0`), sodass der Agent keinen Anreiz hat, Lava/Holes als Abkürzung zu riskieren.
+- Bei Timeout (`-2.5`) übersteigt der akkumulierte Penalty einen Einzeltod — Herumstehen wird stärker bestraft als Sterben, aber die Lava-Grenze bleibt trotzdem unattraktiv.
+- Das Feld ist im Inspector konfigurierbar (`[SerializeField]`), sodass der Wert ohne Code-Änderung für Experimente angepasst werden kann.
+
+**Hinweis: `StepCount` und `GetCumulativeReward()` in `OnEpisodeBegin`**
+
+ML-Agents setzt beide Werte zurück, bevor `OnEpisodeBegin()` aufgerufen wird — ein direktes Auslesen dort liefert immer `0`. Die privaten Felder `lastEpisodeStepCount` und `lastEpisodeCumulativeReward` sichern die Werte am Ende jedes `OnActionReceived`-Aufrufs und stehen damit in der nächsten `OnEpisodeBegin` korrekt zur Verfügung.
+
+### Test — Ergebnis
+
+Getestet im Heuristic-Modus mit `MaxStep = 100` (Testwert), Agent stehend:
+
+```
+[Episode] Neue Episode. Steps letzte Episode: 100 | Letzter Cumulative Reward: -0,100
+```
+
+- Steps = 100 → MaxStep greift korrekt, Episode endet automatisch
+- Reward = -0.100 → 100 × (-0.001) = erwarteter akkumulierter Step-Penalty ✅
+
+MaxStep danach auf den begründeten Produktionswert **2500** zurückgesetzt.
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| MaxStep ist gesetzt und begründet dokumentiert | ✅ Wert 2500, Überschlagsrechnung oben |
+| Verhalten bei Timeout ist definiert und dokumentiert | ✅ Option A (kein expliziter Penalty), Step-Penalty übernimmt indirekte Bestrafung |
+| Step-Penalty ist implementiert und konfigurierbar | ✅ `[SerializeField] private float stepPenalty = -0.001f` in `LabyrinthAgent.cs` |
+| Step-Penalty ist in seiner Größenordnung begründet | ✅ Tabelle oben |
+| Test bestanden: Episode endet bei MaxStep | ✅ Verifiziert im Heuristic-Modus |
+
