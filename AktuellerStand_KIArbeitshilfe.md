@@ -1275,3 +1275,66 @@ MaxStep danach auf den begründeten Produktionswert **2500** zurückgesetzt.
 | Step-Penalty ist in seiner Größenordnung begründet | ✅ Tabelle oben |
 | Test bestanden: Episode endet bei MaxStep | ✅ Verifiziert im Heuristic-Modus |
 
+---
+
+## Issue 95: 5.1.4 Reward-Strategie dokumentieren & Gesamtübersicht erstellen
+
+### Kontext
+
+Dieses Issue schließt die Reward-Implementierung aus Issues 88, 93, 94 ab. Ziel ist eine formale RL-Spezifikation mit vollständiger Reward-Tabelle, die Heistermann als Gesamtdokumentation der Reward-Strategie vorgelegt werden kann.
+
+Bei der Vorbereitung wurde festgestellt, dass `goalReward` in den Blocker-Issues (5.1.1–5.1.3) noch nicht implementiert worden war. Das Feld und der zugehörige Trigger-Handler wurden daher als Teil dieses Issues nachgezogen.
+
+### Implementierung: goalReward
+
+**Neues Inspector-Feld in `LabyrinthAgent.cs`:**
+
+```csharp
+[Header("Reward – Ziel")]
+[SerializeField] private float goalReward = 1f;
+```
+
+**Erweiterung von `OnTriggerEnter`:**
+
+```csharp
+if (other.CompareTag("Goal"))
+{
+    AddReward(goalReward);
+    Debug.Log($"[Ziel] Ziel erreicht | Reward={goalReward}");
+    EndEpisode();
+}
+```
+
+Das Goal-Prefab hat `isTrigger = true` (im Inspector gesetzt). Die Trigger-Logik folgt dem etablierten Muster: Externes Objekt löst `OnTriggerEnter` aus, der Agent vergibt den Reward intern.
+
+### Designentscheidungen
+
+**Kein Reward für Hindernisüberwindung (Lava-Sprung)**
+
+Die Projektbeschreibung schreibt vor: *„Hindernisüberwindung nur neutral oder leicht positiv bewerten"*. Ein expliziter Sprung-Reward würde Lava-Suchen incentivieren statt Zielerreichung. Der `goalReward (+1.0)` motiviert die korrekte Navigation inklusive Hindernisüberwindung als Nebeneffekt.
+
+**Timeout ohne expliziten Reward-Term**
+
+Konsistent mit der Entscheidung aus Issue 94: Der akkumulierte Step-Penalty bei MaxStep (`2500 × −0.001 = −2.5`) übernimmt die Timeout-Bestrafung. Kein separater Timeout-Reward-Aufruf.
+
+### Erstellte Dokumentation
+
+Neue Datei: `Dokumentation/Reward_Strategie.md`
+
+Inhalt:
+- Formale Reward-Funktion (mathematische Notation)
+- Vollständige Reward-Tabelle mit allen Werten, Inspector-Feldern und Auslösern
+- Timeout-Analyse (Skalierungsrechnung Step-Penalty × MaxStep)
+- Begründung: kein Reward für Hindernisüberwindung (Verweis auf Projektbeschreibung)
+- Reward-Skalierungs-Analyse (Verhältnisse goalReward / deathPenalty / stepPenalty)
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| Dokument existiert mit vollständiger Reward-Tabelle | ✅ `Dokumentation/Reward_Strategie.md` |
+| Alle Werte sind begründet | ✅ Skalierungsanalyse im Dokument |
+| Designentscheidung zu Hindernisüberwindungs-Reward ist adressiert | ✅ Eigener Abschnitt im Dokument |
+| Dokument ist im Repository versioniert | ✅ Teil dieses Commits |
+| `goalReward` als konfigurierbares Inspector-Feld implementiert | ✅ `[SerializeField] private float goalReward = 1f` |
+

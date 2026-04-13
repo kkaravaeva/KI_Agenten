@@ -21,6 +21,9 @@ public class LabyrinthAgent : Agent
     [Header("Map")]
     public MapGenerator mapGenerator;
 
+    [Header("Reward – Ziel")]
+    [SerializeField] private float goalReward = 1f;
+
     [Header("Reward – Tod")]
     [SerializeField] private float lavaDeathPenalty = -1f;
     [SerializeField] private float holeDeathPenalty = -1f;
@@ -247,7 +250,13 @@ public class LabyrinthAgent : Agent
     //    (Lava und Hole haben bewusst separate Felder für spätere Differenzierung)
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Lava"))
+        if (other.CompareTag("Goal"))
+        {
+            AddReward(goalReward);
+            Debug.Log($"[Ziel] Ziel erreicht | Reward={goalReward}");
+            EndEpisode();
+        }
+        else if (other.CompareTag("Lava"))
         {
             AddReward(lavaDeathPenalty);
             Debug.Log($"[Tod] Todesursache=Lava | Reward={lavaDeathPenalty}");
