@@ -1338,3 +1338,61 @@ Inhalt:
 | Dokument ist im Repository versioniert | ✅ Teil dieses Commits |
 | `goalReward` als konfigurierbares Inspector-Feld implementiert | ✅ `[SerializeField] private float goalReward = 1f` |
 
+---
+
+## Issue #96 – ML-Agents YAML-Konfigurationsdatei erstellen
+
+**Branch:** `milestone-5-reward-system-training`
+
+### Was wurde gemacht
+
+Neue Datei: `config/labyrinth_training.yaml`
+
+Das Verzeichnis `config/` liegt im Projektroot (nicht in `Assets/`), da `mlagents-learn` von dort aus aufgerufen wird. Die YAML-Datei enthält alle Pflichtparameter mit erklärenden Kommentaren direkt in der Datei.
+
+### Gewählte Parameter und Begründungen
+
+| Parameter | Wert | Begründung |
+|---|---|---|
+| `trainer_type` | `ppo` | Standard für ML-Agents, stabil bei diskreten Aktionen, besser als REINFORCE |
+| `learning_rate` | `3e-4` | PPO-Default für Adam-Optimizer; Startpunkt vor späterer Anpassung |
+| `batch_size` | `512` | Teilt `buffer_size` (10240 / 512 = 20), groß genug für stabile Gradienten |
+| `buffer_size` | `10240` | ≈ 4 vollständige Episoden (MaxStep = 2500) → diverse Erfahrungen pro Update |
+| `beta` | `5e-3` | Entropie-Regularisierung für Exploration in frühen Trainingsphasen |
+| `epsilon` | `0.2` | PPO-Clipping-Standard; begrenzt Policy-Änderung pro Update |
+| `lambd` | `0.95` | GAE λ: niedrige Varianz bei Advantage-Schätzung, Standard für Navigation |
+| `num_epoch` | `3` | Konservativ und stabil; mehr Epochen riskieren Overfitting auf den Buffer |
+| `hidden_units` | `256` | Ausreichend für räumliches Reasoning (Navigation, Sprung, Gefahrenerkennung) |
+| `num_layers` | `2` | Standard-MLP-Tiefe für diese Aufgabenkomplexität |
+| `normalize` | `false` | Observations sind bereits skaliert ([-1.5, 1], normierte Velocity, 0/1-Flags) |
+| `gamma` | `0.99` | Agent plant ~100 Steps voraus; nötig weil Ziel erst am Ende einer langen Episode erreicht wird |
+| `max_steps` | `2.000.000` | ≈ 800 Episoden für erste Baseline |
+| `time_horizon` | `64` | Kleiner als MaxStep (2500); mit Decision Period 5 = ~13 Entscheidungen pro Update |
+| `summary_freq` | `10.000` | 200 TensorBoard-Datenpunkte über 2M Steps |
+| `checkpoint_interval` | `200.000` | 10 Checkpoints → Rollback bei instabilem Training möglich |
+
+### Wichtige konzeptuelle Unterscheidung
+
+`max_steps` in der YAML ≠ `MaxStep` im Agent:
+- `MaxStep = 2500` (in `LabyrinthAgent.cs`) → bricht eine **einzelne Episode** ab
+- `max_steps: 2000000` (in YAML) → beendet das **gesamte Training** nach N Schritten über alle Episoden
+
+### behavior_name
+
+`LabyrinthNavigator` in der YAML stimmt exakt mit der `BehaviorParameters`-Komponente auf `Agent.prefab` überein.
+
+### Trainingsstart
+
+```bash
+mlagents-learn config/labyrinth_training.yaml --run-id=baseline_v1
+```
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| YAML-Datei existiert unter `config/` | ✅ `config/labyrinth_training.yaml` |
+| Alle Pflichtparameter gesetzt und begründet | ✅ Kommentare direkt in der YAML-Datei |
+| `behavior_name` stimmt mit Agent überein | ✅ `LabyrinthNavigator` |
+| Datei ist syntaktisch valide | ✅ Python-YAML-Strukturcheck bestanden |
+
