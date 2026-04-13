@@ -1117,3 +1117,59 @@ Der Code platziert `spawnPointPrefab` genau einmal (an `currentSpawnCell`). Bei 
 | Goal- und Obstacle-Logik unverändert | Erfüllt — keine Änderungen an `SelectRandomGoalCell()` oder `GetObstacleCandidateCells()` |
 | Keine Änderungen an Prefabs oder anderen Scripts | Erfüllt |
 
+---
+
+## Issue 93: 5.1.2 Reward-Werte für Tod konsolidieren und konfigurierbar machen
+
+**Datum:** 13.04.2026
+**Betroffene Datei:** `Assets/Scripts/Agent/LabyrinthAgent.cs`
+**Keine Änderungen an:** `MapGenerator.cs`, Prefabs, sonstigen Scripts
+
+---
+
+### Ausgangslage
+
+Die Reward-Vergabe bei Tod war bereits in Issue 88 zentral im `LabyrinthAgent` implementiert (zwei `[SerializeField]`-Felder `lavaDeathPenalty` und `holeDeathPenalty`, getrennte `OnTriggerEnter`-Branches mit Debug-Logs). Dieses Issue stellte fest, dass die Implementierung die Akzeptanzkriterien vollständig erfüllt — fehlend war ausschließlich die Dokumentation der Architekturentscheidung im Code.
+
+---
+
+### Architekturentscheidung: Zentral am Agent (nicht in DeathZone.cs)
+
+Ein separates `DeathZone.cs`-Script auf Hindernis-Prefabs existiert nicht und wurde bewusst nicht eingeführt. Stattdessen gilt:
+
+- **Alle Reward-Werte** liegen als serialisierte Felder am `LabyrinthAgent` — im Inspector konfigurierbar, ohne Code-Änderung anpassbar
+- **Trigger-Objekte** (Lava-Prefab, KillZone-Box) lösen nur `OnTriggerEnter` aus — sie vergeben selbst keine Rewards
+- **Der Agent** ist die einzige Instanz, die `AddReward()` und `EndEpisode()` aufruft
+
+**Begründung:** ML-Agents-Paradigma sieht vor, dass ausschließlich die Agent-Klasse Rewards und Episode-Steuerung übernimmt. Logik auf einzelnen Prefab-Scripts würde diese Verantwortung fragmentieren und die Konfigurierbarkeit erschweren — insbesondere im Hinblick auf Milestone 5 (Step-Penalty, Goal-Reward).
+
+---
+
+### Umgesetzte Änderung
+
+Der Kommentar vor `OnTriggerEnter` in `LabyrinthAgent.cs` wurde zu einer vollständigen Architekturdokumentation ausgebaut:
+
+```csharp
+// === Architekturentscheidung: Zentrale Reward-Vergabe am Agent ===
+// Alle Reward-Werte bei Tod sind als serialisierte Felder am LabyrinthAgent definiert
+// (lavaDeathPenalty, holeDeathPenalty). Externe Trigger-Objekte (Lava, KillZone) rufen
+// keine Rewards direkt auf, sondern lösen nur OnTriggerEnter aus. Der Agent vergibt
+// den Reward intern. Das entspricht dem ML-Agents-Paradigma (nur die Agent-Klasse
+// darf AddReward/EndEpisode aufrufen) und erleichtert die Konfiguration in Milestone 5.
+//
+// Todesauslöser:
+// 1. Lava: IsTrigger=true am Lava-Prefab → Agent läuft in Trigger → lavaDeathPenalty
+// 2. Hole: Agent fällt durch HoleSurface-Layer → trifft KillZone-Box → holeDeathPenalty
+//    (Lava und Hole haben bewusst separate Felder für spätere Differenzierung)
+```
+
+---
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| Reward-Vergabe bei Tod ist konsistent und zentral konfigurierbar | Erfüllt — zwei `[SerializeField]`-Felder am Agent (seit Issue 88) |
+| Lava-Tod und Hole-Tod sind als separate Todesursachen unterscheidbar | Erfüllt — getrennte Branches + separate Penalty-Felder |
+| Architekturentscheidung (zentral vs. verteilt) ist dokumentiert | Erfüllt — Kommentar in `LabyrinthAgent.cs` vor `OnTriggerEnter` |
+

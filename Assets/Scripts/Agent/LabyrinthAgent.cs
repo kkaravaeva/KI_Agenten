@@ -223,10 +223,17 @@ public class LabyrinthAgent : Agent
         }
     }
 
-    // Todeslogik — zwei Mechanismen:
-    // 1. Lava: IsTrigger=true am Lava-Prefab, Agent läuft in den Trigger → sofortiger Tod
-    // 2. Hole: Agent fällt physisch durch (Layer HoleSurface kollidiert nicht mit Default),
-    //    Episode endet erst beim Aufprall auf der KillZone-Box 20 Einheiten unter der Map
+    // === Architekturentscheidung: Zentrale Reward-Vergabe am Agent ===
+    // Alle Reward-Werte bei Tod sind als serialisierte Felder am LabyrinthAgent definiert
+    // (lavaDeathPenalty, holeDeathPenalty). Externe Trigger-Objekte (Lava, KillZone) rufen
+    // keine Rewards direkt auf, sondern lösen nur OnTriggerEnter aus. Der Agent vergibt
+    // den Reward intern. Das entspricht dem ML-Agents-Paradigma (nur die Agent-Klasse
+    // darf AddReward/EndEpisode aufrufen) und erleichtert die Konfiguration in Milestone 5.
+    //
+    // Todesauslöser:
+    // 1. Lava: IsTrigger=true am Lava-Prefab → Agent läuft in Trigger → lavaDeathPenalty
+    // 2. Hole: Agent fällt durch HoleSurface-Layer → trifft KillZone-Box → holeDeathPenalty
+    //    (Lava und Hole haben bewusst separate Felder für spätere Differenzierung)
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Lava"))
