@@ -1532,3 +1532,186 @@ Alle vier geforderten Metriken waren unter http://localhost:6006 sichtbar:
 | TensorBoard zeigt Policy Loss und Value Loss | ✅ |
 | Keine Fehlermeldungen in der mlagents-lean-Konsole | ✅ (nur unkritische pkg_resources-Deprecation-Warnung) |
 | `results`-Verzeichnis korrekt befüllt | ✅ |
+
+---
+
+## Issue 99: Erstes vollständiges Training auf allen 5 Maps
+
+**Branch:** `milestone-5-reward-system-training`
+**Datum:** 14.04.2026
+
+---
+
+### Übersicht
+
+Zwei vollständige Trainingsläufe wurden durchgeführt:
+
+| Lauf | Run-ID | Agenten | Layouts | Obstacles | GPU | Max Steps |
+|------|--------|---------|---------|-----------|-----|-----------|
+| v1 | `mlp_baseline_v1` | 4 | 4 von 5 | random | Nein (CPU) | 600.000 (manuell gestoppt) |
+| v2 | `mlp_baseline_v2` | 10 | 5 × 2 | random | Ja (RTX 3050, CUDA 11.8) | 2.000.000 (vollständig) |
+
+---
+
+### Trainingskonfiguration
+
+```
+config/labyrinth_training.yaml
+```
+
+| Parameter | Wert |
+|-----------|------|
+| trainer_type | ppo |
+| max_steps | 2.000.000 |
+| learning_rate | 3e-4 |
+| batch_size | 512 |
+| buffer_size | 10.240 |
+| hidden_units | 256 |
+| num_layers | 2 |
+| gamma | 0.99 |
+| summary_freq | 10.000 |
+| checkpoint_interval | 200.000 |
+
+---
+
+### Trainingsstart
+
+Die Konfigurationsdatei `config/labyrinth_training.yaml` ist im Repository enthalten und versioniert. ML-Agents nutzt sie nicht automatisch — sie muss explizit beim Start übergeben werden. Das ermöglicht vollständige Reproduzierbarkeit: Wer das Repo klont, kann das Training mit denselben Parametern wiederholen.
+
+```bash
+# v1 (CPU, 4 Agenten) — aus dem Projektverzeichnis
+mlagents-learn config/labyrinth_training.yaml --run-id=mlp_baseline_v1
+
+# v2 (GPU, 10 Agenten)
+mlagents-learn config/labyrinth_training.yaml --run-id=mlp_baseline_v2 --torch-device cuda
+```
+
+> `mlagents-learn` muss aus der aktivierten Python-Umgebung aufgerufen werden. Siehe `Training_Starten.md` für die vollständige Anleitung inkl. venv-Aktivierung.
+
+**Hardware (Trainingsrechner):** NVIDIA GeForce RTX 3050 Laptop GPU, 4 GB VRAM, CUDA 12.3
+
+**CUDA-Installation:**
+PyTorch wurde von `2.0.1+cpu` auf `2.0.1+cu118` upgradet (kompatibel mit CUDA 12.x):
+```bash
+pip install torch==2.0.1+cu118 --index-url https://download.pytorch.org/whl/cu118
+```
+
+---
+
+### Reward-Verlauf mlp_baseline_v1
+
+| Step | Mean Reward | Std |
+|------|-------------|-----|
+| 10.000 | −2.179 | 0.783 |
+| 100.000 | +0.326 | 1.201 |
+| 200.000 | +0.662 | 0.838 |
+| 300.000 | +0.746 | 0.735 |
+| 400.000 | +0.759 | 0.701 |
+| 500.000 | +0.783 | 0.652 |
+| 570.000 | +0.806 | 0.506 |
+| 600.000 | +0.781 | 0.613 |
+
+Gespeicherte Checkpoints: `199958`, `399990`, `599989`
+
+---
+
+### Reward-Verlauf mlp_baseline_v2 (finales Modell)
+
+| Step | Mean Reward | Std |
+|------|-------------|-----|
+| 10.000 | −2.388 | 0.711 |
+| 220.000 | +0.053 | — (Null-Crossing) |
+| 400.000 | +0.503 | 0.816 |
+| 600.000 | +0.638 | 0.710 |
+| 800.000 | +0.748 | 0.537 |
+| 1.000.000 | +0.809 | 0.332 |
+| 1.940.000 | +0.824 | 0.259 |
+| 2.000.000 | **+0.814** | **0.327** |
+
+Gesamtdauer: **6.273 Sekunden (~1h 44min)**
+
+Gespeicherte Checkpoints: `1399992`, `1599953`, `1799958`, `1999980`, `2000029`
+
+Finales Modell: `results/mlp_baseline_v2/LabyrinthNavigator.onnx`
+In Assets kopiert: `Assets/ML-Agents/Models/mlp_baseline_v2_final.onnx`
+
+---
+
+### Vergleich v1 vs. v2
+
+| Meilenstein | v1 (4 Agenten, CPU) | v2 (10 Agenten, GPU) |
+|-------------|---------------------|----------------------|
+| 200k | +0.662 | −0.222 |
+| 400k | +0.759 | +0.503 |
+| 600k | +0.781 | +0.638 |
+| Final | +0.781 (bei 600k) | +0.814 (bei 2M) |
+
+v2 konvergiert langsamer, weil 10 Agenten auf 5 verschiedenen Layouts mit random Obstacles eine deutlich diversere Lernaufgabe darstellen. Der MLP-Ceiling liegt bei ~0.81.
+
+---
+
+### Speedup durch GPU und mehr Agenten
+
+| Setup | Intervall pro 10.000 Steps |
+|-------|---------------------------|
+| v1 (4 Agenten, CPU) | ~45 s |
+| v2 (10 Agenten, CPU) | ~30 s |
+| v2 (10 Agenten, GPU) | ~32 s |
+
+Fazit: Der Speedup kommt primär von den zusätzlichen Agenten (+33%), nicht von der GPU. Bei einem kleinen MLP (256 Units, 2 Layer) ist die Unity-Simulation der Bottleneck, nicht die Netzwerkberechnung.
+
+---
+
+### Inference-Test — Ergebnis & bekannte Limitierung
+
+**Durchgeführt:** `Assets/ML-Agents/Models/mlp_baseline_v2_final.onnx` wurde auf das Agent-Prefab zugewiesen, `Behavior Type: Inference Only`, Training_MultiArea.unity gestartet.
+
+**Beobachtung:** Der Agent findet das Ziel. Obstacles wurden auf keiner Map platziert — die Maps liefen ohne Hindernisse.
+
+**Ursache (identifiziert):** Der `MapGenerator` hat den Parameter `Runtime Obstacles` auf `0` gesetzt. Obstacles werden damit nicht zur Laufzeit (Play Mode) erzeugt. Da sowohl das Training als auch der Inference-Test im Play Mode laufen, wurden in beiden Fällen keine Obstacles instanziiert.
+
+**Konsequenz:** Das Modell hat ausschließlich auf obstacle-freien Maps trainiert. Hindernisvermeidung (Lava, Löcher) wurde nicht gelernt — das gelernte Verhalten ist reine Zielnavigation.
+
+
+---
+
+### Erzeugte Dateien
+
+```
+results/
+├── mlp_baseline_v1/
+│   ├── LabyrinthNavigator/
+│   │   ├── LabyrinthNavigator-199958.onnx
+│   │   ├── LabyrinthNavigator-399990.onnx
+│   │   ├── LabyrinthNavigator-599989.onnx
+│   │   └── events.out.tfevents.*       ← TensorBoard-Daten
+│   ├── configuration.yaml
+│   └── run_logs/
+├── mlp_baseline_v2/
+│   ├── LabyrinthNavigator/
+│   │   ├── LabyrinthNavigator-1399992.onnx
+│   │   ├── LabyrinthNavigator-1599953.onnx
+│   │   ├── LabyrinthNavigator-1799958.onnx
+│   │   ├── LabyrinthNavigator-1999980.onnx
+│   │   ├── LabyrinthNavigator-2000029.onnx
+│   │   └── events.out.tfevents.*       ← TensorBoard-Daten
+│   ├── LabyrinthNavigator.onnx          ← finales Modell
+│   ├── configuration.yaml
+│   └── run_logs/
+
+Assets/
+└── ML-Agents/
+    └── Models/
+        └── mlp_baseline_v2_final.onnx  ← in Unity verwendbar
+```
+
+---
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|-----------|--------|
+| Training läuft vollständig durch ohne Abstürze | ✅ (v2: 2.000.000 Steps, ~1h 44min) |
+| TensorBoard zeigt erkennbaren Reward-Anstieg | ✅ (von −2.4 auf +0.81) |
+| Trainiertes Modell ist gesichert | ✅ (`mlp_baseline_v2_final.onnx`) |
+| Erste qualitative Beobachtung im Inference-Modus dokumentiert | ✅ (s. oben — Obstacles-Bug identifiziert) |

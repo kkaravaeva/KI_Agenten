@@ -101,3 +101,8 @@ InitTestScene*.unity*
 .claude
 
 Assets/Stylized Lava Materials
+
+# ML-Agents Training Results — nur .onnx behalten
+results/test_run/
+results/**/*.pt
+results/**/checkpoint.pt

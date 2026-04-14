@@ -1,0 +1,65 @@
+{
+    "LabyrinthNavigator": {
+        "checkpoints": [
+            {
+                "steps": 1399992,
+                "file_path": "results\\mlp_baseline_v2\\LabyrinthNavigator\\LabyrinthNavigator-1399992.onnx",
+                "reward": 0.7697467981260034,
+                "creation_time": 1776158404.95048,
+                "auxillary_file_paths": [
+                    "results\\mlp_baseline_v2\\LabyrinthNavigator\\LabyrinthNavigator-1399992.pt"
+                ]
+            },
+            {
+                "steps": 1599953,
+                "file_path": "results\\mlp_baseline_v2\\LabyrinthNavigator\\LabyrinthNavigator-1599953.onnx",
+                "reward": 0.798168978780648,
+                "creation_time": 1776159041.3126574,
+                "auxillary_file_paths": [
+                    "results\\mlp_baseline_v2\\LabyrinthNavigator\\LabyrinthNavigator-1599953.pt"
+                ]
+            },
+            {
+                "steps": 1799958,
+                "file_path": "results\\mlp_baseline_v2\\LabyrinthNavigator\\LabyrinthNavigator-1799958.onnx",
+                "reward": 0.7963767729807592,
+                "creation_time": 1776159682.1594038,
+                "auxillary_file_paths": [
+                    "results\\mlp_baseline_v2\\LabyrinthNavigator\\LabyrinthNavigator-1799958.pt"
+                ]
+            },
+            {
+                "steps": 1999980,
+                "file_path": "results\\mlp_baseline_v2\\LabyrinthNavigator\\LabyrinthNavigator-1999980.onnx",
+                "reward": 0.8067740024282382,
+                "creation_time": 1776160325.8373067,
+                "auxillary_file_paths": [
+                    "results\\mlp_baseline_v2\\LabyrinthNavigator\\LabyrinthNavigator-1999980.pt"
+                ]
+            },
+            {
+                "steps": 2000029,
+                "file_path": "results\\mlp_baseline_v2\\LabyrinthNavigator\\LabyrinthNavigator-2000029.onnx",
+                "reward": 0.8065406340731388,
+                "creation_time": 1776160325.9818497,
+                "auxillary_file_paths": [
+                    "results\\mlp_baseline_v2\\LabyrinthNavigator\\LabyrinthNavigator-2000029.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 2000029,
+            "file_path": "results\\mlp_baseline_v2\\LabyrinthNavigator.onnx",
+            "reward": 0.8065406340731388,
+            "creation_time": 1776160325.9818497,
+            "auxillary_file_paths": [
+                "results\\mlp_baseline_v2\\LabyrinthNavigator\\LabyrinthNavigator-2000029.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.30.0",
+        "torch_version": "2.0.1+cu118"
+    }
+}
