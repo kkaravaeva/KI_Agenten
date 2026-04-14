@@ -1457,3 +1457,78 @@ TrainingArea (Prefab, 4× in Szene)
 | Alle Agenten teilen `BehaviorName = LabyrinthNavigator` | ✅ (Prefab-Kopien) |
 | Kein physisches Überlappen der Areas | ✅ 50 Einheiten Abstand |
 | Anzahl der Areas dokumentiert und begründet | ✅ siehe oben |
+
+## Issue 98: TensorBoard-Integration verifizieren
+
+**Branch:** `milestone-5-reward-system-training`
+
+#### Durchgeführter Testlauf
+
+Probelauf mit `--run-id=test_run` gestartet, um zu verifizieren dass TensorBoard korrekt Metriken empfängt und anzeigt. Kein vollständiges Training — Abbruch nach 50.000 Steps.
+
+**Ausgeführte Befehle**
+
+```bash
+# Training starten (Projektverzeichnis)
+/c/Users/Finnl/mlagents-31008/Scripts/mlagents-learn.exe config/labyrinth_training.yaml --run-id=test_run
+
+# TensorBoard starten (zweites Terminal, selbes Verzeichnis)
+/c/Users/Finnl/mlagents-31008/Scripts/python.exe -m tensorboard.main --logdir results --port 6006
+```
+
+> **Hinweis:** `tensorboard.exe` aus dem venv startet nicht direkt (fehlende `six`-Abhängigkeit in System-Python). Stattdessen immer über `python.exe -m tensorboard.main` starten. Siehe `Training_Starten.md` für vollständige Anleitung.
+
+**Umgebung**
+
+| Komponente | Version |
+|---|---|
+| mlagents | 0.30.0 |
+| torch | 2.0.1+cpu |
+| TensorBoard | 2.13.0 |
+| Unity ML-Agents Package | 2.0.2 |
+| Python (venv) | 3.10 |
+| venv-Pfad | `C:\Users\Finnl\mlagents-31008\` |
+
+**Reward-Verlauf des Testlaufs**
+
+| Step | Mean Reward | Std of Reward | Elapsed |
+|------|-------------|---------------|---------|
+| 10.000 | -2.391 | 0.301 | 67 s |
+| 20.000 | -2.179 | 0.551 | 116 s |
+| 30.000 | -2.290 | 0.483 | 163 s |
+| 40.000 | -2.503 | 0.254 | 212 s |
+| 50.000 | -2.044 | 0.503 | 257 s |
+
+Kein Lernfortschritt in 50.000 Steps erwartet — Reward schwankt um ~-2.2, was dem Step-Penalty-Grundrauschen entspricht (`-0.001 × ~2200 Steps/Episode`). Das bestätigt, dass der Agent korrekt resettiert wird und die Rewards accumliert werden.
+
+**Erzeugte Verzeichnisstruktur**
+
+```
+results/
+└── test_run/
+    ├── LabyrinthNavigator/
+    │   └── events.out.tfevents.* (5,2 KB)
+    ├── configuration.yaml
+    └── run_logs/
+        ├── timers.json
+        └── training_status.json
+```
+
+**TensorBoard-Metriken (verifiziert)**
+
+Alle vier geforderten Metriken waren unter http://localhost:6006 sichtbar:
+
+- `Environment/Cumulative Reward` — Kurve vorhanden, Werte um −2.2
+- `Environment/Episode Length` — Kurve vorhanden, Werte nahe MaxStep (2500)
+- `Losses/Policy Loss` — Kurve vorhanden
+- `Losses/Value Loss` — Kurve vorhanden
+
+#### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| `results/test_run/LabyrinthNavigator/events.out.tfevents.*` existiert | ✅ |
+| TensorBoard zeigt Reward- und Episode-Length-Kurven | ✅ |
+| TensorBoard zeigt Policy Loss und Value Loss | ✅ |
+| Keine Fehlermeldungen in der mlagents-lean-Konsole | ✅ (nur unkritische pkg_resources-Deprecation-Warnung) |
+| `results`-Verzeichnis korrekt befüllt | ✅ |
