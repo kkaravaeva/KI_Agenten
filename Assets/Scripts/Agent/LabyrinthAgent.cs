@@ -13,7 +13,6 @@ public class LabyrinthAgent : Agent
 
     [Header("Ground Check")]
     public float groundCheckDistance = 0.15f;
-    public LayerMask groundLayer;
 
     [Header("Boden-Sensor")]
     public float groundSensorRange = 2.0f;
@@ -21,6 +20,10 @@ public class LabyrinthAgent : Agent
 
     [Header("Map")]
     public MapGenerator mapGenerator;
+
+    [Header("Reward – Tod")]
+    [SerializeField] private float lavaDeathPenalty = -1f;
+    [SerializeField] private float holeDeathPenalty = -1f;
 
     [Header("Debug")]
     public bool debugSensors = false;
@@ -88,7 +91,7 @@ public class LabyrinthAgent : Agent
             }
             else
             {
-                sensor.AddObservation(-0.5f);
+                sensor.AddObservation(-1.5f);
                 sensor.AddObservation(1f);
 
                 if (debugSensors)
@@ -108,6 +111,9 @@ public class LabyrinthAgent : Agent
         sensor.AddObservation(isGrounded ? 1f : 0f);
 
         // === Richtung zum Ziel normalisiert (3 Observations) ===
+        if (goalTransform == null)
+            FindGoal(warnIfMissing: false);
+
         if (goalTransform != null)
         {
             Vector3 directionToGoal = (goalTransform.position - transform.position).normalized;
@@ -157,6 +163,7 @@ public class LabyrinthAgent : Agent
         if (direction != Vector3.zero)
         {
             rb.MovePosition(transform.position + direction * moveSpeed * Time.fixedDeltaTime);
+            rb.MoveRotation(Quaternion.LookRotation(direction));
         }
 
         if (jumpAction == 1 && isGrounded)
@@ -190,10 +197,20 @@ public class LabyrinthAgent : Agent
         Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
         float rayLength = 1.0f + groundCheckDistance;
 
-        isGrounded = Physics.Raycast(rayOrigin, Vector3.down, rayLength, groundLayer);
+        RaycastHit hit;
+        if (Physics.Raycast(rayOrigin, Vector3.down, out hit, rayLength))
+        {
+            isGrounded = hit.collider.CompareTag("Floor")
+                      || hit.collider.CompareTag("Bridge")
+                      || hit.collider.CompareTag("Platform");
+        }
+        else
+        {
+            isGrounded = false;
+        }
     }
 
-    private void FindGoal()
+    private void FindGoal(bool warnIfMissing = true)
     {
         GameObject goalObject = GameObject.FindWithTag("Goal");
         if (goalObject != null)
@@ -203,7 +220,28 @@ public class LabyrinthAgent : Agent
         else
         {
             goalTransform = null;
-            Debug.LogWarning("LabyrinthAgent: Kein GameObject mit Tag 'Goal' gefunden!");
+            if (warnIfMissing)
+                Debug.LogWarning("LabyrinthAgent: Kein GameObject mit Tag 'Goal' gefunden!");
+        }
+    }
+
+    // Todeslogik — zwei Mechanismen:
+    // 1. Lava: IsTrigger=true am Lava-Prefab, Agent läuft in den Trigger → sofortiger Tod
+    // 2. Hole: Agent fällt physisch durch (Layer HoleSurface kollidiert nicht mit Default),
+    //    Episode endet erst beim Aufprall auf der KillZone-Box 20 Einheiten unter der Map
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Lava"))
+        {
+            AddReward(lavaDeathPenalty);
+            Debug.Log($"[Tod] Todesursache=Lava | Reward={lavaDeathPenalty}");
+            EndEpisode();
+        }
+        else if (other.CompareTag("KillZone"))
+        {
+            AddReward(holeDeathPenalty);
+            Debug.Log($"[Tod] Todesursache=Hole | Reward={holeDeathPenalty}");
+            EndEpisode();
         }
     }
 

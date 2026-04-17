@@ -603,3 +603,571 @@ Size auf (1, 4, 1) und Center auf (0, 2.5, 0) gesetzt. Durch die Scale (Y=0.1) e
 | Visuell deutlich von Floor unterscheidbar | Erfüllt — eigenes Material `M_Lava01` (rot/orange) |
 | BoxCollider ist IsTrigger = true | Erfüllt |
 | Trigger-Höhe kalibriert (Laufen löst aus, Springen nicht) | Rechnerisch hergeleitet, praktischer Test ausstehend |
+
+## Issue Map Rework (ohne nummer)
+ Issue: Konfigurierbare Hindernis-Platzierung (ObstaclePlacementMode)
+
+**Datum:** 11.04.2026
+**Betroffene Datei:** `Assets/Scripts/Map/MapGenerator.cs`
+**Keine Änderungen an:** `CellType.cs`, `MapData.cs`, `LabyrinthAgent.cs`, `MapGeneratorEditor.cs`, `MapDataEditor.cs`, Prefabs
+
+---
+
+ Ausgangslage
+
+- Hindernisse wurden ausschließlich zufällig auf beliebigen begehbaren Floor-Zellen platziert (Issue 42)
+- Layouts enthielten nur `Wall` und `Floor` — keine Möglichkeit, Hindernis-Positionen im Layout vorzudefinieren
+- `CellType.Obstacle` existierte im Enum, wurde im Code aber als Floor gerendert und als begehbar behandelt
+
+---
+
+ Umgesetzte Änderungen
+
+ 1. Neues Enum `ObstaclePlacementMode`
+
+```csharp
+public enum ObstaclePlacementMode
+{
+    RandomOnFloor,
+    PredefinedSpawnPoints
+}
+```
+
+Definiert oberhalb der `MapGenerator`-Klasse, analog zu `MapSelectionMode`.
+
+ 2. Neues Inspector-Feld
+
+```csharp
+[Header("Obstacle Placement")]
+public ObstaclePlacementMode obstaclePlacementMode = ObstaclePlacementMode.RandomOnFloor;
+```
+
+Default: `RandomOnFloor` (bisheriges Verhalten). Erscheint automatisch im Inspector, da `MapGeneratorEditor.cs` `DrawDefaultInspector()` verwendet.
+
+ 3. `GetObstacleCandidateCells()` — Modusunterscheidung
+
+- **`RandomOnFloor`:** Alle begehbaren Zellen sind Kandidaten (Verhalten unverändert)
+- **`PredefinedSpawnPoints`:** Nur Zellen mit `CellType.Obstacle` aus dem Layout sind Kandidaten
+
+ 4. `SelectRandomSpawnCell()` — Obstacle-Zellen ausgeschlossen
+
+Im Modus `PredefinedSpawnPoints` werden `CellType.Obstacle`-Zellen aus der Spawn-Kandidatenliste entfernt. Agent spawnt nur auf `Floor`, `SpawnPoint` oder `Goal`-Zellen.
+
+ 5. `SelectRandomGoalCell()` — Obstacle-Zellen ausgeschlossen
+
+Analog zu `SelectRandomSpawnCell()`: Im Modus `PredefinedSpawnPoints` wird das Goal nicht auf Obstacle-Markern platziert.
+
+---
+
+ Getroffene Entscheidungen
+
+ Entscheidung 1: Obstacle-Zellen aus Spawn/Goal-Auswahl ausschließen
+
+**Gewählt:** Ausschließen im Modus `PredefinedSpawnPoints`
+
+**Begründung:** Obstacle-Marker sind für Hindernisse reserviert. Wenn Spawn/Goal diese Positionen belegen, reduziert das die verfügbaren Hindernispositionen und unterläuft die Kontrolle des Level-Designers. Der Aufwand ist minimal (eine Bedingung pro Methode).
+
+ Entscheidung 2: Unbelegte Obstacle-Marker als Floor belassen
+
+**Gewählt:** Keine Änderung — unbelegte Marker werden als Floor gerendert und sind begehbar
+
+**Begründung:**
+- Kein zusätzlicher Code nötig
+- Trainingsfreundlich: Agent lernt, dass Positionen episodenabhängig variieren
+- `GetPrefabForCell(CellType.Obstacle)` gibt bereits `floorPrefab` zurück
+
+---
+
+ Nicht geänderte Stellen (geprüft)
+
+| Stelle | Begründung |
+|---|---|
+| `CellType.cs` | `Obstacle` existiert bereits, kein neuer Wert nötig |
+| `MapData.cs` | Generisch, keine Anpassung |
+| `LabyrinthAgent.cs` | Nutzt nur `GetSpawnPosition()` und `FindWithTag("Goal")` — Schnittstellen unverändert |
+| `MapGeneratorEditor.cs` | Verwendet `DrawDefaultInspector()`, neues Feld erscheint automatisch |
+| `MapDataEditor.cs` | Paint Tool unterstützt `CellType.Obstacle` bereits (Label „O", Farbe Orange) |
+| `IsWalkableCellType()` | Obstacle bleibt begehbar — korrekt für BFS (unbelegte Marker sind passierbar) |
+| `HasWalkablePath()` | Belegte Marker werden über `blockedCells`-Parameter blockiert — funktioniert ohne Änderung |
+| `PlaceRuntimeObstacles()` | Iteriert über Kandidaten aus `GetObstacleCandidateCells()` — Modusunterscheidung dort |
+| `SpawnRuntimeMarkersAndObstacles()` | Instanziiert aus `currentRuntimeObstacleCells` — generisch genug |
+| `GetRuntimeObstaclePrefab()` | Wählt zufällig aus `obstaclePrefabs[]` — unverändert |
+| Prefabs | Keine Prefab-Änderungen |
+
+---
+
+ Layout-Status
+
+Alle fünf Layouts wurden mit `CellType.Obstacle`-Zellen (`03`) erweitert:
+
+| Layout | Größe | Obstacle | Goal | SpawnPoint | Floor |
+|---|---|---|---|---|---|
+| Layout_01 | 25×30 | 10 | 1 | 1 | 257 |
+| Layout_02 | 25×30 | 4 | 1 | 1 | 208 |
+| Layout_03 | 25×30 | 12 | 0 | 0 | 218 |
+| Layout_04 | 25×30 | 21 | 1 | 1 | 217 |
+| Layout_05 | 18×30 | 30 | 0 | 1 | 172 |
+
+Layouts ohne Goal/SpawnPoint-Zellen funktionieren korrekt — Spawn und Goal werden dynamisch auf Floor-Zellen platziert.
+
+
+ Offene Punkte
+
+ 1. Zusammenhängende Obstacle-Gruppen gleicher Typ
+
+Nebeneinanderliegende Obstacle-Marker erhalten aktuell unabhängig voneinander einen zufälligen Typ (Lava oder Hole). Gewünscht: Benachbarte Marker sollen denselben Hindernistyp erhalten. Erfordert Cluster-Erkennung in `PlaceRuntimeObstacles()` oder `SpawnRuntimeMarkersAndObstacles()` (z. B. Flood-Fill auf Obstacle-Markern, dann pro Cluster einen Typ zuweisen).
+
+ 2. Hole-Prefab Collider/Trigger
+
+`Hole_Placeholder` hat noch `IsTrigger = false` und Scale `(1,1,1)`. Muss analog zu `Lava_Placeholder` angepasst werden (Milestone 4, Issue 4.2: Todeslogik).
+
+ 3. Todeslogik
+
+`OnTriggerEnter` für Lava/Hole und Episode-Reset bei Kontakt steht noch aus (Milestone 4, Issue 4.2).
+
+## Issue 84:
+Zusammenfassung für Issue 84 — Dokumentation
+Designentscheidung: Variante (a) — echtes Loch mit Durchfallen
+Der Agent fällt physisch durch das Hole. Die Episode endet erst, wenn der Agent eine Kill-Box 20 Einheiten unter der Map berührt. Dies wurde gewählt statt der ursprünglich im Issue beschriebenen Variante "sofort sterben bei Betreten", weil das Durchfallen ein realistischeres Abgrund-Verhalten darstellt.
+Durchgeführte Änderungen:
+1. Neuer Layer HoleSurface (Layer 6):
+Ermöglicht die Trennung von physischer Kollision und Raycast-Erkennung. Die Physics Collision Matrix wurde so konfiguriert, dass Default ↔ HoleSurface nicht kollidiert. Dadurch fällt der Agent physisch durch, aber der Boden-Sensor-Raycast (ohne LayerMask) trifft den Collider trotzdem.
+2. Hole-Prefab angepasst:
+
+Layer: HoleSurface (Layer 6)
+Scale: (1, 0.1, 1) — flach auf Bodenhöhe
+Material: Hole_Mat (schwarz) — visuell als Abgrund erkennbar
+BoxCollider: IsTrigger = false, Size (1, 1, 1), Center (0, 0, 0) — normaler Collider für Raycast-Erkennung
+
+3. Neuer Tag KillZone (Tag 7):
+Für die Kill-Box unter der Map.
+4. MapGenerator.cs — neue Methode SpawnKillZone():
+Erzeugt bei jeder Map-Generierung automatisch eine unsichtbare Trigger-Box (BoxCollider, IsTrigger = true, Tag KillZone) 20 Einheiten unter der Map. Die Box spannt die gesamte Map-Fläche auf. Wird in GenerateMap() nach SpawnRuntimeMarkersAndObstacles() aufgerufen.
+5. LabyrinthAgent.cs — Boden-Sensor Fallback-Wert:
+Der typeCode bei "kein Raycast-Treffer" wurde von -0.5f auf -1.5f geändert, damit das neuronale Netz Hole (-0.5f) von echtem Abgrund/Map-Ende (-1.5f) unterscheiden kann.
+Offene Punkte für Folge-Issues:
+
+Todeslogik (Issue 4.2): OnTriggerEnter im LabyrinthAgent muss auf Tag KillZone reagieren und EndEpisode() aufrufen (+ negativer Reward)
+GroundCheck über Hole: Der Agent erkennt isGrounded = false über dem Hole, weil HoleSurface nicht im groundLayer enthalten ist. Das ist korrekt und gewollt.
+
+## Issue 85: 4.1.4 MapGenerator um neue Hindernistypen erweitern
+
+**Entscheidung aus Issue 4.0:** Tag-basierter Ansatz gewählt — keine dedizierten CellTypes für Lava/Hole.
+
+**Status: Erledigt ✅**
+
+- `CellType.cs` hat keine Lava/Hole-Einträge — korrekt für tag-basierten Ansatz
+- `Lava_Placeholder.prefab` (Tag: `"Lava"`) und `Hole_Placeholder.prefab` (Tag: `"Hole"`) existieren unter `Assets/Prefabs/Map/Obstacles/`
+- Beide Prefabs sind im `obstaclePrefabs`-Array des MapGenerator in `KI.unity`, `KI_Agenten_Unity.unity` und `MapGenerator_Test.unity` zugewiesen
+- `LabyrinthAgent.cs` wertet `CompareTag("Lava")` und `CompareTag("Hole")` für die Observation aus (Zeilen 77–78)
+- `MapGenerator.cs` enthält `SpawnKillZone()` für Hole-Sturz-Detektion
+- `SampleScene.unity`: `obstaclePrefabs: []` — noch leer, niedrige Priorität
+
+Kann geschlossen werden mit Kommentar: *Tag-basierter Ansatz gewählt. Lava_Placeholder und Hole_Placeholder mit korrekten Tags im obstaclePrefabs-Array konfiguriert. Keine CellType-Erweiterung notwendig.*
+
+---
+
+## Issue 86: 4.1.5 Hindernisse in die bestehenden Map-Layouts einbauen
+
+**Status: Größtenteils erledigt, ein Akzeptanzkriterium nicht strikt erfüllt ⚠️**
+
+Die 5 genutzten Layout-Assets (in `KI.unity` referenziert) enthalten alle `CellType.Obstacle`-Zellen:
+
+| Layout | Größe | Obstacle-Zellen |
+|--------|-------|----------------|
+| Layout_01 | 25x30 | 10 |
+| Layout_02 | 25x30 | 4 |
+| Layout_03 | 25x30 | 12 |
+| Layout_04 | 25x30 | 21 |
+| Layout_05 | 18x30 | 30 |
+
+**Erfüllt:**
+- Alle 5 Maps haben walkable Zellen und Obstacle-Spawnpunkte ✅
+- `obstaclePrefabs` enthält Lava + Hole in `KI.unity` ✅
+- Lösbarkeit gesichert (BFS-Check im MapGenerator + `runtimeObstacleCount: 3`) ✅
+
+**Offenes Problem:**
+- `KI.unity` setzt `obstaclePlacementMode` nicht explizit → Default `RandomOnFloor`
+- Obstacles werden zufällig auf beliebigen Floor-Zellen platziert, nicht gezielt auf den markierten Obstacle-Zellen
+- `randomizeObstaclePrefab: 1` + nur 3 Obstacles → **kein garantiertes "mindestens 1 Lava UND 1 Hole" pro Episode** (statistisch ~75%)
+- Strategische Platzierung ("Lava auf Hauptpfad, Holes als Sackgassen") nicht umgesetzt
+
+**Lösungsoptionen:**
+1. `obstaclePlacementMode = PredefinedSpawnPoints` in `KI.unity` setzen → nutzt die markierten Obstacle-Zellen gezielt
+2. `runtimeObstacleCount` erhöhen (z.B. auf 6+) für höhere statistische Sicherheit beider Typen pro Episode
+3. Anforderung als "statistisch ausreichend" akzeptieren
+
+---
+
+## Issue 87: Todeslogik
+
+### Ausgangslage / Problem
+Die ursprüngliche Issue-Beschreibung sah ein separates `DeathZone.cs`-Script auf Hindernis-Prefabs vor. Dieser Ansatz wurde verworfen, da er architektonisch inkonsistent gewesen wäre: Der Agent ist bereits die zentrale Instanz für Reward-Vergabe und Episodensteuerung. Logik auf einzelnen Prefabs hätte diese Verantwortung fragmentiert.
+
+---
+
+### Umgesetzte Architektur: Zwei Todesmechaniken, eine zentrale Stelle
+
+Die gesamte Todeslogik liegt in `LabyrinthAgent.cs` → `OnTriggerEnter()`. Kein externes Script auf Prefabs.
+
+```csharp
+private void OnTriggerEnter(Collider other)
+{
+    if (other.CompareTag("Lava") || other.CompareTag("KillZone"))
+    {
+        AddReward(-1f);
+        EndEpisode();
+    }
+}
+```
+
+---
+
+### Mechanik 1: Lava — sofortiger Tod
+
+- **Lava-Prefab**: `BoxCollider` mit `isTrigger: true`
+- Agent betritt den Trigger → `OnTriggerEnter` schlägt an → Episode endet sofort
+
+---
+
+### Mechanik 2: Hole — physikalisches Fallen + verzögerter Tod
+
+Zwei Komponenten arbeiten zusammen:
+
+**Hole-Prefab** (`Hole_Placeholder.prefab`):
+- `BoxCollider` mit `isTrigger: true`
+- Trigger = keine physische Kollision → Agent fällt durch
+- Trigger-Collider bleibt erhalten damit der **Boden-Sensor-Raycast** das Hole erkennt (`TypeCode = -0.5`)
+
+**Floor-Collider-Deaktivierung** (`MapGenerator.cs` → `SpawnRuntimeMarkersAndObstacles()`):
+- Der Floor-Tile existiert unter jedem Hole (MapGenerator spawnt ihn für jede begehbare Zelle)
+- Beim Platzieren eines Hole-Obstacles: Suche per Weltposition in `spawnedObjects` nach dem Tile an dieser Stelle, deaktiviere dessen `BoxCollider`
+- Suche ist positions-basiert (nicht namens-basiert), da der Tile-Name vom `CellType` abhängt (`Floor_x_y`, `Obstacle_x_y` etc.) und Holes auf verschiedenen CellTypes landen können
+
+```csharp
+if (obstacleInstance.CompareTag("Hole"))
+{
+    Vector3 holePos = CellToWorld(obstacleCell);
+    foreach (GameObject spawnedObj in spawnedObjects)
+    {
+        if (spawnedObj == null) continue;
+        if (Vector3.Distance(spawnedObj.transform.position, holePos) > 0.01f) continue;
+        BoxCollider col = spawnedObj.GetComponent<BoxCollider>();
+        if (col != null && !col.isTrigger)
+        {
+            col.enabled = false;
+            break;
+        }
+    }
+}
+```
+
+**KillZone** (`MapGenerator.cs` → `SpawnKillZone()`):
+- Zur Laufzeit erzeugte unsichtbare Trigger-Box, 20 Einheiten unterhalb der Map
+- Deckt die gesamte Map-Ausdehnung ab
+- Agent fällt durch das Hole → trifft KillZone → `OnTriggerEnter` → Episode endet
+
+---
+
+### Entschieden gegen
+- ❌ `DeathZone.cs` auf Prefabs: Logik-Fragmentierung, erhöhte Kopplung
+- ❌ CellType-Erweiterung (Hole/Lava als eigene CellTypes): hätte das Obstacle-Randomisierungssystem außer Kraft gesetzt
+- ❌ Physics-Layer-Matrix allein: hätte das Floor-Tile-Problem nicht gelöst
+
+### Vollständig erhalten
+- ✅ Zufällige Hole-Platzierung im `RandomOnFloor`-Modus
+- ✅ Zufällige Hole-Platzierung an vordefinierten Stellen im `PredefinedSpawnPoints`-Modus
+- ✅ Gemischte Obstacle-Arrays (Hole + Lava + andere im selben `obstaclePrefabs[]`)
+
+Hinweis: Die `MapData_Training_*`-Assets werden in keiner aktiven Trainingsszene referenziert und sind nicht relevant für das Training.
+
+---
+
+## Issue 88: 4.2.2 Negativen Reward bei Tod vergeben
+
+**Betroffene Datei:** `Assets/Scripts/Agent/LabyrinthAgent.cs`
+**Keine Änderungen an:** `MapGenerator.cs`, Prefabs, Szenen, sonstigen Scripts
+
+---
+
+### Ausgangslage
+
+`OnTriggerEnter` war bereits implementiert (Issue 87) und unterschied per `CompareTag` zwischen Lava- und Hole-Tod. Beide Todesfälle wurden jedoch identisch behandelt: hardcoded `AddReward(-1f)`, kein Logging, keine Inspector-Konfigurierbarkeit.
+
+---
+
+### Umgesetzte Änderungen
+
+**1. Zwei serialisierte Penalty-Felder (statt einem hardcoded Wert)**
+
+```csharp
+[Header("Reward – Tod")]
+[SerializeField] private float lavaDeathPenalty = -1f;
+[SerializeField] private float holeDeathPenalty = -1f;
+```
+
+Beide Felder erscheinen im Inspector unter dem Header „Reward – Tod" und können dort unabhängig voneinander eingestellt werden — ohne Code-Änderung.
+
+**2. `OnTriggerEnter` aufgeteilt in zwei separate Branches**
+
+```csharp
+private void OnTriggerEnter(Collider other)
+{
+    if (other.CompareTag("Lava"))
+    {
+        AddReward(lavaDeathPenalty);
+        Debug.Log($"[Tod] Todesursache=Lava | Reward={lavaDeathPenalty}");
+        EndEpisode();
+    }
+    else if (other.CompareTag("KillZone"))
+    {
+        AddReward(holeDeathPenalty);
+        Debug.Log($"[Tod] Todesursache=Hole | Reward={holeDeathPenalty}");
+        EndEpisode();
+    }
+}
+```
+
+Vorher war es ein gemeinsames `if (... || ...)` mit gemeinsamem `AddReward(-1f)`. Jetzt hat jeder Todesfall seinen eigenen Reward-Wert und seinen eigenen Log-Eintrag.
+
+---
+
+### Getroffene Entscheidungen
+
+**Entscheidung 1: Zwei separate Felder statt eines gemeinsamen `deathPenalty`**
+
+Das Issue forderte, Lava- und Hole-Tod „mindestens vorzubereiten" für unterschiedliche Bestrafungen. Ein einzelnes `deathPenalty`-Feld hätte die Unterscheidbarkeit wieder aufgehoben. Zwei Felder kosten keine zusätzliche Komplexität und lassen die Tür für Experimente offen (z.B. Lava = -1.0, Hole = -0.5, falls der Agent Holes als weniger gefährlich einschätzen soll).
+
+**Entscheidung 2: `AddReward()` statt `SetReward()`**
+
+`AddReward()` akkumuliert den Reward für den aktuellen Step. Da `EndEpisode()` unmittelbar danach aufgerufen wird, ist das Verhalten identisch zu `SetReward()`. `AddReward()` ist die ML-Agents-Konvention für schrittweise Rewards und bleibt konsistent mit dem restlichen Agent-Code.
+
+**Entscheidung 3: Kein separates `DeathZone.cs` (unverändert aus Issue 87)**
+
+Die gesamte Todeslogik bleibt in `LabyrinthAgent.cs`. Das entspricht der in Issue 87 getroffenen Architekturentscheidung: Der Agent ist die zentrale Instanz für Reward und Episodensteuerung — keine Fragmentierung auf Prefab-Scripts.
+
+---
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| Negativer Reward wird bei Tod vergeben | Erfüllt |
+| Reward-Wert ist im Inspector konfigurierbar | Erfüllt — zwei `[SerializeField]`-Felder |
+| Debug-Log zeigt Todesgrund und Reward-Wert | Erfüllt |
+| Lava-Tod und Hole-Tod sind als separate Todesursachen unterscheidbar | Erfüllt |
+
+---
+
+## Issue 107: Third-Person-Kamera & Agenten-Rotation
+
+**Betroffene Dateien:**
+- `Assets/Scripts/Agent/LabyrinthAgent.cs` — Agenten-Rotation ergänzt
+- `Assets/Scripts/Camera/ThirdPersonCamera.cs` — neu erstellt
+- Szene `MapGenerator_Test.unity` — Kamera-Komponente manuell zugewiesen
+
+**Keine Änderungen an:** `MapGenerator.cs`, Prefabs, `CellType.cs`, Action-Space, sonstigen Scripts
+
+---
+
+### Ausgangslage
+
+Die Kamera war statisch und wurde von `MapGenerator.cs` einmalig beim Kartenaufbau positioniert (`FrameCameraToCurrentMap()`), um die gesamte Map zu rahmen. Der Agent bewegte sich world-aligned (W = Welt-Z+, A = Welt-X- usw.) und rotierte nie — `transform.localRotation` blieb dauerhaft `Quaternion.identity`. Es existierte kein Camera-Follow-System.
+
+Zusätzlich wurden die Labyrinthwände in der Szene `MapGenerator_Test.unity` auf Scale Y = 4.5 erhöht, damit der Agent nicht mehr über die Wände springen kann.
+
+---
+
+### Umgesetzte Änderungen
+
+**1. Agenten-Rotation in `LabyrinthAgent.cs`**
+
+In `OnActionReceived()` wird der Agent nach jedem Bewegungsschritt per `rb.MoveRotation()` in die Bewegungsrichtung gedreht:
+
+```csharp
+if (direction != Vector3.zero)
+{
+    rb.MovePosition(transform.position + direction * moveSpeed * Time.fixedDeltaTime);
+    rb.MoveRotation(Quaternion.LookRotation(direction));  // NEU
+}
+```
+
+`rb.MoveRotation()` wird statt `transform.rotation =` verwendet, da die Rotation über den Rigidbody gesteuert wird und so keine Physics-Artefakte entstehen. Die Rotation ist ein Snap (keine Interpolation), da eine geglättete Rotation die Sensor-Semantik verzögern würde.
+
+**Nebeneffekt auf Boden-Sensoren:** Die Raycast-Offsets `transform.forward * 1f` und `transform.forward * 2f` in `CollectObservations()` zeigen nun in die tatsächliche Bewegungsrichtung des Agenten statt immer in Welt-Z+. Das ist inhaltlich korrekt und verbessert die Qualität der Observations für das ML-Training.
+
+**2. Neues Script `ThirdPersonCamera.cs`**
+
+Neues MonoBehaviour unter `Assets/Scripts/Camera/ThirdPersonCamera.cs`:
+
+```csharp
+public class ThirdPersonCamera : MonoBehaviour
+{
+    public Transform target;
+    public float heightOffset = 3f;
+    public float distanceOffset = 5f;
+    public float positionSmoothTime = 0.1f;
+    public float rotationSmoothSpeed = 5f;
+}
+```
+
+Kernlogik in `LateUpdate()`:
+- **Position:** Zielposition = `target.position + target.rotation * (0, heightOffset, -distanceOffset)` → Kamera hinter und über dem Agenten in dessen lokalem Raum. Geglättet per `Vector3.SmoothDamp`.
+- **Rotation:** Kamera schaut auf `target.position + Vector3.up * 1f` (leicht über Agent-Mitte). Geglättet per `Quaternion.Slerp` mit `rotationSmoothSpeed`.
+- `LateUpdate()` statt `Update()`, damit die Kamera erst nach Agentbewegung (FixedUpdate) aktualisiert wird — kein Frame-Lag zwischen Agentposition und Kameraposition.
+
+**3. Manueller Unity-Schritt (Szene `MapGenerator_Test.unity`)**
+
+- `ThirdPersonCamera`-Script auf das `Main Camera`-GameObject gezogen
+- `target`-Feld im Inspector auf den Agent-Transform gesetzt
+
+---
+
+### Steuerung im Heuristic-Modus
+
+Die Tastenbelegung bleibt unverändert (W/A/S/D + Space). Der Agent dreht sich automatisch in die zuletzt gedrückte Bewegungsrichtung — keine separate Rotationstaste nötig. Die Kamera schwenkt daraufhin hinter den Agenten in seine neue Blickrichtung.
+
+---
+
+### Getroffene Entscheidungen
+
+**Entscheidung 1: Snap-Rotation statt Smooth-Rotation am Agenten**
+Eine interpolierte Rotation am Agenten hätte die Sensor-Offsets (`transform.forward`) während der Drehung in Zwischenzustände versetzt, die für den Beobachtungsraum irreführend wären. Snap-Rotation hält Sensor- und Bewegungsrichtung synchron.
+
+**Entscheidung 2: Rotation über `rb.MoveRotation()` statt `transform.rotation`**
+Direktes Setzen von `transform.rotation` bei einem Rigidbody-Objekt kann Physics-Inkonsistenzen erzeugen. `rb.MoveRotation()` ist die korrekte Rigidbody-API für kinematisch gesteuerte Rotation.
+
+**Entscheidung 3: Kein Eingriff in `MapGenerator.FrameCameraToCurrentMap()`**
+`ThirdPersonCamera.LateUpdate()` überschreibt jede Frame die Kameraposition. Die einmalige Map-Framing-Logik im MapGenerator ist damit funktionslos, solange `target` gesetzt ist — ein Eingriff wäre unnötige Kopplung.
+
+**Entscheidung 4: Keine Änderung am Action-Space**
+Die Rotation ist eine rein visuelle/sensorische Konsequenz der bestehenden Bewegungsaktionen. Der Action-Space (5 Bewegungsoptionen, 2 Sprungoptionen) bleibt unverändert — bestehende Trainingsläufe sind strukturell kompatibel.
+
+---
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| Kamera folgt Agent-Position (inkl. Sprung) | Erfüllt — `SmoothDamp` in `LateUpdate()` |
+| Kamera dreht sich mit Agenten-Y-Rotation | Erfüllt — Offset in lokalem Agenten-Raum |
+| Agent dreht sich visuell in Bewegungsrichtung | Erfüllt — `rb.MoveRotation(Quaternion.LookRotation(direction))` |
+| Boden-Sensoren zeigen in Bewegungsrichtung | Erfüllt — Nebeneffekt der Agenten-Rotation |
+| Steuerung im Heuristic-Modus unverändert | Erfüllt — keine neue Taste, keine Action-Space-Änderung |
+| Agent kann Wände nicht mehr überspringen | Erfüllt — Wandhöhe in `MapGenerator_Test.unity` auf Scale Y = 4.5 erhöht |
+
+---
+
+## Issue 105– SpawnPlacementMode
+
+**Datum:** 12.04.2026
+**Betroffene Datei:** `Assets/Scripts/Map/MapGenerator.cs`
+
+### Ausgangsproblem
+
+Beim Testen wurde festgestellt, dass der Spawnpunkt des Agenten bisher immer zufällig aus allen begehbaren Zellen gewählt wurde — unabhängig davon, ob im Layout eine explizit markierte `CellType.SpawnPoint`-Zelle vorhanden war. Die Spawn-Platzierung war damit nicht klar steuerbar.
+
+### Umgesetzte Änderungen
+
+**1. Neues Enum `SpawnPlacementMode`** (oberhalb der Klasse, analog zu `ObstaclePlacementMode`)
+
+```csharp
+public enum SpawnPlacementMode
+{
+    RandomSpawnPoints,
+    PredefinedSpawnPoints
+}
+```
+
+**2. Neues Inspector-Feld** in `[Header("Spawn Settings")]`:
+
+```csharp
+public SpawnPlacementMode spawnPlacementMode = SpawnPlacementMode.RandomSpawnPoints;
+```
+
+**3. Erweiterung von `SelectRandomSpawnCell()`**
+
+Die Methode verzweigt jetzt auf Basis von `spawnPlacementMode`:
+
+- **`RandomSpawnPoints`**: Bisheriges Verhalten — alle begehbaren Zellen sind Kandidaten. `CellType.Obstacle`-Zellen werden ausgeschlossen, wenn `obstaclePlacementMode == PredefinedSpawnPoints`, da diese für Hindernisse reserviert sind.
+- **`PredefinedSpawnPoints`**: Nur `CellType.SpawnPoint`-Zellen aus dem Layout werden als Kandidaten zugelassen. Enthält das Layout keine solchen Zellen, wird eine `LogWarning` ausgegeben und auf das `RandomSpawnPoints`-Verhalten zurückgefallen.
+
+### Getroffene Entscheidungen
+
+**Entscheidung 1: Eigenes Enum statt Erweiterung von `ObstaclePlacementMode`**
+Spawn- und Hindernis-Platzierung sind unabhängige Konfigurationsachsen. Ein gemeinsames Enum hätte ungültige Kombinationen erzwungen und die Lesbarkeit im Inspector verschlechtert.
+
+**Entscheidung 2: Fallback auf Random statt hartem Fehler bei fehlendem SpawnPoint**
+Wenn `PredefinedSpawnPoints` gewählt ist, aber das Layout keine `CellType.SpawnPoint`-Zelle enthält, bricht die Episode nicht ab — stattdessen wird ein Warning geloggt und auf zufällige Zellen zurückgefallen. Das verhindert unkontrolliertes Verhalten bei falsch konfigurierten Layouts.
+
+**Entscheidung 3: `SelectRandomGoalCell()` und Obstacle-Logik unverändert**
+Die Goal- und Hindernis-Platzierung sind weiterhin ausschließlich an `obstaclePlacementMode` gebunden. Keine Kopplung an den neuen `spawnPlacementMode`.
+
+**Entscheidung 4: Nur ein Spawnpunkt zur Laufzeit**
+Der Code platziert `spawnPointPrefab` genau einmal (an `currentSpawnCell`). Bei `PredefinedSpawnPoints` mit genau einer markierten Zelle im Layout ergibt sich daraus automatisch ein deterministischer, einziger Spawn-Marker — keine zusätzliche Absicherung im Code nötig.
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| `SpawnPlacementMode` im Inspector auswählbar | Erfüllt — serialisiertes Feld unter „Spawn Settings" |
+| `RandomSpawnPoints` reproduziert bisheriges Verhalten | Erfüllt — identische Logik wie zuvor |
+| `PredefinedSpawnPoints` nutzt nur markierte SpawnPoint-Zellen | Erfüllt — explizite CellType-Prüfung |
+| Layout ohne SpawnPoint-Zellen bricht nicht ab | Erfüllt — Warning + Fallback auf Random |
+| Goal- und Obstacle-Logik unverändert | Erfüllt — keine Änderungen an `SelectRandomGoalCell()` oder `GetObstacleCandidateCells()` |
+| Keine Änderungen an Prefabs oder anderen Scripts | Erfüllt |
+
+---
+
+## Map Generator Issue 127
+Prozedurale Map-Generierung (Session April 2026)
+
+**Betroffene Dateien:** `RoomCorridorGraph.cs`, `ProceduralLayoutGenerator.cs`, `ObstacleClusterPlacer.cs`, `MapGeneratorEditor.cs`
+
+Vollständige technische Dokumentation: `Dokumentation/Prozedurale_Map_Generierung.md`
+
+### Umgesetzte Änderungen
+
+**Variable Grid-Größe mit 2-Tile-Pufferzone:**
+- Grid wächst jetzt variabel: Basisbereich 25–37 × 30–45 Tiles + 4 Tiles Puffer (2 je Seite) → Grid 29–41 × 34–50
+- `BORDER = 2` als Konstante in `RoomCorridorGraph`; alle `InBounds`-Checks, `GetMaxCorridorLen` und `GetMaxTerminalLen` respektieren diesen Puffer
+- `ProceduralLayoutGenerator` ruft `CreateGrid(graph.GridWidth, graph.GridHeight)` auf statt feste Konstanten
+
+**Terminal-Korridore (Holes als echte Sackgassen):**
+- Neues Flag `isTerminal` an `CorridorEdge` — `roomB = null`, kein Zielraum dahinter
+- `AddTerminalCorridors()`: 2–4 vom StartRoom, 0–2 von Ebene-1/2-Räumen
+- `ObstacleClusterPlacer` setzt für `isTerminal`-Korridore immer ein Hole
+- Reguläre Dead-End-Korridore: 25% kein Obstacle · 12% Hole · 63% Lava
+
+**Adaptive Korridorlängen:**
+- `GetMaxCorridorLen()` / `GetMaxTerminalLen()` begrenzen die Länge mathematisch so, dass kein Raum/Korridor die Pufferzone verlässt
+- Verhindert den früheren Fehler "22 Layouts fehlgeschlagen (zu wenig Platz im Grid)"
+
+**Coverage-Check korrigiert:**
+- `HasSufficientCoverage()` wertet nur den inneren Bereich `[BORDER, Grid-BORDER)` aus (nicht das gesamte Grid inkl. leerer Pufferzone)
+- Threshold auf 15% gesenkt (war 30 %, dann 50 %)
+
+**Multi-Cluster-Bug behoben:**
+- `PlaceGoalCorridorObstacles()` platziert jetzt immer genau 1 Lava-Cluster statt optional 2
+- Vorher: 2 Cluster möglich, aber nur der letzte in `corridor.obstacle` gespeichert → erster Cluster war dem Pathfinder unbekannt → Pfad-Validierung schlug fehl
+
+**Editor: Fallback-Asset-Bug behoben:**
+- Im Batch-Modus wird `null` statt `generator.mapLayouts` als Fallback übergeben
+- Verhindert "Couldn't add object to asset file, already an asset"-Fehler wenn ein bestehendes Layout als Fallback zurückgegeben und erneut via `CreateAsset` gespeichert wurde
+
+**MAX_LAYOUTS** auf 1000 erhöht (war 300).
+
+### Getroffene Entscheidungen
+
+| Entscheidung | Gewählt | Begründung |
+|---|---|---|
+| Multi-Cluster pro Korridor | Verworfen, 1 Cluster fix | `CorridorEdge.obstacle` ist ein einzelner Wert; Refactoring auf `List<ObstacleCluster>` wäre nötig gewesen, Aufwand > Nutzen |
+| Coverage-Berechnung | Nur innerer Bereich | BORDER-Zone ist immer leer und würde die Ratio verfälschen |
+| Terminal-Korridore | Kein Zielraum dahinter | Sauberer als nachträgliches Löschen von Räumen; `roomB = null` ist strukturell eindeutig |
+| Fallback im Batch-Modus | `null` | Schlägt die Generierung fehl, soll kein altes Asset recycled werden — lieber `failed++` |
+
+### Offene Punkte / ToDos
+
+- **Goal/Spawn kann von Obstacle überschrieben werden:** `ObstacleClusterPlacer` prüft nicht ob ein Cluster-Tile auf `spawnCell` oder `goalCell` landet. Fallback-Spawn ist aktiv (Map-Mitte), aber saubere Lösung wäre ein Bounds-Check in `PlaceCluster()`.
+- **Map-Komplexität konfigurierbar:** `MAX_BRANCH_DEPTH`, `MAX_TOTAL_ROOMS`, Coverage-Threshold sind Konstanten — noch nicht als Inspector-Parameter exponiert.
+
