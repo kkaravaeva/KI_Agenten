@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "MapData", menuName = "Map/MapData")]
@@ -7,9 +8,15 @@ public class MapData : ScriptableObject
     public int height = 10;
     public CellType[] cells;
 
+    // Höhen-Offsets für Zellen die nicht auf Y=0 liegen (z.B. Platform).
+    // Wird nur zur Laufzeit befüllt und nicht serialisiert.
+    [System.NonSerialized]
+    public Dictionary<Vector2Int, float> cellHeightOffsets = new Dictionary<Vector2Int, float>();
+
     public void Init()
     {
         cells = new CellType[width * height];
+        cellHeightOffsets = new Dictionary<Vector2Int, float>();
     }
 
    public CellType GetCell(int x, int y)

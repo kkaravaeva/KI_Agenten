@@ -200,7 +200,9 @@ public class LabyrinthAgent : Agent
         RaycastHit hit;
         if (Physics.Raycast(rayOrigin, Vector3.down, out hit, rayLength))
         {
-            isGrounded = hit.collider.CompareTag("Floor") || hit.collider.CompareTag("Bridge");
+            isGrounded = hit.collider.CompareTag("Floor")
+                      || hit.collider.CompareTag("Bridge")
+                      || hit.collider.CompareTag("Platform");
         }
         else
         {
