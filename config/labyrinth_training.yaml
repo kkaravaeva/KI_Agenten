@@ -1,0 +1,91 @@
+behaviors:
+  LabyrinthNavigator:   # muss exakt mit BehaviorParameters.BehaviorName im Agent.prefab übereinstimmen
+
+    trainer_type: ppo
+    # PPO (Proximal Policy Optimization): Standardwahl für ML-Agents.
+    # Gut geeignet für diskrete Aktionsräume und episodische Navigation.
+    # Stabiler als REINFORCE, robuster als SAC bei diskreten Aktionen.
+
+    hyperparameters:
+      learning_rate: 3.0e-4
+      # Standard-Startwert für Adam-Optimizer. Zu groß → instabiles Training,
+      # zu klein → sehr langsame Konvergenz. 3e-4 ist der empfohlene PPO-Default.
+
+      batch_size: 512
+      # Anzahl Erfahrungen pro Gradient-Update. Muss buffer_size teilen.
+      # 512 ist ein guter Mittelwert: groß genug für stabile Gradienten,
+      # klein genug für häufige Updates. 10240 / 512 = 20 Updates pro Epoche.
+
+      buffer_size: 10240
+      # Gesammelte Steps BEVOR ein Policy-Update stattfindet.
+      # Muss deutlich größer als eine Episode sein (MaxStep = 2500).
+      # 10240 ≈ 4 vollständige Episoden → ausreichend diverse Erfahrungen pro Update.
+
+      beta: 5.0e-3
+      # Entropie-Regularisierung: bestraft zu sichere Policies und fördert Exploration.
+      # Wichtig in frühen Trainingsphasen (Agent kennt die Karte noch nicht).
+      # Typischer Bereich: 1e-4 … 1e-2. 5e-3 ist ein guter Ausgangspunkt.
+
+      epsilon: 0.2
+      # PPO Clipping-Parameter: begrenzt, wie weit sich die neue Policy von der
+      # alten entfernen darf (|r_t - 1| ≤ epsilon). 0.2 ist der Standard-Default.
+
+      lambd: 0.95
+      # GAE λ (Generalized Advantage Estimation): Bias-Varianz-Trade-off
+      # bei der Advantage-Schätzung. 0.95 bevorzugt niedrige Varianz
+      # (langfristigere Zuordnung von Rewards zu Aktionen). Standard für Navigation.
+
+      num_epoch: 3
+      # Wie oft die gesammelten Erfahrungen pro Policy-Update durchlaufen werden.
+      # 3 ist konservativ und stabil. Höhere Werte riskieren Overfitting auf den Buffer.
+
+      learning_rate_schedule: linear
+      # Lineares Abklingen der Lernrate von 3e-4 → 0 über max_steps.
+      # Vermeidet zu große Schritte am Ende, wenn die Policy bereits gut ist.
+
+    network_settings:
+      normalize: false
+      # Observation-Normalisierung (laufender Mean/Std). Hier deaktiviert, da
+      # alle manuellen Observations bereits skaliert sind (Codes in [-1.5, 1],
+      # normierte Velocity, isGrounded als 0/1). Kann bei schlechtem Training aktiviert werden.
+
+      hidden_units: 256
+      # Neuronen pro Hidden-Layer. 256 bietet genug Kapazität für räumliches Reasoning
+      # (Navigation + Sprung + Gefahrenerkennung) ohne unnötigen Overhead.
+
+      num_layers: 2
+      # 2 Hidden-Layer (MLP). Ausreichend für diese Aufgabenkomplexität.
+      # Mehr Layer → längeres Training und Risiko von Vanishing Gradients.
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        # Discount-Faktor: wie stark zukünftige Rewards abgewertet werden.
+        # 0.99 = Agent plant ~100 Steps in die Zukunft. Wichtig, da das Ziel
+        # erst am Ende einer langen Episode (bis 2500 Steps) erreicht wird.
+        strength: 1.0
+        # Skalierungsfaktor für externe Rewards. 1.0 = keine zusätzliche Skalierung.
+
+    max_steps: 2000000
+    # GESAMTZAHL aller Umgebungsschritte über ALLE Episoden hinweg.
+    # Unterschied zu MaxStep: MaxStep (in LabyrinthAgent = 2500) begrenzt eine einzelne
+    # Episode. max_steps hier definiert, wann das GESAMTE Training beendet wird.
+    # 2.000.000 Steps ÷ 2500 Steps/Episode ≈ 800 Episoden für eine erste Baseline.
+
+    time_horizon: 64
+    # Wie viele Steps pro Agent gesammelt werden, bevor ein Advantage-Update
+    # berechnet wird (falls die Episode noch nicht beendet ist).
+    # Kleiner als MaxStep (2500), da Episoden häufig früher durch Tod oder Ziel enden.
+    # Mit Decision Period 5 entspricht dies 64 / 5 ≈ 13 tatsächlichen Policy-Entscheidungen.
+
+    summary_freq: 10000
+    # Alle 10.000 Steps wird eine TensorBoard-Zusammenfassung geschrieben.
+    # Bei max_steps = 2.000.000 → 200 Datenpunkte = gut aufgelöste Lernkurve.
+    # Zu häufig (< 1000) → I/O-Overhead; zu selten (> 50.000) → schlechte Sichtbarkeit.
+
+    keep_checkpoints: 5
+    # Letzte 5 Checkpoints werden behalten, ältere werden automatisch gelöscht.
+
+    checkpoint_interval: 200000
+    # Alle 200.000 Steps wird ein Checkpoint gespeichert.
+    # Bei max_steps = 2.000.000 → 10 Checkpoints → Rollback möglich bei instabilem Training.

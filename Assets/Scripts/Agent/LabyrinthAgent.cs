@@ -13,7 +13,6 @@ public class LabyrinthAgent : Agent
 
     [Header("Ground Check")]
     public float groundCheckDistance = 0.15f;
-    public LayerMask groundLayer;
 
     [Header("Boden-Sensor")]
     public float groundSensorRange = 2.0f;
@@ -22,25 +21,41 @@ public class LabyrinthAgent : Agent
     [Header("Map")]
     public MapGenerator mapGenerator;
 
+    [Header("Reward – Ziel")]
+    [SerializeField] private float goalReward = 1f;
+
+    [Header("Reward – Tod")]
+    [SerializeField] private float lavaDeathPenalty = -1f;
+    [SerializeField] private float holeDeathPenalty = -1f;
+
+    [Header("Reward – Zeit")]
+    [SerializeField] private float stepPenalty = -0.001f;
+
     [Header("Debug")]
     public bool debugSensors = false;
 
     private Rigidbody rb;
     private bool isGrounded;
     private Transform goalTransform;
+    private int lastEpisodeStepCount = 0;
+    private float lastEpisodeCumulativeReward = 0f;
 
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
-        FindGoal();
+        // warnIfMissing=false: Map ist zu diesem Zeitpunkt noch nicht generiert (Start läuft nach Initialize).
+        // FindGoal() wird erneut in OnEpisodeBegin aufgerufen, wenn die Map bereit ist.
+        FindGoal(warnIfMissing: false);
     }
 
     public override void OnEpisodeBegin()
     {
+        Debug.Log($"[Episode] Neue Episode. Steps letzte Episode: {lastEpisodeStepCount} | Letzter Cumulative Reward: {lastEpisodeCumulativeReward:F3}");
+
         if (mapGenerator != null)
         {
             Vector3 spawnPos = mapGenerator.GetSpawnPosition();
-            transform.localPosition = spawnPos + Vector3.up * 0.5f;
+            transform.position = spawnPos + Vector3.up * 0.5f;
             transform.localRotation = Quaternion.identity;
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
@@ -88,7 +103,7 @@ public class LabyrinthAgent : Agent
             }
             else
             {
-                sensor.AddObservation(-0.5f);
+                sensor.AddObservation(-1.5f);
                 sensor.AddObservation(1f);
 
                 if (debugSensors)
@@ -108,6 +123,9 @@ public class LabyrinthAgent : Agent
         sensor.AddObservation(isGrounded ? 1f : 0f);
 
         // === Richtung zum Ziel normalisiert (3 Observations) ===
+        if (goalTransform == null)
+            FindGoal(warnIfMissing: false);
+
         if (goalTransform != null)
         {
             Vector3 directionToGoal = (goalTransform.position - transform.position).normalized;
@@ -140,6 +158,10 @@ public class LabyrinthAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
+        AddReward(stepPenalty);
+        lastEpisodeStepCount = StepCount;
+        lastEpisodeCumulativeReward = GetCumulativeReward();
+
         int moveAction = actions.DiscreteActions[0];
         int jumpAction = actions.DiscreteActions[1];
 
@@ -157,6 +179,7 @@ public class LabyrinthAgent : Agent
         if (direction != Vector3.zero)
         {
             rb.MovePosition(transform.position + direction * moveSpeed * Time.fixedDeltaTime);
+            rb.MoveRotation(Quaternion.LookRotation(direction));
         }
 
         if (jumpAction == 1 && isGrounded)
@@ -190,20 +213,64 @@ public class LabyrinthAgent : Agent
         Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
         float rayLength = 1.0f + groundCheckDistance;
 
-        isGrounded = Physics.Raycast(rayOrigin, Vector3.down, rayLength, groundLayer);
+        RaycastHit hit;
+        if (Physics.Raycast(rayOrigin, Vector3.down, out hit, rayLength))
+        {
+            isGrounded = hit.collider.CompareTag("Floor")
+                      || hit.collider.CompareTag("Bridge")
+                      || hit.collider.CompareTag("Platform");
+        }
+        else
+        {
+            isGrounded = false;
+        }
     }
 
-    private void FindGoal()
+    private void FindGoal(bool warnIfMissing = true)
     {
-        GameObject goalObject = GameObject.FindWithTag("Goal");
-        if (goalObject != null)
+        if (mapGenerator != null)
         {
-            goalTransform = goalObject.transform;
+            goalTransform = mapGenerator.GetGoalTransform();
         }
         else
         {
             goalTransform = null;
-            Debug.LogWarning("LabyrinthAgent: Kein GameObject mit Tag 'Goal' gefunden!");
+        }
+
+        if (goalTransform == null && warnIfMissing)
+            Debug.LogWarning("LabyrinthAgent: Kein Goal-Transform gefunden! Ist MapGenerator zugewiesen und hat die Map ein Goal-Prefab?");
+    }
+
+    // === Architekturentscheidung: Zentrale Reward-Vergabe am Agent ===
+    // Alle Reward-Werte bei Tod sind als serialisierte Felder am LabyrinthAgent definiert
+    // (lavaDeathPenalty, holeDeathPenalty). Externe Trigger-Objekte (Lava, KillZone) rufen
+    // keine Rewards direkt auf, sondern lösen nur OnTriggerEnter aus. Der Agent vergibt
+    // den Reward intern. Das entspricht dem ML-Agents-Paradigma (nur die Agent-Klasse
+    // darf AddReward/EndEpisode aufrufen) und erleichtert die Konfiguration in Milestone 5.
+    //
+    // Todesauslöser:
+    // 1. Lava: IsTrigger=true am Lava-Prefab → Agent läuft in Trigger → lavaDeathPenalty
+    // 2. Hole: Agent fällt durch HoleSurface-Layer → trifft KillZone-Box → holeDeathPenalty
+    //    (Lava und Hole haben bewusst separate Felder für spätere Differenzierung)
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Goal"))
+        {
+            AddReward(goalReward);
+            Debug.Log($"[Ziel] Ziel erreicht | Reward={goalReward}");
+            EndEpisode();
+        }
+        else if (other.CompareTag("Lava"))
+        {
+            AddReward(lavaDeathPenalty);
+            Debug.Log($"[Tod] Todesursache=Lava | Reward={lavaDeathPenalty}");
+            EndEpisode();
+        }
+        else if (other.CompareTag("KillZone"))
+        {
+            AddReward(holeDeathPenalty);
+            Debug.Log($"[Tod] Todesursache=Hole | Reward={holeDeathPenalty}");
+            EndEpisode();
         }
     }
 
