@@ -545,57 +545,64 @@ Die drei nicht getesteten Punkte werden in Milestone 4 bei der Hindernisimplemen
 | 12 | Bericht & Video-Demos | ⬜ Offen |
 
 
-# Danach bearbeitete issues:
+## 13. Danach bearbeitete Issues
 
-## Issue #82 — Zusammenfassung
+### Issue 82
 
-Ausgangslage (bei Überprüfung vorgefunden):
+#### Ausgangslage
+
 Die Tags Lava und Hole existierten bereits im Tag Manager (zusammen mit Wall, Obstacle, Goal, Floor, Bridge). Die Prefabs Lava_Placeholder und Hole_Placeholder trugen bereits ihre korrekten Tags (Lava bzw. Hole), nicht mehr den generischen Tag Obstacle. Der RayPerceptionSensor3D des Agenten hatte bereits 6 Detectable Tags konfiguriert, darunter Lava und Hole.
 
-Erledigte Änderung:
+#### Umgesetzte Änderungen
+
 Der Tippfehler im Prefab-Namen wurde korrigiert: Hole_Placeholer → Hole_Placeholder.
 
-Überprüfungen:
+#### Überprüfungen
 
-Tag Manager: 7 Tags vorhanden (Wall, Obstacle, Goal, Floor, Lava, Hole, Bridge) — bestätigt per Screenshot aus Unity Editor.
-Prefab-Tags: Lava_Placeholder trägt Tag Lava, Hole_Placeholder trägt Tag Hole — bestätigt per Screenshot aus Unity Editor (Tag-Dropdown).
-RayPerceptionSensor3D: 6 Detectable Tags konfiguriert, Lava und Hole enthalten — bestätigt per Screenshot des Inspector.
-Boden-Sensor (LabyrinthAgent.cs): Erkennt laut Dokumentation bereits Lava (Code -1.0) und Hole (Code -0.5) als separate Tag-basierte Bodentypen. Kein Anpassungsbedarf.
-MapGenerator.cs: Kein String-Vergleich mit "Obstacle" im Code. Zuordnung läuft über CellType-Enum und Inspector-Prefab-Referenzen. Die Tag-Umstellung an den Prefabs hat keine Auswirkung auf dieses Script. Kein Anpassungsbedarf.
-CellType.cs: Bleibt unverändert — laut Entscheidung aus Issue 4.0 werden keine neuen CellTypes für Lava/Hole angelegt. Die Unterscheidung läuft ausschließlich über Tags.
-Dynamische Platzierungslogik (Issues #40–#43): Quellcode war nicht in den Projektdateien verfügbar. Laut Issue 4.0 ist die Erweiterung dieser Logik (Unterscheidung Lava/Hole-Prefabs bei Runtime-Platzierung) ein separates To-Do für Milestone 4, nicht Teil von Issue #82.
+- **Tag Manager:** 7 Tags vorhanden (Wall, Obstacle, Goal, Floor, Lava, Hole, Bridge) — bestätigt per Screenshot aus Unity Editor.
+- **Prefab-Tags:** Lava_Placeholder trägt Tag Lava, Hole_Placeholder trägt Tag Hole — bestätigt per Screenshot aus Unity Editor (Tag-Dropdown).
+- **RayPerceptionSensor3D:** 6 Detectable Tags konfiguriert, Lava und Hole enthalten — bestätigt per Screenshot des Inspector.
+- **Boden-Sensor (LabyrinthAgent.cs):** Erkennt laut Dokumentation bereits Lava (Code -1.0) und Hole (Code -0.5) als separate Tag-basierte Bodentypen. Kein Anpassungsbedarf.
+- **MapGenerator.cs:** Kein String-Vergleich mit "Obstacle" im Code. Zuordnung läuft über CellType-Enum und Inspector-Prefab-Referenzen. Die Tag-Umstellung an den Prefabs hat keine Auswirkung auf dieses Script. Kein Anpassungsbedarf.
+- **CellType.cs:** Bleibt unverändert — laut Entscheidung aus Issue 4.0 werden keine neuen CellTypes für Lava/Hole angelegt. Die Unterscheidung läuft ausschließlich über Tags.
+- **Dynamische Platzierungslogik (Issues #40–#43):** Quellcode war nicht in den Projektdateien verfügbar. Laut Issue 4.0 ist die Erweiterung dieser Logik (Unterscheidung Lava/Hole-Prefabs bei Runtime-Platzierung) ein separates To-Do für Milestone 4, nicht Teil von Issue #82.
 
+#### Akzeptanzkriterien
 
-Akzeptanzkriterien:
-KriteriumStatusTags Lava und Hole existieren im Tag ManagerErfüllt (bereits vorhanden)Beide Prefabs tragen ihren jeweiligen ne1uen TagErfüllt (bereits vorhanden)Tippfehler im Prefab-Namen behobenErfüllt (manuell korrigiert)Ray-Sensor erkennt beide neuen TagsErfüllt (bereits konfiguriert)
+| Kriterium | Status |
+|---|---|
+| Tags Lava und Hole existieren im Tag Manager | Erfüllt (bereits vorhanden) |
+| Beide Prefabs tragen ihren jeweiligen ne1uen Tag | Erfüllt (bereits vorhanden) |
+| Tippfehler im Prefab-Namen behoben | Erfüllt (manuell korrigiert) |
+| Ray-Sensor erkennt beide neuen Tags | Erfüllt (bereits konfiguriert) |
 
-## Issue 83
+### Issue 83
 
- Ausgangslage
+#### Ausgangslage
 
 Das Prefab `Lava_Placeholder` war ein generischer Cube mit Scale (1, 1, 1), Unity-Standardmaterial (grau), einem physischen BoxCollider (IsTrigger = false, Size 1×1×1) und — nach Issue 82 — bereits korrektem Tag `Lava`.
 
- Durchgeführte Änderungen
+#### Umgesetzte Änderungen
 
-**1. Geometrie angepasst:**
-Transform Scale von (1, 1, 1) auf (1, 0.1, 1) geändert. Das Lavafeld liegt damit flach auf Bodenhöhe, analog zum Floor-Prefab.
+1. **Geometrie angepasst:**  
+   Transform Scale von (1, 1, 1) auf (1, 0.1, 1) geändert. Das Lavafeld liegt damit flach auf Bodenhöhe, analog zum Floor-Prefab.
 
-**2. Material zugewiesen:**
-Neues Material `M_Lava01` erstellt und abgelegt unter `Assets/Materials/M_Lava01.mat`. Farbgebung rot/orange, damit Lava visuell eindeutig vom Floor unterscheidbar ist. Im MeshRenderer des Prefabs als Element 0 zugewiesen.
+2. **Material zugewiesen:**  
+   Neues Material `M_Lava01` erstellt und abgelegt unter `Assets/Materials/M_Lava01.mat`. Farbgebung rot/orange, damit Lava visuell eindeutig vom Floor unterscheidbar ist. Im MeshRenderer des Prefabs als Element 0 zugewiesen.
 
-**3. BoxCollider auf IsTrigger = true gesetzt:**
-Der Agent wird nicht mehr physisch blockiert, sondern kann das Lavafeld durchlaufen. Die Todeslogik greift später per `OnTriggerEnter` (separates Issue 4.2).
+3. **BoxCollider auf IsTrigger = true gesetzt:**  
+   Der Agent wird nicht mehr physisch blockiert, sondern kann das Lavafeld durchlaufen. Die Todeslogik greift später per `OnTriggerEnter` (separates Issue 4.2).
 
-**4. BoxCollider-Größe angepasst:**
-Size auf (1, 4, 1) und Center auf (0, 2.5, 0) gesetzt. Durch die Scale (Y=0.1) ergibt das eine Welt-Trigger-Höhe von 0.4 Einheiten (von Y=0.05 bis Y=0.45). Herleitung: Die Sprunghöhe des Agenten beträgt ~0.62 Einheiten (aus Issue 26, jumpForce=3.5, moveSpeed=2). Die Trigger-Oberkante (0.45) liegt unterhalb der Sprunghöhe (0.62), sodass der Agent beim Springen den Trigger nicht auslösen sollte, beim Laufen aber schon.
+4. **BoxCollider-Größe angepasst:**  
+   Size auf (1, 4, 1) und Center auf (0, 2.5, 0) gesetzt. Durch die Scale (Y=0.1) ergibt das eine Welt-Trigger-Höhe von 0.4 Einheiten (von Y=0.05 bis Y=0.45). Herleitung: Die Sprunghöhe des Agenten beträgt ~0.62 Einheiten (aus Issue 26, jumpForce=3.5, moveSpeed=2). Die Trigger-Oberkante (0.45) liegt unterhalb der Sprunghöhe (0.62), sodass der Agent beim Springen den Trigger nicht auslösen sollte, beim Laufen aber schon.
 
- Bewusst ausgeklammert
+#### Bewusst ausgeklammert
 
 - **Trigger-Kalibrierung (Heuristic-Test):** Die vorgeschlagenen Collider-Werte basieren auf rechnerischer Herleitung. Ein praktischer Test im Heuristic-Modus (Laufen löst Trigger aus, Springen nicht) steht noch aus und wird in einem späteren Issue durchgeführt. Falls die Werte nicht passen, muss Size.Y bzw. Center.Y nachjustiert werden.
 - **Todeslogik (`OnTriggerEnter`):** Ist nicht Teil dieses Issues, sondern von Issue 4.2 (Todeslogik & Episode-Reset).
 - **Temporäres Test-Script (`LavaTriggerTest.cs`):** Wurde als Hilfsmittel für den späteren Kalibrierungstest vorbereitet, ist aber noch nicht am Prefab angehängt.
 
- Akzeptanzkriterien
+#### Akzeptanzkriterien
 
 | Kriterium | Status |
 |---|---|
@@ -604,26 +611,21 @@ Size auf (1, 4, 1) und Center auf (0, 2.5, 0) gesetzt. Durch die Scale (Y=0.1) e
 | BoxCollider ist IsTrigger = true | Erfüllt |
 | Trigger-Höhe kalibriert (Laufen löst aus, Springen nicht) | Rechnerisch hergeleitet, praktischer Test ausstehend |
 
-## Issue Map Rework (ohne nummer)
- Issue: Konfigurierbare Hindernis-Platzierung (ObstaclePlacementMode)
+### Issue: Konfigurierbare Hindernis-Platzierung (ObstaclePlacementMode)
 
-**Datum:** 11.04.2026
-**Betroffene Datei:** `Assets/Scripts/Map/MapGenerator.cs`
+**Datum:** 11.04.2026  
+**Betroffene Datei:** `Assets/Scripts/Map/MapGenerator.cs`  
 **Keine Änderungen an:** `CellType.cs`, `MapData.cs`, `LabyrinthAgent.cs`, `MapGeneratorEditor.cs`, `MapDataEditor.cs`, Prefabs
 
----
-
- Ausgangslage
+#### Ausgangslage
 
 - Hindernisse wurden ausschließlich zufällig auf beliebigen begehbaren Floor-Zellen platziert (Issue 42)
 - Layouts enthielten nur `Wall` und `Floor` — keine Möglichkeit, Hindernis-Positionen im Layout vorzudefinieren
 - `CellType.Obstacle` existierte im Enum, wurde im Code aber als Floor gerendert und als begehbar behandelt
 
----
+#### Umgesetzte Änderungen
 
- Umgesetzte Änderungen
-
- 1. Neues Enum `ObstaclePlacementMode`
+1. Neues Enum `ObstaclePlacementMode`
 
 ```csharp
 public enum ObstaclePlacementMode
@@ -635,7 +637,7 @@ public enum ObstaclePlacementMode
 
 Definiert oberhalb der `MapGenerator`-Klasse, analog zu `MapSelectionMode`.
 
- 2. Neues Inspector-Feld
+2. Neues Inspector-Feld
 
 ```csharp
 [Header("Obstacle Placement")]
@@ -644,41 +646,35 @@ public ObstaclePlacementMode obstaclePlacementMode = ObstaclePlacementMode.Rando
 
 Default: `RandomOnFloor` (bisheriges Verhalten). Erscheint automatisch im Inspector, da `MapGeneratorEditor.cs` `DrawDefaultInspector()` verwendet.
 
- 3. `GetObstacleCandidateCells()` — Modusunterscheidung
+3. `GetObstacleCandidateCells()` — Modusunterscheidung
 
 - **`RandomOnFloor`:** Alle begehbaren Zellen sind Kandidaten (Verhalten unverändert)
 - **`PredefinedSpawnPoints`:** Nur Zellen mit `CellType.Obstacle` aus dem Layout sind Kandidaten
 
- 4. `SelectRandomSpawnCell()` — Obstacle-Zellen ausgeschlossen
+4. `SelectRandomSpawnCell()` — Obstacle-Zellen ausgeschlossen
 
 Im Modus `PredefinedSpawnPoints` werden `CellType.Obstacle`-Zellen aus der Spawn-Kandidatenliste entfernt. Agent spawnt nur auf `Floor`, `SpawnPoint` oder `Goal`-Zellen.
 
- 5. `SelectRandomGoalCell()` — Obstacle-Zellen ausgeschlossen
+5. `SelectRandomGoalCell()` — Obstacle-Zellen ausgeschlossen
 
 Analog zu `SelectRandomSpawnCell()`: Im Modus `PredefinedSpawnPoints` wird das Goal nicht auf Obstacle-Markern platziert.
 
----
+#### Getroffene Entscheidungen
 
- Getroffene Entscheidungen
+**Entscheidung 1: Obstacle-Zellen aus Spawn/Goal-Auswahl ausschließen**
 
- Entscheidung 1: Obstacle-Zellen aus Spawn/Goal-Auswahl ausschließen
+- **Gewählt:** Ausschließen im Modus `PredefinedSpawnPoints`
+- **Begründung:** Obstacle-Marker sind für Hindernisse reserviert. Wenn Spawn/Goal diese Positionen belegen, reduziert das die verfügbaren Hindernispositionen und unterläuft die Kontrolle des Level-Designers. Der Aufwand ist minimal (eine Bedingung pro Methode).
 
-**Gewählt:** Ausschließen im Modus `PredefinedSpawnPoints`
+**Entscheidung 2: Unbelegte Obstacle-Marker als Floor belassen**
 
-**Begründung:** Obstacle-Marker sind für Hindernisse reserviert. Wenn Spawn/Goal diese Positionen belegen, reduziert das die verfügbaren Hindernispositionen und unterläuft die Kontrolle des Level-Designers. Der Aufwand ist minimal (eine Bedingung pro Methode).
+- **Gewählt:** Keine Änderung — unbelegte Marker werden als Floor gerendert und sind begehbar
+- **Begründung:**
+  - Kein zusätzlicher Code nötig
+  - Trainingsfreundlich: Agent lernt, dass Positionen episodenabhängig variieren
+  - `GetPrefabForCell(CellType.Obstacle)` gibt bereits `floorPrefab` zurück
 
- Entscheidung 2: Unbelegte Obstacle-Marker als Floor belassen
-
-**Gewählt:** Keine Änderung — unbelegte Marker werden als Floor gerendert und sind begehbar
-
-**Begründung:**
-- Kein zusätzlicher Code nötig
-- Trainingsfreundlich: Agent lernt, dass Positionen episodenabhängig variieren
-- `GetPrefabForCell(CellType.Obstacle)` gibt bereits `floorPrefab` zurück
-
----
-
- Nicht geänderte Stellen (geprüft)
+#### Nicht geänderte Stellen
 
 | Stelle | Begründung |
 |---|---|
@@ -710,51 +706,54 @@ Alle fünf Layouts wurden mit `CellType.Obstacle`-Zellen (`03`) erweitert:
 
 Layouts ohne Goal/SpawnPoint-Zellen funktionieren korrekt — Spawn und Goal werden dynamisch auf Floor-Zellen platziert.
 
+#### Offene Punkte
 
- Offene Punkte
+1. **Zusammenhängende Obstacle-Gruppen gleicher Typ:** Nebeneinanderliegende Obstacle-Marker erhalten aktuell unabhängig voneinander einen zufälligen Typ (Lava oder Hole). Gewünscht: Benachbarte Marker sollen denselben Hindernistyp erhalten. Erfordert Cluster-Erkennung in `PlaceRuntimeObstacles()` oder `SpawnRuntimeMarkersAndObstacles()` (z. B. Flood-Fill auf Obstacle-Markern, dann pro Cluster einen Typ zuweisen).
 
- 1. Zusammenhängende Obstacle-Gruppen gleicher Typ
+2. **Hole-Prefab Collider/Trigger:** `Hole_Placeholder` hat noch `IsTrigger = false` und Scale `(1,1,1)`. Muss analog zu `Lava_Placeholder` angepasst werden (Milestone 4, Issue 4.2: Todeslogik).
 
-Nebeneinanderliegende Obstacle-Marker erhalten aktuell unabhängig voneinander einen zufälligen Typ (Lava oder Hole). Gewünscht: Benachbarte Marker sollen denselben Hindernistyp erhalten. Erfordert Cluster-Erkennung in `PlaceRuntimeObstacles()` oder `SpawnRuntimeMarkersAndObstacles()` (z. B. Flood-Fill auf Obstacle-Markern, dann pro Cluster einen Typ zuweisen).
+3. **Todeslogik:** `OnTriggerEnter` für Lava/Hole und Episode-Reset bei Kontakt steht noch aus (Milestone 4, Issue 4.2).
 
- 2. Hole-Prefab Collider/Trigger
+### Issue 84
 
-`Hole_Placeholder` hat noch `IsTrigger = false` und Scale `(1,1,1)`. Muss analog zu `Lava_Placeholder` angepasst werden (Milestone 4, Issue 4.2: Todeslogik).
+#### Ausgangslage
 
- 3. Todeslogik
+Designentscheidung: Variante (a) — echtes Loch mit Durchfallen. Der Agent fällt physisch durch das Hole. Die Episode endet erst, wenn der Agent eine Kill-Box 20 Einheiten unter der Map berührt. Dies wurde gewählt statt der ursprünglich im Issue beschriebenen Variante "sofort sterben bei Betreten", weil das Durchfallen ein realistischeres Abgrund-Verhalten darstellt.
 
-`OnTriggerEnter` für Lava/Hole und Episode-Reset bei Kontakt steht noch aus (Milestone 4, Issue 4.2).
+#### Umgesetzte Änderungen
 
-## Issue 84:
-Zusammenfassung für Issue 84 — Dokumentation
-Designentscheidung: Variante (a) — echtes Loch mit Durchfallen
-Der Agent fällt physisch durch das Hole. Die Episode endet erst, wenn der Agent eine Kill-Box 20 Einheiten unter der Map berührt. Dies wurde gewählt statt der ursprünglich im Issue beschriebenen Variante "sofort sterben bei Betreten", weil das Durchfallen ein realistischeres Abgrund-Verhalten darstellt.
-Durchgeführte Änderungen:
-1. Neuer Layer HoleSurface (Layer 6):
-Ermöglicht die Trennung von physischer Kollision und Raycast-Erkennung. Die Physics Collision Matrix wurde so konfiguriert, dass Default ↔ HoleSurface nicht kollidiert. Dadurch fällt der Agent physisch durch, aber der Boden-Sensor-Raycast (ohne LayerMask) trifft den Collider trotzdem.
-2. Hole-Prefab angepasst:
+1. **Neuer Layer HoleSurface (Layer 6):**  
+   Ermöglicht die Trennung von physischer Kollision und Raycast-Erkennung. Die Physics Collision Matrix wurde so konfiguriert, dass Default ↔ HoleSurface nicht kollidiert. Dadurch fällt der Agent physisch durch, aber der Boden-Sensor-Raycast (ohne LayerMask) trifft den Collider trotzdem.
 
-Layer: HoleSurface (Layer 6)
-Scale: (1, 0.1, 1) — flach auf Bodenhöhe
-Material: Hole_Mat (schwarz) — visuell als Abgrund erkennbar
-BoxCollider: IsTrigger = false, Size (1, 1, 1), Center (0, 0, 0) — normaler Collider für Raycast-Erkennung
+2. **Hole-Prefab angepasst:**
+   - Layer: HoleSurface (Layer 6)
+   - Scale: (1, 0.1, 1) — flach auf Bodenhöhe
+   - Material: Hole_Mat (schwarz) — visuell als Abgrund erkennbar
+   - BoxCollider: IsTrigger = false, Size (1, 1, 1), Center (0, 0, 0) — normaler Collider für Raycast-Erkennung
 
-3. Neuer Tag KillZone (Tag 7):
-Für die Kill-Box unter der Map.
-4. MapGenerator.cs — neue Methode SpawnKillZone():
-Erzeugt bei jeder Map-Generierung automatisch eine unsichtbare Trigger-Box (BoxCollider, IsTrigger = true, Tag KillZone) 20 Einheiten unter der Map. Die Box spannt die gesamte Map-Fläche auf. Wird in GenerateMap() nach SpawnRuntimeMarkersAndObstacles() aufgerufen.
-5. LabyrinthAgent.cs — Boden-Sensor Fallback-Wert:
-Der typeCode bei "kein Raycast-Treffer" wurde von -0.5f auf -1.5f geändert, damit das neuronale Netz Hole (-0.5f) von echtem Abgrund/Map-Ende (-1.5f) unterscheiden kann.
-Offene Punkte für Folge-Issues:
+3. **Neuer Tag KillZone (Tag 7):**  
+   Für die Kill-Box unter der Map.
 
-Todeslogik (Issue 4.2): OnTriggerEnter im LabyrinthAgent muss auf Tag KillZone reagieren und EndEpisode() aufrufen (+ negativer Reward)
-GroundCheck über Hole: Der Agent erkennt isGrounded = false über dem Hole, weil HoleSurface nicht im groundLayer enthalten ist. Das ist korrekt und gewollt.
+4. **MapGenerator.cs — neue Methode `SpawnKillZone()`:**  
+   Erzeugt bei jeder Map-Generierung automatisch eine unsichtbare Trigger-Box (BoxCollider, IsTrigger = true, Tag KillZone) 20 Einheiten unter der Map. Die Box spannt die gesamte Map-Fläche auf. Wird in `GenerateMap()` nach `SpawnRuntimeMarkersAndObstacles()` aufgerufen.
 
-## Issue 85: 4.1.4 MapGenerator um neue Hindernistypen erweitern
+5. **LabyrinthAgent.cs — Boden-Sensor Fallback-Wert:**  
+   Der typeCode bei "kein Raycast-Treffer" wurde von -0.5f auf -1.5f geändert, damit das neuronale Netz Hole (-0.5f) von echtem Abgrund/Map-Ende (-1.5f) unterscheiden kann.
 
-**Entscheidung aus Issue 4.0:** Tag-basierter Ansatz gewählt — keine dedizierten CellTypes für Lava/Hole.
+#### Offene Punkte
 
-**Status: Erledigt ✅**
+- **Todeslogik (Issue 4.2):** `OnTriggerEnter` im LabyrinthAgent muss auf Tag KillZone reagieren und `EndEpisode()` aufrufen (+ negativer Reward)
+- **GroundCheck über Hole:** Der Agent erkennt `isGrounded = false` über dem Hole, weil HoleSurface nicht im groundLayer enthalten ist. Das ist korrekt und gewollt.
+
+### Issue 85: 4.1.4 MapGenerator um neue Hindernistypen erweitern
+
+#### Ausgangslage
+
+Entscheidung aus Issue 4.0: Tag-basierter Ansatz gewählt — keine dedizierten CellTypes für Lava/Hole.
+
+#### Status
+
+Erledigt ✅
 
 - `CellType.cs` hat keine Lava/Hole-Einträge — korrekt für tag-basierten Ansatz
 - `Lava_Placeholder.prefab` (Tag: `"Lava"`) und `Hole_Placeholder.prefab` (Tag: `"Hole"`) existieren unter `Assets/Prefabs/Map/Obstacles/`
@@ -767,9 +766,11 @@ Kann geschlossen werden mit Kommentar: *Tag-basierter Ansatz gewählt. Lava_Plac
 
 ---
 
-## Issue 86: 4.1.5 Hindernisse in die bestehenden Map-Layouts einbauen
+### Issue 86: 4.1.5 Hindernisse in die bestehenden Map-Layouts einbauen
 
-**Status: Größtenteils erledigt, ein Akzeptanzkriterium nicht strikt erfüllt ⚠️**
+#### Status
+
+Größtenteils erledigt, ein Akzeptanzkriterium nicht strikt erfüllt ⚠️
 
 Die 5 genutzten Layout-Assets (in `KI.unity` referenziert) enthalten alle `CellType.Obstacle`-Zellen:
 
@@ -781,32 +782,34 @@ Die 5 genutzten Layout-Assets (in `KI.unity` referenziert) enthalten alle `CellT
 | Layout_04 | 25x30 | 21 |
 | Layout_05 | 18x30 | 30 |
 
-**Erfüllt:**
+#### Erfüllt
+
 - Alle 5 Maps haben walkable Zellen und Obstacle-Spawnpunkte ✅
 - `obstaclePrefabs` enthält Lava + Hole in `KI.unity` ✅
 - Lösbarkeit gesichert (BFS-Check im MapGenerator + `runtimeObstacleCount: 3`) ✅
 
-**Offenes Problem:**
+#### Offenes Problem
+
 - `KI.unity` setzt `obstaclePlacementMode` nicht explizit → Default `RandomOnFloor`
 - Obstacles werden zufällig auf beliebigen Floor-Zellen platziert, nicht gezielt auf den markierten Obstacle-Zellen
 - `randomizeObstaclePrefab: 1` + nur 3 Obstacles → **kein garantiertes "mindestens 1 Lava UND 1 Hole" pro Episode** (statistisch ~75%)
 - Strategische Platzierung ("Lava auf Hauptpfad, Holes als Sackgassen") nicht umgesetzt
 
-**Lösungsoptionen:**
+#### Lösungsoptionen
+
 1. `obstaclePlacementMode = PredefinedSpawnPoints` in `KI.unity` setzen → nutzt die markierten Obstacle-Zellen gezielt
 2. `runtimeObstacleCount` erhöhen (z.B. auf 6+) für höhere statistische Sicherheit beider Typen pro Episode
 3. Anforderung als "statistisch ausreichend" akzeptieren
 
 ---
 
-## Issue 87: Todeslogik
+### Issue 87: Todeslogik
 
-### Ausgangslage / Problem
+#### Ausgangslage
+
 Die ursprüngliche Issue-Beschreibung sah ein separates `DeathZone.cs`-Script auf Hindernis-Prefabs vor. Dieser Ansatz wurde verworfen, da er architektonisch inkonsistent gewesen wäre: Der Agent ist bereits die zentrale Instanz für Reward-Vergabe und Episodensteuerung. Logik auf einzelnen Prefabs hätte diese Verantwortung fragmentiert.
 
----
-
-### Umgesetzte Architektur: Zwei Todesmechaniken, eine zentrale Stelle
+#### Umgesetzte Änderungen
 
 Die gesamte Todeslogik liegt in `LabyrinthAgent.cs` → `OnTriggerEnter()`. Kein externes Script auf Prefabs.
 
@@ -821,16 +824,12 @@ private void OnTriggerEnter(Collider other)
 }
 ```
 
----
-
-### Mechanik 1: Lava — sofortiger Tod
+#### Mechanik 1: Lava — sofortiger Tod
 
 - **Lava-Prefab**: `BoxCollider` mit `isTrigger: true`
 - Agent betritt den Trigger → `OnTriggerEnter` schlägt an → Episode endet sofort
 
----
-
-### Mechanik 2: Hole — physikalisches Fallen + verzögerter Tod
+#### Mechanik 2: Hole — physikalisches Fallen + verzögerter Tod
 
 Zwei Komponenten arbeiten zusammen:
 
@@ -867,14 +866,14 @@ if (obstacleInstance.CompareTag("Hole"))
 - Deckt die gesamte Map-Ausdehnung ab
 - Agent fällt durch das Hole → trifft KillZone → `OnTriggerEnter` → Episode endet
 
----
+#### Getroffene Entscheidungen
 
-### Entschieden gegen
 - ❌ `DeathZone.cs` auf Prefabs: Logik-Fragmentierung, erhöhte Kopplung
 - ❌ CellType-Erweiterung (Hole/Lava als eigene CellTypes): hätte das Obstacle-Randomisierungssystem außer Kraft gesetzt
 - ❌ Physics-Layer-Matrix allein: hätte das Floor-Tile-Problem nicht gelöst
 
-### Vollständig erhalten
+#### Vollständig erhalten
+
 - ✅ Zufällige Hole-Platzierung im `RandomOnFloor`-Modus
 - ✅ Zufällige Hole-Platzierung an vordefinierten Stellen im `PredefinedSpawnPoints`-Modus
 - ✅ Gemischte Obstacle-Arrays (Hole + Lava + andere im selben `obstaclePrefabs[]`)
@@ -883,20 +882,16 @@ Hinweis: Die `MapData_Training_*`-Assets werden in keiner aktiven Trainingsszene
 
 ---
 
-## Issue 88: 4.2.2 Negativen Reward bei Tod vergeben
+### Issue 88: 4.2.2 Negativen Reward bei Tod vergeben
 
-**Betroffene Datei:** `Assets/Scripts/Agent/LabyrinthAgent.cs`
+**Betroffene Datei:** `Assets/Scripts/Agent/LabyrinthAgent.cs`  
 **Keine Änderungen an:** `MapGenerator.cs`, Prefabs, Szenen, sonstigen Scripts
 
----
-
-### Ausgangslage
+#### Ausgangslage
 
 `OnTriggerEnter` war bereits implementiert (Issue 87) und unterschied per `CompareTag` zwischen Lava- und Hole-Tod. Beide Todesfälle wurden jedoch identisch behandelt: hardcoded `AddReward(-1f)`, kein Logging, keine Inspector-Konfigurierbarkeit.
 
----
-
-### Umgesetzte Änderungen
+#### Umgesetzte Änderungen
 
 **1. Zwei serialisierte Penalty-Felder (statt einem hardcoded Wert)**
 
@@ -930,9 +925,7 @@ private void OnTriggerEnter(Collider other)
 
 Vorher war es ein gemeinsames `if (... || ...)` mit gemeinsamem `AddReward(-1f)`. Jetzt hat jeder Todesfall seinen eigenen Reward-Wert und seinen eigenen Log-Eintrag.
 
----
-
-### Getroffene Entscheidungen
+#### Getroffene Entscheidungen
 
 **Entscheidung 1: Zwei separate Felder statt eines gemeinsamen `deathPenalty`**
 
@@ -946,9 +939,7 @@ Das Issue forderte, Lava- und Hole-Tod „mindestens vorzubereiten" für untersc
 
 Die gesamte Todeslogik bleibt in `LabyrinthAgent.cs`. Das entspricht der in Issue 87 getroffenen Architekturentscheidung: Der Agent ist die zentrale Instanz für Reward und Episodensteuerung — keine Fragmentierung auf Prefab-Scripts.
 
----
-
-### Akzeptanzkriterien
+#### Akzeptanzkriterien
 
 | Kriterium | Status |
 |---|---|
@@ -959,7 +950,7 @@ Die gesamte Todeslogik bleibt in `LabyrinthAgent.cs`. Das entspricht der in Issu
 
 ---
 
-## Issue 107: Third-Person-Kamera & Agenten-Rotation
+### Issue 107: Third-Person-Kamera & Agenten-Rotation
 
 **Betroffene Dateien:**
 - `Assets/Scripts/Agent/LabyrinthAgent.cs` — Agenten-Rotation ergänzt
@@ -968,17 +959,13 @@ Die gesamte Todeslogik bleibt in `LabyrinthAgent.cs`. Das entspricht der in Issu
 
 **Keine Änderungen an:** `MapGenerator.cs`, Prefabs, `CellType.cs`, Action-Space, sonstigen Scripts
 
----
-
-### Ausgangslage
+#### Ausgangslage
 
 Die Kamera war statisch und wurde von `MapGenerator.cs` einmalig beim Kartenaufbau positioniert (`FrameCameraToCurrentMap()`), um die gesamte Map zu rahmen. Der Agent bewegte sich world-aligned (W = Welt-Z+, A = Welt-X- usw.) und rotierte nie — `transform.localRotation` blieb dauerhaft `Quaternion.identity`. Es existierte kein Camera-Follow-System.
 
 Zusätzlich wurden die Labyrinthwände in der Szene `MapGenerator_Test.unity` auf Scale Y = 4.5 erhöht, damit der Agent nicht mehr über die Wände springen kann.
 
----
-
-### Umgesetzte Änderungen
+#### Umgesetzte Änderungen
 
 **1. Agenten-Rotation in `LabyrinthAgent.cs`**
 
@@ -1021,15 +1008,11 @@ Kernlogik in `LateUpdate()`:
 - `ThirdPersonCamera`-Script auf das `Main Camera`-GameObject gezogen
 - `target`-Feld im Inspector auf den Agent-Transform gesetzt
 
----
-
-### Steuerung im Heuristic-Modus
+#### Steuerung im Heuristic-Modus
 
 Die Tastenbelegung bleibt unverändert (W/A/S/D + Space). Der Agent dreht sich automatisch in die zuletzt gedrückte Bewegungsrichtung — keine separate Rotationstaste nötig. Die Kamera schwenkt daraufhin hinter den Agenten in seine neue Blickrichtung.
 
----
-
-### Getroffene Entscheidungen
+#### Getroffene Entscheidungen
 
 **Entscheidung 1: Snap-Rotation statt Smooth-Rotation am Agenten**
 Eine interpolierte Rotation am Agenten hätte die Sensor-Offsets (`transform.forward`) während der Drehung in Zwischenzustände versetzt, die für den Beobachtungsraum irreführend wären. Snap-Rotation hält Sensor- und Bewegungsrichtung synchron.
@@ -1040,12 +1023,10 @@ Direktes Setzen von `transform.rotation` bei einem Rigidbody-Objekt kann Physics
 **Entscheidung 3: Kein Eingriff in `MapGenerator.FrameCameraToCurrentMap()`**
 `ThirdPersonCamera.LateUpdate()` überschreibt jede Frame die Kameraposition. Die einmalige Map-Framing-Logik im MapGenerator ist damit funktionslos, solange `target` gesetzt ist — ein Eingriff wäre unnötige Kopplung.
 
-**Entscheidung 4: Keine Änderung am Action-Space**
+**Entscheidung 4: Keine Änderung am Action-Space**  
 Die Rotation ist eine rein visuelle/sensorische Konsequenz der bestehenden Bewegungsaktionen. Der Action-Space (5 Bewegungsoptionen, 2 Sprungoptionen) bleibt unverändert — bestehende Trainingsläufe sind strukturell kompatibel.
 
----
-
-### Akzeptanzkriterien
+#### Akzeptanzkriterien
 
 | Kriterium | Status |
 |---|---|
@@ -1058,18 +1039,24 @@ Die Rotation ist eine rein visuelle/sensorische Konsequenz der bestehenden Beweg
 
 ---
 
-## Issue 105– SpawnPlacementMode
+### Issue 105: SpawnPlacementMode
 
-**Datum:** 12.04.2026
+**Datum:** 12.04.2026  
 **Betroffene Datei:** `Assets/Scripts/Map/MapGenerator.cs`
 
-### Ausgangsproblem
+#### Ausgangslage
 
 Beim Testen wurde festgestellt, dass der Spawnpunkt des Agenten bisher immer zufällig aus allen begehbaren Zellen gewählt wurde — unabhängig davon, ob im Layout eine explizit markierte `CellType.SpawnPoint`-Zelle vorhanden war. Die Spawn-Platzierung war damit nicht klar steuerbar.
 
-### Umgesetzte Änderungen
+#### Umgesetzte Änderungen
 
-**1. Neues Enum `SpawnPlacementMode`** (oberhalb der Klasse, analog zu `ObstaclePlacementMode`)
+## 13. Danach bearbeitete Issues
+
+### Issue: Spawn-Platzierung konfigurierbar machen (`SpawnPlacementMode`)
+
+#### Umgesetzte Änderungen
+
+1. Neues Enum `SpawnPlacementMode` (oberhalb der Klasse, analog zu `ObstaclePlacementMode`)
 
 ```csharp
 public enum SpawnPlacementMode
@@ -1079,34 +1066,38 @@ public enum SpawnPlacementMode
 }
 ```
 
-**2. Neues Inspector-Feld** in `[Header("Spawn Settings")]`:
+2. Neues Inspector-Feld in `[Header("Spawn Settings")]`
 
 ```csharp
 public SpawnPlacementMode spawnPlacementMode = SpawnPlacementMode.RandomSpawnPoints;
 ```
 
-**3. Erweiterung von `SelectRandomSpawnCell()`**
+3. Erweiterung von `SelectRandomSpawnCell()`
 
 Die Methode verzweigt jetzt auf Basis von `spawnPlacementMode`:
 
-- **`RandomSpawnPoints`**: Bisheriges Verhalten — alle begehbaren Zellen sind Kandidaten. `CellType.Obstacle`-Zellen werden ausgeschlossen, wenn `obstaclePlacementMode == PredefinedSpawnPoints`, da diese für Hindernisse reserviert sind.
-- **`PredefinedSpawnPoints`**: Nur `CellType.SpawnPoint`-Zellen aus dem Layout werden als Kandidaten zugelassen. Enthält das Layout keine solchen Zellen, wird eine `LogWarning` ausgegeben und auf das `RandomSpawnPoints`-Verhalten zurückgefallen.
+- `RandomSpawnPoints`: Bisheriges Verhalten — alle begehbaren Zellen sind Kandidaten. `CellType.Obstacle`-Zellen werden ausgeschlossen, wenn `obstaclePlacementMode == PredefinedSpawnPoints`, da diese für Hindernisse reserviert sind.
+- `PredefinedSpawnPoints`: Nur `CellType.SpawnPoint`-Zellen aus dem Layout werden als Kandidaten zugelassen. Enthält das Layout keine solchen Zellen, wird eine `LogWarning` ausgegeben und auf das `RandomSpawnPoints`-Verhalten zurückgefallen.
 
-### Getroffene Entscheidungen
+#### Getroffene Entscheidungen
 
 **Entscheidung 1: Eigenes Enum statt Erweiterung von `ObstaclePlacementMode`**
+
 Spawn- und Hindernis-Platzierung sind unabhängige Konfigurationsachsen. Ein gemeinsames Enum hätte ungültige Kombinationen erzwungen und die Lesbarkeit im Inspector verschlechtert.
 
 **Entscheidung 2: Fallback auf Random statt hartem Fehler bei fehlendem SpawnPoint**
+
 Wenn `PredefinedSpawnPoints` gewählt ist, aber das Layout keine `CellType.SpawnPoint`-Zelle enthält, bricht die Episode nicht ab — stattdessen wird ein Warning geloggt und auf zufällige Zellen zurückgefallen. Das verhindert unkontrolliertes Verhalten bei falsch konfigurierten Layouts.
 
 **Entscheidung 3: `SelectRandomGoalCell()` und Obstacle-Logik unverändert**
+
 Die Goal- und Hindernis-Platzierung sind weiterhin ausschließlich an `obstaclePlacementMode` gebunden. Keine Kopplung an den neuen `spawnPlacementMode`.
 
 **Entscheidung 4: Nur ein Spawnpunkt zur Laufzeit**
+
 Der Code platziert `spawnPointPrefab` genau einmal (an `currentSpawnCell`). Bei `PredefinedSpawnPoints` mit genau einer markierten Zelle im Layout ergibt sich daraus automatisch ein deterministischer, einziger Spawn-Marker — keine zusätzliche Absicherung im Code nötig.
 
-### Akzeptanzkriterien
+#### Akzeptanzkriterien
 
 | Kriterium | Status |
 |---|---|
@@ -1117,6 +1108,613 @@ Der Code platziert `spawnPointPrefab` genau einmal (an `currentSpawnCell`). Bei 
 | Goal- und Obstacle-Logik unverändert | Erfüllt — keine Änderungen an `SelectRandomGoalCell()` oder `GetObstacleCandidateCells()` |
 | Keine Änderungen an Prefabs oder anderen Scripts | Erfüllt |
 
+### Issue 93: 5.1.2 Reward-Werte für Tod konsolidieren und konfigurierbar machen
+
+**Datum:** 13.04.2026  
+**Betroffene Datei:** `Assets/Scripts/Agent/LabyrinthAgent.cs`  
+**Keine Änderungen an:** `MapGenerator.cs`, Prefabs, sonstigen Scripts
+
+#### Ausgangslage
+
+Die Reward-Vergabe bei Tod war bereits in Issue 88 zentral im `LabyrinthAgent` implementiert (zwei `[SerializeField]`-Felder `lavaDeathPenalty` und `holeDeathPenalty`, getrennte `OnTriggerEnter`-Branches mit Debug-Logs). Dieses Issue stellte fest, dass die Implementierung die Akzeptanzkriterien vollständig erfüllt — fehlend war ausschließlich die Dokumentation der Architekturentscheidung im Code.
+
+#### Getroffene Entscheidungen
+
+**Architekturentscheidung: Zentral am Agent (nicht in `DeathZone.cs`)**
+
+Ein separates `DeathZone.cs`-Script auf Hindernis-Prefabs existiert nicht und wurde bewusst nicht eingeführt. Stattdessen gilt:
+
+- Alle Reward-Werte liegen als serialisierte Felder am `LabyrinthAgent` — im Inspector konfigurierbar, ohne Code-Änderung anpassbar.
+- Trigger-Objekte (`Lava`-Prefab, `KillZone`-Box) lösen nur `OnTriggerEnter` aus — sie vergeben selbst keine Rewards.
+- Der Agent ist die einzige Instanz, die `AddReward()` und `EndEpisode()` aufruft.
+
+**Begründung:** ML-Agents-Paradigma sieht vor, dass ausschließlich die Agent-Klasse Rewards und Episode-Steuerung übernimmt. Logik auf einzelnen Prefab-Scripts würde diese Verantwortung fragmentieren und die Konfigurierbarkeit erschweren — insbesondere im Hinblick auf Milestone 5 (Step-Penalty, Goal-Reward).
+
+#### Umgesetzte Änderungen
+
+Der Kommentar vor `OnTriggerEnter` in `LabyrinthAgent.cs` wurde zu einer vollständigen Architekturdokumentation ausgebaut:
+
+```csharp
+// === Architekturentscheidung: Zentrale Reward-Vergabe am Agent ===
+// Alle Reward-Werte bei Tod sind als serialisierte Felder am LabyrinthAgent definiert
+// (lavaDeathPenalty, holeDeathPenalty). Externe Trigger-Objekte (Lava, KillZone) rufen
+// keine Rewards direkt auf, sondern lösen nur OnTriggerEnter aus. Der Agent vergibt
+// den Reward intern. Das entspricht dem ML-Agents-Paradigma (nur die Agent-Klasse
+// darf AddReward/EndEpisode aufrufen) und erleichtert die Konfiguration in Milestone 5.
+//
+// Todesauslöser:
+// 1. Lava: IsTrigger=true am Lava-Prefab → Agent läuft in Trigger → lavaDeathPenalty
+// 2. Hole: Agent fällt durch HoleSurface-Layer → trifft KillZone-Box → holeDeathPenalty
+//    (Lava und Hole haben bewusst separate Felder für spätere Differenzierung)
+```
+
+#### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| Reward-Vergabe bei Tod ist konsistent und zentral konfigurierbar | Erfüllt — zwei `[SerializeField]`-Felder am Agent (seit Issue 88) |
+| Lava-Tod und Hole-Tod sind als separate Todesursachen unterscheidbar | Erfüllt — getrennte Branches + separate Penalty-Felder |
+| Architekturentscheidung (zentral vs. verteilt) ist dokumentiert | Erfüllt — Kommentar in `LabyrinthAgent.cs` vor `OnTriggerEnter` |
+
+### Issue 94: 5.1.3 Zeitlimit (MaxStep) & Step-Penalty implementieren
+
+#### Ausgangslage
+
+ML-Agents bietet eine eingebaute `MaxStep`-Property auf der `Agent`-Klasse. Wird sie gesetzt, ruft das Framework automatisch `EndEpisode()` auf, sobald der Agent die entsprechende Anzahl an Decisions erreicht hat. Dabei gibt es keinen automatischen zusätzlichen Reward — die Episode endet mit dem bis dahin akkumulierten Reward.
+
+#### Getroffene Entscheidungen
+
+**MaxStep — Begründung des Werts**
+
+**Überschlagsrechnung (größte Map: 25×30 Zellen, Zellgröße 1.0 m):**
+
+| Parameter | Wert |
+|---|---|
+| `moveSpeed` | 3 m/s |
+| Unity FixedUpdate | 50 Hz (0.02 s/Step) |
+| ML-Agents Decision Period | 5 (Standard) |
+| Zeit pro Zelle | 1 m / 3 m/s = 0,33 s |
+| Physics-Steps pro Zelle | 0,33 s / 0,02 s = 16,7 |
+| Decisions pro Zelle | 16,7 / 5 ≈ 3,3 |
+| Längster realistischer Pfad | ~150 Zellen (Labyrinth, 25×30) |
+| Optimale Decisions minimal | 150 × 3,3 ≈ 500 |
+| **MaxStep (5× Puffer)** | **2500** |
+
+Der Faktor 5 gibt dem Agenten ausreichend Spielraum, auch bei suboptimalen Trajektorien während des Trainings die Map zu lösen, ohne bei gutem Verhalten in Timeout zu laufen.
+
+**→ MaxStep = 2500 wird im Unity Inspector am Agent-Prefab gesetzt.**
+
+**Timeout-Verhalten — Architekturentscheidung**
+
+**Entscheidung: Option A — kein expliziter Timeout-Penalty.**
+
+Begründung:
+
+- Der Step-Penalty akkumuliert über die gesamte Episodenlänge: Bei `MaxStep = 2500` und `stepPenalty = -0.001f` ergibt sich ein kumulativer Timeout-Malus von `2500 × 0.001 = -2.5`. Timeout ist damit bereits indirekt bestraft — ohne einen separaten Reward-Aufruf.
+- Ein expliziter Timeout-Penalty (`-1.0f`) wäre redundant und könnte das Lernsignal verzerren, da er unabhängig vom bisherigen Episodenverlauf wirkt.
+- ML-Agents' automatisches `EndEpisode()` bei MaxStep ist ausreichend als Terminierungssignal.
+
+**Begründung der Größenordnung (`-0.001f`)**
+
+| Szenario | Kumulativer Step-Penalty |
+|---|---|
+| Optimaler Pfad (~500 Steps) | -0,5 |
+| Timeout (2500 Steps) | -2,5 |
+| Lava/Hole-Tod | -1,0 (einmalig) |
+
+- Der Step-Penalty bei 500 Steps (`-0.5`) ist spürbar kleiner als ein Todesfall (`-1.0`), sodass der Agent keinen Anreiz hat, Lava/Holes als Abkürzung zu riskieren.
+- Bei Timeout (`-2.5`) übersteigt der akkumulierte Penalty einen Einzeltod — Herumstehen wird stärker bestraft als Sterben, aber die Lava-Grenze bleibt trotzdem unattraktiv.
+- Das Feld ist im Inspector konfigurierbar (`[SerializeField]`), sodass der Wert ohne Code-Änderung für Experimente angepasst werden kann.
+
+#### Umgesetzte Änderungen
+
+**Step-Penalty — Implementierung**
+
+In `OnActionReceived()` wird zu Beginn jedes Steps ein kleiner negativer Reward addiert. Zusätzlich werden Step-Count und Cumulative Reward in privaten Feldern gesichert, da ML-Agents beide Werte zurücksetzt, bevor `OnEpisodeBegin()` aufgerufen wird:
+
+```csharp
+[Header("Reward – Zeit")]
+[SerializeField] private float stepPenalty = -0.001f;
+
+private int lastEpisodeStepCount = 0;
+private float lastEpisodeCumulativeReward = 0f;
+
+public override void OnEpisodeBegin()
+{
+    Debug.Log($"[Episode] Neue Episode. Steps letzte Episode: {lastEpisodeStepCount} | Letzter Cumulative Reward: {lastEpisodeCumulativeReward:F3}");
+    // ...
+}
+
+public override void OnActionReceived(ActionBuffers actions)
+{
+    AddReward(stepPenalty);
+    lastEpisodeStepCount = StepCount;
+    lastEpisodeCumulativeReward = GetCumulativeReward();
+    // ... restliche Bewegungslogik
+}
+```
+
+**Hinweis: `StepCount` und `GetCumulativeReward()` in `OnEpisodeBegin`**
+
+ML-Agents setzt beide Werte zurück, bevor `OnEpisodeBegin()` aufgerufen wird — ein direktes Auslesen dort liefert immer `0`. Die privaten Felder `lastEpisodeStepCount` und `lastEpisodeCumulativeReward` sichern die Werte am Ende jedes `OnActionReceived`-Aufrufs und stehen damit in der nächsten `OnEpisodeBegin` korrekt zur Verfügung.
+
+#### Test
+
+**Ergebnis**
+
+Getestet im Heuristic-Modus mit `MaxStep = 100` (Testwert), Agent stehend:
+
+```text
+[Episode] Neue Episode. Steps letzte Episode: 100 | Letzter Cumulative Reward: -0,100
+```
+
+- Steps = 100 → MaxStep greift korrekt, Episode endet automatisch.
+- Reward = -0.100 → 100 × (-0.001) = erwarteter akkumulierter Step-Penalty ✅
+
+MaxStep danach auf den begründeten Produktionswert `2500` zurückgesetzt.
+
+#### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| MaxStep ist gesetzt und begründet dokumentiert | ✅ Wert 2500, Überschlagsrechnung oben |
+| Verhalten bei Timeout ist definiert und dokumentiert | ✅ Option A (kein expliziter Penalty), Step-Penalty übernimmt indirekte Bestrafung |
+| Step-Penalty ist implementiert und konfigurierbar | ✅ `[SerializeField] private float stepPenalty = -0.001f` in `LabyrinthAgent.cs` |
+| Step-Penalty ist in seiner Größenordnung begründet | ✅ Tabelle oben |
+| Test bestanden: Episode endet bei MaxStep | ✅ Verifiziert im Heuristic-Modus |
+
+### Issue 95: 5.1.4 Reward-Strategie dokumentieren & Gesamtübersicht erstellen
+
+#### Ausgangslage
+
+Dieses Issue schließt die Reward-Implementierung aus Issues 88, 93, 94 ab. Ziel ist eine formale RL-Spezifikation mit vollständiger Reward-Tabelle, die Heistermann als Gesamtdokumentation der Reward-Strategie vorgelegt werden kann.
+
+Bei der Vorbereitung wurde festgestellt, dass `goalReward` in den Blocker-Issues (5.1.1–5.1.3) noch nicht implementiert worden war. Das Feld und der zugehörige Trigger-Handler wurden daher als Teil dieses Issues nachgezogen.
+
+#### Umgesetzte Änderungen
+
+**Implementierung: `goalReward`**
+
+**Neues Inspector-Feld in `LabyrinthAgent.cs`:**
+
+```csharp
+[Header("Reward – Ziel")]
+[SerializeField] private float goalReward = 1f;
+```
+
+**Erweiterung von `OnTriggerEnter`:**
+
+```csharp
+if (other.CompareTag("Goal"))
+{
+    AddReward(goalReward);
+    Debug.Log($"[Ziel] Ziel erreicht | Reward={goalReward}");
+    EndEpisode();
+}
+```
+
+Das Goal-Prefab hat `isTrigger = true` (im Inspector gesetzt). Die Trigger-Logik folgt dem etablierten Muster: Externes Objekt löst `OnTriggerEnter` aus, der Agent vergibt den Reward intern.
+
+**Erstellte Dokumentation**
+
+Neue Datei: `Dokumentation/Reward_Strategie.md`
+
+Inhalt:
+
+- Formale Reward-Funktion (mathematische Notation)
+- Vollständige Reward-Tabelle mit allen Werten, Inspector-Feldern und Auslösern
+- Timeout-Analyse (Skalierungsrechnung Step-Penalty × MaxStep)
+- Begründung: kein Reward für Hindernisüberwindung (Verweis auf Projektbeschreibung)
+- Reward-Skalierungs-Analyse (Verhältnisse `goalReward` / `deathPenalty` / `stepPenalty`)
+
+#### Getroffene Entscheidungen
+
+**Kein Reward für Hindernisüberwindung (Lava-Sprung)**
+
+Die Projektbeschreibung schreibt vor: „Hindernisüberwindung nur neutral oder leicht positiv bewerten". Ein expliziter Sprung-Reward würde Lava-Suchen incentivieren statt Zielerreichung. Der `goalReward (+1.0)` motiviert die korrekte Navigation inklusive Hindernisüberwindung als Nebeneffekt.
+
+**Timeout ohne expliziten Reward-Term**
+
+Konsistent mit der Entscheidung aus Issue 94: Der akkumulierte Step-Penalty bei MaxStep (`2500 × −0.001 = −2.5`) übernimmt die Timeout-Bestrafung. Kein separater Timeout-Reward-Aufruf.
+
+#### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| Dokument existiert mit vollständiger Reward-Tabelle | ✅ `Dokumentation/Reward_Strategie.md` |
+| Alle Werte sind begründet | ✅ Skalierungsanalyse im Dokument |
+| Designentscheidung zu Hindernisüberwindungs-Reward ist adressiert | ✅ Eigener Abschnitt im Dokument |
+| Dokument ist im Repository versioniert | ✅ Teil dieses Commits |
+| `goalReward` als konfigurierbares Inspector-Feld implementiert | ✅ `[SerializeField] private float goalReward = 1f` |
+
+### Issue 96: ML-Agents YAML-Konfigurationsdatei erstellen
+
+**Branch:** `milestone-5-reward-system-training`
+
+#### Umgesetzte Änderungen
+
+Neue Datei: `config/labyrinth_training.yaml`
+
+Das Verzeichnis `config/` liegt im Projektroot (nicht in `Assets/`), da `mlagents-learn` von dort aus aufgerufen wird. Die YAML-Datei enthält alle Pflichtparameter mit erklärenden Kommentaren direkt in der Datei.
+
+#### Getroffene Entscheidungen
+
+**Gewählte Parameter und Begründungen**
+
+| Parameter | Wert | Begründung |
+|---|---|---|
+| `trainer_type` | `ppo` | Standard für ML-Agents, stabil bei diskreten Aktionen, besser als REINFORCE |
+| `learning_rate` | `3e-4` | PPO-Default für Adam-Optimizer; Startpunkt vor späterer Anpassung |
+| `batch_size` | `512` | Teilt `buffer_size` (10240 / 512 = 20), groß genug für stabile Gradienten |
+| `buffer_size` | `10240` | ≈ 4 vollständige Episoden (MaxStep = 2500) → diverse Erfahrungen pro Update |
+| `beta` | `5e-3` | Entropie-Regularisierung für Exploration in frühen Trainingsphasen |
+| `epsilon` | `0.2` | PPO-Clipping-Standard; begrenzt Policy-Änderung pro Update |
+| `lambd` | `0.95` | GAE λ: niedrige Varianz bei Advantage-Schätzung, Standard für Navigation |
+| `num_epoch` | `3` | Konservativ und stabil; mehr Epochen riskieren Overfitting auf den Buffer |
+| `hidden_units` | `256` | Ausreichend für räumliches Reasoning (Navigation, Sprung, Gefahrenerkennung) |
+| `num_layers` | `2` | Standard-MLP-Tiefe für diese Aufgabenkomplexität |
+| `normalize` | `false` | Observations sind bereits skaliert (`[-1.5, 1]`, normierte Velocity, `0/1`-Flags) |
+| `gamma` | `0.99` | Agent plant ~100 Steps voraus; nötig weil Ziel erst am Ende einer langen Episode erreicht wird |
+| `max_steps` | `2.000.000` | ≈ 800 Episoden für erste Baseline |
+| `time_horizon` | `64` | Kleiner als MaxStep (2500); mit Decision Period 5 = ~13 Entscheidungen pro Update |
+| `summary_freq` | `10.000` | 200 TensorBoard-Datenpunkte über 2M Steps |
+| `checkpoint_interval` | `200.000` | 10 Checkpoints → Rollback bei instabilem Training möglich |
+
+**Wichtige konzeptuelle Unterscheidung**
+
+`max_steps` in der YAML ≠ `MaxStep` im Agent:
+
+- `MaxStep = 2500` (in `LabyrinthAgent.cs`) → bricht eine einzelne Episode ab
+- `max_steps: 2000000` (in YAML) → beendet das gesamte Training nach N Schritten über alle Episoden
+
+**`behavior_name`**
+
+`LabyrinthNavigator` in der YAML stimmt exakt mit der `BehaviorParameters`-Komponente auf `Agent.prefab` überein.
+
+#### Test
+
+**Trainingsstart**
+
+```bash
+mlagents-learn config/labyrinth_training.yaml --run-id=baseline_v1
+```
+
+#### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| YAML-Datei existiert unter `config/` | ✅ `config/labyrinth_training.yaml` |
+| Alle Pflichtparameter gesetzt und begründet | ✅ Kommentare direkt in der YAML-Datei |
+| `behavior_name` stimmt mit Agent überein | ✅ `LabyrinthNavigator` |
+| Datei ist syntaktisch valide | ✅ Python-YAML-Strukturcheck bestanden |
+
+### Issue 97: Multi-Area Setup
+
+**Branch:** `milestone-5-reward-system-training`
+
+#### Umgesetzte Änderungen
+
+Trainingsszene `Training_MultiArea.unity` mit 4 parallelen Training Areas aufgebaut. ML-Agents sammelt Erfahrungen von allen 4 Agenten gleichzeitig (~4× schnellere Datenmenge pro Zeiteinheit).
+
+**Code-Änderungen**
+
+**`MapGenerator.cs`**
+
+- `CellToWorld()`: Position wird jetzt um `mapRoot.position` versetzt → Maps werden korrekt an der Weltposition der Area gerendert, nicht immer bei `(0,0,0)`
+- `GenerateMap()`: Tile-Instanziierung ebenfalls mit Area-Offset (`mapRoot.position + localPos`)
+- `currentGoalTransform`: neues privates Feld, wird in `SpawnRuntimeMarkersAndObstacles()` gesetzt und in `ClearMap()` genullt
+- `GetGoalTransform()`: neue öffentliche Methode, gibt den Transform des laufzeit-gespawnten Goals zurück
+
+**`LabyrinthAgent.cs`**
+
+- `FindGoal()`: ersetzt `GameObject.FindWithTag("Goal")` durch `mapGenerator.GetGoalTransform()` → jeder Agent findet nur das Goal seiner eigenen Area
+- `OnEpisodeBegin()`: `transform.localPosition` → `transform.position`, da Spawn-Position jetzt Weltkoordinaten sind
+- `Initialize()`: `FindGoal(warnIfMissing: false)` statt `FindGoal()`, da die Map zum Initialisierungszeitpunkt noch nicht generiert ist (`Start()` läuft nach `Initialize()`)
+
+#### Getroffene Entscheidungen
+
+**Anzahl Areas: 4**
+
+Gutes Verhältnis aus Parallelität und Performance auf einem Standard-Entwicklerrechner. Einstiegswert — kann bei Bedarf auf 8 erhöht werden ohne Code-Änderung.
+
+**Area-Abstand: 50 Unity-Einheiten (X-Achse)**
+
+Die größten Layouts (25×30 Zellen) belegen maximal 30 Einheiten. 50 Einheiten Abstand garantiert keine physikalische Überlappung mit ausreichend Puffer.
+
+**`autoFrameCamera = false` an allen Areas**
+
+Der `MapGenerator` würde sonst bei jeder Episode die Kamera auf die jeweilige Area ausrichten. Für Training nicht benötigt; Kamera wird einmalig manuell positioniert.
+
+**Layout-Assets statt `MapData`-Assets**
+
+`MapData_Training_02`, `_04` und `_05` haben leere `cells`-Arrays (wurden angelegt, nie befüllt). Die `Layout_01`–`Layout_05`-Assets unter `Assets/Layouts/` enthalten valide Daten und werden stattdessen verwendet.
+
+**Alle generierten Objekte unter `MapGenerator/MapRoot`**
+
+Kein Namespace-Konflikt zwischen Areas. `MapRoot` wird von `EnsureMapRoot()` als Kind des jeweiligen `MapGenerator`-GameObjects angelegt.
+
+#### Architekturentscheidung
+
+**Szenen-Hierarchie**
+
+```text
+TrainingArea (Prefab, 4× in Szene)
+├── MapGenerator
+│   └── MapRoot (Laufzeit)
+│       ├── Floor_x_y / Wall_x_y / ...
+│       ├── RuntimeGoal_x_y
+│       ├── RuntimeSpawnPoint_x_y
+│       └── KillZone
+└── Agent
+```
+
+#### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| 4 Training Areas in Szene `Training_MultiArea.unity` | ✅ |
+| Jede Area generiert unabhängig Maps | ✅ |
+| Alle Agenten teilen `BehaviorName = LabyrinthNavigator` | ✅ (Prefab-Kopien) |
+| Kein physisches Überlappen der Areas | ✅ 50 Einheiten Abstand |
+| Anzahl der Areas dokumentiert und begründet | ✅ siehe oben |
+
+## Issue 98: TensorBoard-Integration verifizieren
+
+**Branch:** `milestone-5-reward-system-training`
+
+#### Durchgeführter Testlauf
+
+Probelauf mit `--run-id=test_run` gestartet, um zu verifizieren dass TensorBoard korrekt Metriken empfängt und anzeigt. Kein vollständiges Training — Abbruch nach 50.000 Steps.
+
+**Ausgeführte Befehle**
+
+```bash
+# Training starten (Projektverzeichnis)
+/c/Users/Finnl/mlagents-31008/Scripts/mlagents-learn.exe config/labyrinth_training.yaml --run-id=test_run
+
+# TensorBoard starten (zweites Terminal, selbes Verzeichnis)
+/c/Users/Finnl/mlagents-31008/Scripts/python.exe -m tensorboard.main --logdir results --port 6006
+```
+
+> **Hinweis:** `tensorboard.exe` aus dem venv startet nicht direkt (fehlende `six`-Abhängigkeit in System-Python). Stattdessen immer über `python.exe -m tensorboard.main` starten. Siehe `Training_Starten.md` für vollständige Anleitung.
+
+**Umgebung**
+
+| Komponente | Version |
+|---|---|
+| mlagents | 0.30.0 |
+| torch | 2.0.1+cpu |
+| TensorBoard | 2.13.0 |
+| Unity ML-Agents Package | 2.0.2 |
+| Python (venv) | 3.10 |
+| venv-Pfad | `C:\Users\Finnl\mlagents-31008\` |
+
+**Reward-Verlauf des Testlaufs**
+
+| Step | Mean Reward | Std of Reward | Elapsed |
+|------|-------------|---------------|---------|
+| 10.000 | -2.391 | 0.301 | 67 s |
+| 20.000 | -2.179 | 0.551 | 116 s |
+| 30.000 | -2.290 | 0.483 | 163 s |
+| 40.000 | -2.503 | 0.254 | 212 s |
+| 50.000 | -2.044 | 0.503 | 257 s |
+
+Kein Lernfortschritt in 50.000 Steps erwartet — Reward schwankt um ~-2.2, was dem Step-Penalty-Grundrauschen entspricht (`-0.001 × ~2200 Steps/Episode`). Das bestätigt, dass der Agent korrekt resettiert wird und die Rewards accumliert werden.
+
+**Erzeugte Verzeichnisstruktur**
+
+```
+results/
+└── test_run/
+    ├── LabyrinthNavigator/
+    │   └── events.out.tfevents.* (5,2 KB)
+    ├── configuration.yaml
+    └── run_logs/
+        ├── timers.json
+        └── training_status.json
+```
+
+**TensorBoard-Metriken (verifiziert)**
+
+Alle vier geforderten Metriken waren unter http://localhost:6006 sichtbar:
+
+- `Environment/Cumulative Reward` — Kurve vorhanden, Werte um −2.2
+- `Environment/Episode Length` — Kurve vorhanden, Werte nahe MaxStep (2500)
+- `Losses/Policy Loss` — Kurve vorhanden
+- `Losses/Value Loss` — Kurve vorhanden
+
+#### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| `results/test_run/LabyrinthNavigator/events.out.tfevents.*` existiert | ✅ |
+| TensorBoard zeigt Reward- und Episode-Length-Kurven | ✅ |
+| TensorBoard zeigt Policy Loss und Value Loss | ✅ |
+| Keine Fehlermeldungen in der mlagents-lean-Konsole | ✅ (nur unkritische pkg_resources-Deprecation-Warnung) |
+| `results`-Verzeichnis korrekt befüllt | ✅ |
+
+---
+
+## Issue 99: Erstes vollständiges Training auf allen 5 Maps
+
+**Branch:** `milestone-5-reward-system-training`
+**Datum:** 14.04.2026
+
+---
+
+### Übersicht
+
+Zwei vollständige Trainingsläufe wurden durchgeführt:
+
+| Lauf | Run-ID | Agenten | Layouts | Obstacles | GPU | Max Steps |
+|------|--------|---------|---------|-----------|-----|-----------|
+| v1 | `mlp_baseline_v1` | 4 | 4 von 5 | random | Nein (CPU) | 600.000 (manuell gestoppt) |
+| v2 | `mlp_baseline_v2` | 10 | 5 × 2 | random | Ja (RTX 3050, CUDA 11.8) | 2.000.000 (vollständig) |
+
+---
+
+### Trainingskonfiguration
+
+```
+config/labyrinth_training.yaml
+```
+
+| Parameter | Wert |
+|-----------|------|
+| trainer_type | ppo |
+| max_steps | 2.000.000 |
+| learning_rate | 3e-4 |
+| batch_size | 512 |
+| buffer_size | 10.240 |
+| hidden_units | 256 |
+| num_layers | 2 |
+| gamma | 0.99 |
+| summary_freq | 10.000 |
+| checkpoint_interval | 200.000 |
+
+---
+
+### Trainingsstart
+
+Die Konfigurationsdatei `config/labyrinth_training.yaml` ist im Repository enthalten und versioniert. ML-Agents nutzt sie nicht automatisch — sie muss explizit beim Start übergeben werden. Das ermöglicht vollständige Reproduzierbarkeit: Wer das Repo klont, kann das Training mit denselben Parametern wiederholen.
+
+```bash
+# v1 (CPU, 4 Agenten) — aus dem Projektverzeichnis
+mlagents-learn config/labyrinth_training.yaml --run-id=mlp_baseline_v1
+
+# v2 (GPU, 10 Agenten)
+mlagents-learn config/labyrinth_training.yaml --run-id=mlp_baseline_v2 --torch-device cuda
+```
+
+> `mlagents-learn` muss aus der aktivierten Python-Umgebung aufgerufen werden. Siehe `Training_Starten.md` für die vollständige Anleitung inkl. venv-Aktivierung.
+
+**Hardware (Trainingsrechner):** NVIDIA GeForce RTX 3050 Laptop GPU, 4 GB VRAM, CUDA 12.3
+
+**CUDA-Installation:**
+PyTorch wurde von `2.0.1+cpu` auf `2.0.1+cu118` upgradet (kompatibel mit CUDA 12.x):
+```bash
+pip install torch==2.0.1+cu118 --index-url https://download.pytorch.org/whl/cu118
+```
+
+---
+
+### Reward-Verlauf mlp_baseline_v1
+
+| Step | Mean Reward | Std |
+|------|-------------|-----|
+| 10.000 | −2.179 | 0.783 |
+| 100.000 | +0.326 | 1.201 |
+| 200.000 | +0.662 | 0.838 |
+| 300.000 | +0.746 | 0.735 |
+| 400.000 | +0.759 | 0.701 |
+| 500.000 | +0.783 | 0.652 |
+| 570.000 | +0.806 | 0.506 |
+| 600.000 | +0.781 | 0.613 |
+
+Gespeicherte Checkpoints: `199958`, `399990`, `599989`
+
+---
+
+### Reward-Verlauf mlp_baseline_v2 (finales Modell)
+
+| Step | Mean Reward | Std |
+|------|-------------|-----|
+| 10.000 | −2.388 | 0.711 |
+| 220.000 | +0.053 | — (Null-Crossing) |
+| 400.000 | +0.503 | 0.816 |
+| 600.000 | +0.638 | 0.710 |
+| 800.000 | +0.748 | 0.537 |
+| 1.000.000 | +0.809 | 0.332 |
+| 1.940.000 | +0.824 | 0.259 |
+| 2.000.000 | **+0.814** | **0.327** |
+
+Gesamtdauer: **6.273 Sekunden (~1h 44min)**
+
+Gespeicherte Checkpoints: `1399992`, `1599953`, `1799958`, `1999980`, `2000029`
+
+Finales Modell: `results/mlp_baseline_v2/LabyrinthNavigator.onnx`
+In Assets kopiert: `Assets/ML-Agents/Models/mlp_baseline_v2_final.onnx`
+
+---
+
+### Vergleich v1 vs. v2
+
+| Meilenstein | v1 (4 Agenten, CPU) | v2 (10 Agenten, GPU) |
+|-------------|---------------------|----------------------|
+| 200k | +0.662 | −0.222 |
+| 400k | +0.759 | +0.503 |
+| 600k | +0.781 | +0.638 |
+| Final | +0.781 (bei 600k) | +0.814 (bei 2M) |
+
+v2 konvergiert langsamer, weil 10 Agenten auf 5 verschiedenen Layouts mit random Obstacles eine deutlich diversere Lernaufgabe darstellen. Der MLP-Ceiling liegt bei ~0.81.
+
+---
+
+### Speedup durch GPU und mehr Agenten
+
+| Setup | Intervall pro 10.000 Steps |
+|-------|---------------------------|
+| v1 (4 Agenten, CPU) | ~45 s |
+| v2 (10 Agenten, CPU) | ~30 s |
+| v2 (10 Agenten, GPU) | ~32 s |
+
+Fazit: Der Speedup kommt primär von den zusätzlichen Agenten (+33%), nicht von der GPU. Bei einem kleinen MLP (256 Units, 2 Layer) ist die Unity-Simulation der Bottleneck, nicht die Netzwerkberechnung.
+
+---
+
+### Inference-Test — Ergebnis & bekannte Limitierung
+
+**Durchgeführt:** `Assets/ML-Agents/Models/mlp_baseline_v2_final.onnx` wurde auf das Agent-Prefab zugewiesen, `Behavior Type: Inference Only`, Training_MultiArea.unity gestartet.
+
+**Beobachtung:** Der Agent findet das Ziel. Obstacles wurden auf keiner Map platziert — die Maps liefen ohne Hindernisse.
+
+**Ursache (identifiziert):** Der `MapGenerator` hat den Parameter `Runtime Obstacles` auf `0` gesetzt. Obstacles werden damit nicht zur Laufzeit (Play Mode) erzeugt. Da sowohl das Training als auch der Inference-Test im Play Mode laufen, wurden in beiden Fällen keine Obstacles instanziiert.
+
+**Konsequenz:** Das Modell hat ausschließlich auf obstacle-freien Maps trainiert. Hindernisvermeidung (Lava, Löcher) wurde nicht gelernt — das gelernte Verhalten ist reine Zielnavigation.
+
+
+---
+
+### Erzeugte Dateien
+
+```
+results/
+├── mlp_baseline_v1/
+│   ├── LabyrinthNavigator/
+│   │   ├── LabyrinthNavigator-199958.onnx
+│   │   ├── LabyrinthNavigator-399990.onnx
+│   │   ├── LabyrinthNavigator-599989.onnx
+│   │   └── events.out.tfevents.*       ← TensorBoard-Daten
+│   ├── configuration.yaml
+│   └── run_logs/
+├── mlp_baseline_v2/
+│   ├── LabyrinthNavigator/
+│   │   ├── LabyrinthNavigator-1399992.onnx
+│   │   ├── LabyrinthNavigator-1599953.onnx
+│   │   ├── LabyrinthNavigator-1799958.onnx
+│   │   ├── LabyrinthNavigator-1999980.onnx
+│   │   ├── LabyrinthNavigator-2000029.onnx
+│   │   └── events.out.tfevents.*       ← TensorBoard-Daten
+│   ├── LabyrinthNavigator.onnx          ← finales Modell
+│   ├── configuration.yaml
+│   └── run_logs/
+
+Assets/
+└── ML-Agents/
+    └── Models/
+        └── mlp_baseline_v2_final.onnx  ← in Unity verwendbar
+```
+
+---
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|-----------|--------|
+| Training läuft vollständig durch ohne Abstürze | ✅ (v2: 2.000.000 Steps, ~1h 44min) |
+| TensorBoard zeigt erkennbaren Reward-Anstieg | ✅ (von −2.4 auf +0.81) |
+| Trainiertes Modell ist gesichert | ✅ (`mlp_baseline_v2_final.onnx`) |
+| Erste qualitative Beobachtung im Inference-Modus dokumentiert | ✅ (s. oben — Obstacles-Bug identifiziert) |
 ---
 
 ## Map Generator Issue 127

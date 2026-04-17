@@ -173,9 +173,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: e6d543ba4b4793e45bca549602dc6fa1, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 1
+  m_BehaviorType: 2
   m_BehaviorName: LabyrinthNavigator
   TeamId: 0
   m_UseChildSensors: 1
@@ -210,16 +210,17 @@ MonoBehaviour:
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 0
+  MaxStep: 2500
   moveSpeed: 2
   jumpForce: 3.5
   groundCheckDistance: 0.15
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 64
   groundSensorRange: 2
   groundSensorHeight: 0.5
   mapGenerator: {fileID: 0}
+  goalReward: 1
+  lavaDeathPenalty: -1
+  holeDeathPenalty: -1
+  stepPenalty: -0.001
   debugSensors: 1
 --- !u!114 &4916842271875814223
 MonoBehaviour:

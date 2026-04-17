@@ -27607,6 +27607,14 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 2890537491626014832, guid: 89282d2927f59c5439d76bd4fc1b060f, type: 3}
+      propertyPath: MaxStep
+      value: 2500
+      objectReference: {fileID: 0}
+    - target: {fileID: 2890537491626014832, guid: 89282d2927f59c5439d76bd4fc1b060f, type: 3}
+      propertyPath: debugSensors
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2890537491626014832, guid: 89282d2927f59c5439d76bd4fc1b060f, type: 3}
       propertyPath: mapGenerator
       value: 
       objectReference: {fileID: 1356364719}

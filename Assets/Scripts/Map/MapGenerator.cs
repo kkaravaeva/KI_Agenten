@@ -75,6 +75,7 @@ public class MapGenerator : MonoBehaviour
 
     private MapData currentMapData;
     private int currentLayoutIndex = -1;
+    private Transform currentGoalTransform;
 
     private Vector2Int currentSpawnCell = new Vector2Int(-1, -1);
     private Vector3 currentSpawnWorldPosition = Vector3.zero;
@@ -285,7 +286,7 @@ public class MapGenerator : MonoBehaviour
                     float yOffset = cellType == CellType.Platform
                         ? mapData.cellHeightOffsets.TryGetValue(new Vector2Int(x, y), out float h) ? h : 0.75f
                         : 0f;
-                    Vector3 position = new Vector3(x * cellSize, yOffset, y * cellSize);
+                    Vector3 position = mapRoot.position + new Vector3(x * cellSize, yOffset, y * cellSize);
                     GameObject instance = Instantiate(prefab, position, Quaternion.identity, mapRoot);
                     instance.name = $"{cellType}_{x}_{y}";
                     spawnedObjects.Add(instance);
@@ -312,6 +313,7 @@ public class MapGenerator : MonoBehaviour
             GameObject goalInstance = Instantiate(goalPrefab, CellToWorld(currentGoalCell), Quaternion.identity, mapRoot);
             goalInstance.name = $"RuntimeGoal_{currentGoalCell.x}_{currentGoalCell.y}";
             spawnedObjects.Add(goalInstance);
+            currentGoalTransform = goalInstance.transform;
         }
 
         if (obstaclePrefabs == null || obstaclePrefabs.Length == 0)
@@ -524,8 +526,10 @@ public class MapGenerator : MonoBehaviour
 
     private Vector3 CellToWorld(Vector2Int cell)
     {
-        return new Vector3(cell.x * cellSize, 0f, cell.y * cellSize);
+        return mapRoot.position + new Vector3(cell.x * cellSize, 0f, cell.y * cellSize);
     }
+
+    public Transform GetGoalTransform() => currentGoalTransform;
 
     private void Shuffle<T>(List<T> list)
     {
@@ -558,6 +562,7 @@ public class MapGenerator : MonoBehaviour
         currentGoalCell = new Vector2Int(-1, -1);
         currentGoalWorldPosition = Vector3.zero;
         currentRuntimeObstacleCells.Clear();
+        currentGoalTransform = null;
     }
 
     public void ResetMap()

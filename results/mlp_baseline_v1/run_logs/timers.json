@@ -1,0 +1,42 @@
+{
+    "name": "root",
+    "metadata": {
+        "timer_format_version": "0.1.0",
+        "start_time_seconds": "1776150151",
+        "python_version": "3.10.8 (tags/v3.10.8:aaaf517, Oct 11 2022, 16:50:30) [MSC v.1933 64 bit (AMD64)]",
+        "command_line_arguments": "C:\\Users\\Finnl\\mlagents-31008\\Scripts\\mlagents-learn config/labyrinth_training.yaml --run-id=mlp_baseline_v1",
+        "mlagents_version": "0.30.0",
+        "mlagents_envs_version": "0.30.0",
+        "communication_protocol_version": "1.5.0",
+        "pytorch_version": "2.0.1+cpu",
+        "numpy_version": "1.23.5",
+        "end_time_seconds": "1776150216"
+    },
+    "total": 64.4660215000622,
+    "count": 1,
+    "self": 0.009431400336325169,
+    "children": {
+        "run_training.setup": {
+            "total": 0.17999080009758472,
+            "count": 1,
+            "self": 0.17999080009758472
+        },
+        "TrainerController.start_learning": {
+            "total": 64.27659929962829,
+            "count": 1,
+            "self": 0.00019330019131302834,
+            "children": {
+                "TrainerController._reset_env": {
+                    "total": 64.27637129975483,
+                    "count": 1,
+                    "self": 64.27637129975483
+                },
+                "TrainerController._save_models": {
+                    "total": 3.4699682146310806e-05,
+                    "count": 1,
+                    "self": 3.4699682146310806e-05
+                }
+            }
+        }
+    }
+}
