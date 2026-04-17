@@ -106,3 +106,6 @@ Assets/Stylized Lava Materials
 results/test_run/
 results/**/*.pt
 results/**/checkpoint.pt
+results
+.claude/
+Assets/Stylized Lava Materials

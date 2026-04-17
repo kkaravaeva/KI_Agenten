@@ -39,6 +39,9 @@ public class MapGenerator : MonoBehaviour
     public GameObject[] obstaclePrefabs;
     public GameObject goalPrefab;
     public GameObject spawnPointPrefab;
+    public GameObject lavaPrefab;
+    public GameObject holePrefab;
+    public GameObject platformPrefab;
 
     [Header("Obstacle Placement")]
     public ObstaclePlacementMode obstaclePlacementMode = ObstaclePlacementMode.RandomOnFloor;
@@ -46,6 +49,10 @@ public class MapGenerator : MonoBehaviour
     [Header("Runtime Obstacles")]
     [Min(0)] public int runtimeObstacleCount = 3;
     public bool randomizeObstaclePrefab = true;
+
+    [Header("Procedural Generation")]
+    [Tooltip("true = prozedurales Layout; false = MapData-Assets (Training)")]
+    public bool useProceduralGeneration = false;
 
     [Header("Map Settings")]
     public float cellSize = 1f;
@@ -110,6 +117,16 @@ public class MapGenerator : MonoBehaviour
 
     public void GenerateRuntimeMap()
     {
+        if (useProceduralGeneration)
+        {
+            MapData layout = ProceduralLayoutGenerator.GenerateLayout(
+                Random.Range(0, 99999), mapLayouts);
+
+            if (layout != null)
+                GenerateMap(layout);
+            return;
+        }
+
         SelectMapLayout();
 
         if (currentMapData == null)
@@ -253,7 +270,9 @@ public class MapGenerator : MonoBehaviour
             : Vector3.zero;
 
         currentRuntimeObstacleCells.Clear();
-        PlaceRuntimeObstacles(mapData, currentSpawnCell, currentGoalCell);
+        // Bei prozeduraler Generierung sind Obstacles bereits im Grid eingebaut
+        if (!useProceduralGeneration)
+            PlaceRuntimeObstacles(mapData, currentSpawnCell, currentGoalCell);
 
         for (int y = 0; y < mapData.height; y++)
         {
@@ -264,7 +283,10 @@ public class MapGenerator : MonoBehaviour
 
                 if (prefab != null)
                 {
-                    Vector3 position = mapRoot.position + new Vector3(x * cellSize, 0f, y * cellSize);
+                    float yOffset = cellType == CellType.Platform
+                        ? mapData.cellHeightOffsets.TryGetValue(new Vector2Int(x, y), out float h) ? h : 0.75f
+                        : 0f;
+                    Vector3 position = mapRoot.position + new Vector3(x * cellSize, yOffset, y * cellSize);
                     GameObject instance = Instantiate(prefab, position, Quaternion.identity, mapRoot);
                     instance.name = $"{cellType}_{x}_{y}";
                     spawnedObjects.Add(instance);
@@ -488,7 +510,13 @@ public class MapGenerator : MonoBehaviour
 
     private bool IsWalkableCellType(CellType cellType)
     {
-        return cellType == CellType.Floor || cellType == CellType.SpawnPoint || cellType == CellType.Goal || cellType == CellType.Obstacle;
+        return cellType == CellType.Floor
+            || cellType == CellType.SpawnPoint
+            || cellType == CellType.Goal
+            || cellType == CellType.Obstacle
+            || cellType == CellType.Lava      // überspringbar (Semantik wird im SemanticPathfinder verfeinert)
+            || cellType == CellType.Platform; // schwebendes Bodenfeld
+        // CellType.Hole: bewusst ausgeschlossen — nie begehbar
     }
 
     private bool IsValidCell(Vector2Int cell)
@@ -582,6 +610,15 @@ public class MapGenerator : MonoBehaviour
 
             case CellType.SpawnPoint:
                 return floorPrefab;
+
+            case CellType.Lava:
+                return lavaPrefab;
+
+            case CellType.Hole:
+                return holePrefab;
+
+            case CellType.Platform:
+                return platformPrefab;
 
             default:
                 return null;

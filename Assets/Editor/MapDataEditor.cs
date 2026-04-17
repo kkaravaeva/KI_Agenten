@@ -148,13 +148,16 @@ public class MapDataEditor : Editor
     {
         switch (type)
         {
-            case CellType.Empty: return "E";
-            case CellType.Floor: return "F";
-            case CellType.Wall: return "W";
-            case CellType.Obstacle: return "O";
-            case CellType.Goal: return "G";
+            case CellType.Empty:      return "E";
+            case CellType.Floor:      return "F";
+            case CellType.Wall:       return "W";
+            case CellType.Obstacle:   return "O";
+            case CellType.Goal:       return "G";
             case CellType.SpawnPoint: return "S";
-            default: return "?";
+            case CellType.Lava:       return "L";
+            case CellType.Hole:       return "H";
+            case CellType.Platform:   return "P";
+            default:                  return "?";
         }
     }
 
@@ -162,13 +165,16 @@ public class MapDataEditor : Editor
     {
         switch (type)
         {
-            case CellType.Empty: return Color.gray;
-            case CellType.Floor: return Color.green;
-            case CellType.Wall: return Color.white;
-            case CellType.Obstacle: return new Color(1f, 0.6f, 0f);
-            case CellType.Goal: return Color.yellow;
+            case CellType.Empty:      return Color.gray;
+            case CellType.Floor:      return Color.green;
+            case CellType.Wall:       return Color.white;
+            case CellType.Obstacle:   return new Color(1f, 0.6f, 0f);
+            case CellType.Goal:       return Color.yellow;
             case CellType.SpawnPoint: return Color.cyan;
-            default: return Color.white;
+            case CellType.Lava:       return new Color(1f, 0.3f, 0f);
+            case CellType.Hole:       return Color.black;
+            case CellType.Platform:   return new Color(0.4f, 0.8f, 1f);
+            default:                  return Color.magenta;
         }
     }
 }

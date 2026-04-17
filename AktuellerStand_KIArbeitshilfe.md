@@ -1715,3 +1715,57 @@ Assets/
 | TensorBoard zeigt erkennbaren Reward-Anstieg | ✅ (von −2.4 auf +0.81) |
 | Trainiertes Modell ist gesichert | ✅ (`mlp_baseline_v2_final.onnx`) |
 | Erste qualitative Beobachtung im Inference-Modus dokumentiert | ✅ (s. oben — Obstacles-Bug identifiziert) |
+---
+
+## Map Generator Issue 127
+Prozedurale Map-Generierung (Session April 2026)
+
+**Betroffene Dateien:** `RoomCorridorGraph.cs`, `ProceduralLayoutGenerator.cs`, `ObstacleClusterPlacer.cs`, `MapGeneratorEditor.cs`
+
+Vollständige technische Dokumentation: `Dokumentation/Prozedurale_Map_Generierung.md`
+
+### Umgesetzte Änderungen
+
+**Variable Grid-Größe mit 2-Tile-Pufferzone:**
+- Grid wächst jetzt variabel: Basisbereich 25–37 × 30–45 Tiles + 4 Tiles Puffer (2 je Seite) → Grid 29–41 × 34–50
+- `BORDER = 2` als Konstante in `RoomCorridorGraph`; alle `InBounds`-Checks, `GetMaxCorridorLen` und `GetMaxTerminalLen` respektieren diesen Puffer
+- `ProceduralLayoutGenerator` ruft `CreateGrid(graph.GridWidth, graph.GridHeight)` auf statt feste Konstanten
+
+**Terminal-Korridore (Holes als echte Sackgassen):**
+- Neues Flag `isTerminal` an `CorridorEdge` — `roomB = null`, kein Zielraum dahinter
+- `AddTerminalCorridors()`: 2–4 vom StartRoom, 0–2 von Ebene-1/2-Räumen
+- `ObstacleClusterPlacer` setzt für `isTerminal`-Korridore immer ein Hole
+- Reguläre Dead-End-Korridore: 25% kein Obstacle · 12% Hole · 63% Lava
+
+**Adaptive Korridorlängen:**
+- `GetMaxCorridorLen()` / `GetMaxTerminalLen()` begrenzen die Länge mathematisch so, dass kein Raum/Korridor die Pufferzone verlässt
+- Verhindert den früheren Fehler "22 Layouts fehlgeschlagen (zu wenig Platz im Grid)"
+
+**Coverage-Check korrigiert:**
+- `HasSufficientCoverage()` wertet nur den inneren Bereich `[BORDER, Grid-BORDER)` aus (nicht das gesamte Grid inkl. leerer Pufferzone)
+- Threshold auf 15% gesenkt (war 30 %, dann 50 %)
+
+**Multi-Cluster-Bug behoben:**
+- `PlaceGoalCorridorObstacles()` platziert jetzt immer genau 1 Lava-Cluster statt optional 2
+- Vorher: 2 Cluster möglich, aber nur der letzte in `corridor.obstacle` gespeichert → erster Cluster war dem Pathfinder unbekannt → Pfad-Validierung schlug fehl
+
+**Editor: Fallback-Asset-Bug behoben:**
+- Im Batch-Modus wird `null` statt `generator.mapLayouts` als Fallback übergeben
+- Verhindert "Couldn't add object to asset file, already an asset"-Fehler wenn ein bestehendes Layout als Fallback zurückgegeben und erneut via `CreateAsset` gespeichert wurde
+
+**MAX_LAYOUTS** auf 1000 erhöht (war 300).
+
+### Getroffene Entscheidungen
+
+| Entscheidung | Gewählt | Begründung |
+|---|---|---|
+| Multi-Cluster pro Korridor | Verworfen, 1 Cluster fix | `CorridorEdge.obstacle` ist ein einzelner Wert; Refactoring auf `List<ObstacleCluster>` wäre nötig gewesen, Aufwand > Nutzen |
+| Coverage-Berechnung | Nur innerer Bereich | BORDER-Zone ist immer leer und würde die Ratio verfälschen |
+| Terminal-Korridore | Kein Zielraum dahinter | Sauberer als nachträgliches Löschen von Räumen; `roomB = null` ist strukturell eindeutig |
+| Fallback im Batch-Modus | `null` | Schlägt die Generierung fehl, soll kein altes Asset recycled werden — lieber `failed++` |
+
+### Offene Punkte / ToDos
+
+- **Goal/Spawn kann von Obstacle überschrieben werden:** `ObstacleClusterPlacer` prüft nicht ob ein Cluster-Tile auf `spawnCell` oder `goalCell` landet. Fallback-Spawn ist aktiv (Map-Mitte), aber saubere Lösung wäre ein Bounds-Check in `PlaceCluster()`.
+- **Map-Komplexität konfigurierbar:** `MAX_BRANCH_DEPTH`, `MAX_TOTAL_ROOMS`, Coverage-Threshold sind Konstanten — noch nicht als Inspector-Parameter exponiert.
+
