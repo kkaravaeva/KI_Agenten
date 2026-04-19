@@ -12,6 +12,7 @@ TagManager:
   - Hole
   - Bridge
   - KillZone
+  - Platform
   layers:
   - Default
   - TransparentFX

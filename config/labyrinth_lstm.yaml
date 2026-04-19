@@ -1,0 +1,33 @@
+behaviors:
+  LabyrinthNavigator:
+    trainer_type: ppo
+
+    network_settings:
+      normalize: false
+      hidden_units: 256
+      num_layers: 2
+      memory:
+        sequence_length: 8   # LSTM verarbeitet 8-Step-Chunks (BPTT)
+        memory_size: 128     # hidden_size = 128//2 = 64; output = 64
+        memory_type: lstm    # explizit gesetzt (Standardwert)
+
+    hyperparameters:
+      learning_rate: 3.0e-4
+      batch_size: 512
+      buffer_size: 10240
+      beta: 5.0e-3
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+
+    max_steps: 2000000
+    time_horizon: 64
+    summary_freq: 10000
+    keep_checkpoints: 5
+    checkpoint_interval: 200000

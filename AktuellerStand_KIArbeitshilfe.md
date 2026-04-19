@@ -1769,3 +1769,61 @@ Vollständige technische Dokumentation: `Dokumentation/Prozedurale_Map_Generieru
 - **Goal/Spawn kann von Obstacle überschrieben werden:** `ObstacleClusterPlacer` prüft nicht ob ein Cluster-Tile auf `spawnCell` oder `goalCell` landet. Fallback-Spawn ist aktiv (Map-Mitte), aber saubere Lösung wäre ein Bounds-Check in `PlaceCluster()`.
 - **Map-Komplexität konfigurierbar:** `MAX_BRANCH_DEPTH`, `MAX_TOTAL_ROOMS`, Coverage-Threshold sind Konstanten — noch nicht als Inspector-Parameter exponiert.
 
+
+---
+
+## Issue 113
+M7.1 — Custom Transformer Policy
+
+**Bearbeiter:** Finn Ludwig
+**Status:** Implementiert, Proof-of-Concept-Training (50k Steps) erfolgreich
+
+### Ziel
+
+Transformer-basiertes Entscheidungsmodell als Drop-in-Ersatz für das LSTM in mlagents 0.30.0.
+Ermöglicht Ablationsvergleich Transformer vs. LSTM vs. MLP.
+
+### Getroffene Entscheidungen
+
+| Entscheidung | Gewählt | Begründung |
+|---|---|---|
+| Integrationsstrategie | venv direkt patchen (Option A) | mlagents 0.30.0 hat keine Custom Policy API; Fork-Aufwand > Nutzen |
+| BufferSensorComponent | verworfen | mlagents chunked Replay-Buffer intern über `sequence_length`; kein Unity-Code nötig |
+| d_model | 256 (= hidden_units) | kein Extra-Embedding-Layer, nahtlose MLP→Transformer-Pipeline |
+| output_size | 64 (= memory_size//2) | LSTM-kompatibel, GAE-Shape `[batch*seq_len, output_size]` |
+| batch_first | False | PyTorch 2.0 ONNX-Bug mit batch_first=True |
+| Positional Encoding | gelernt (nn.Embedding + register_buffer) | trainierbar, ONNX-traceable |
+| TransformerEncoderLayer | ersetzt durch manuelle MHA + LayerNorm + FFN | PyTorch 2.0 CUDA Fast Path Segfault |
+
+### Geänderte Dateien
+
+**Neu im Repo:**
+- `training/transformer_policy.py` — TransformerMemory-Modul mit Unit-Test
+- `training/patch_mlagents.py` — Idempotentes Patch-Skript (+ --undo)
+- `config/labyrinth_transformer.yaml` — Training-Konfig Transformer
+- `config/labyrinth_lstm.yaml` — Training-Konfig LSTM (Baseline)
+
+**venv-Patches (nicht im Repo, per Skript anwenden):**
+- `mlagents/trainers/settings.py` — `memory_type: str` zu MemorySettings
+- `mlagents/trainers/torch_entities/networks.py` — Transformer-Branch in NetworkBody
+- `mlagents/trainers/torch_entities/transformer_memory.py` — Kopie des Moduls
+
+### Aufgetretene Probleme und Fixes
+
+| Problem | Ursache | Fix |
+|---|---|---|
+| Segfault beim Training | PyTorch 2.0 CUDA Fast Path in `nn.TransformerEncoderLayer` | Ersetzt durch manuelle `nn.MultiheadAttention` |
+| ONNX-Export-Absturz | `batch_first=True` Bug in PyTorch 2.0 | `batch_first=False` + manuelle Transpose |
+| GAE Shape-Mismatch `(64,) vs (8,)` | Nur letzter Token zurückgegeben → `[batch, out]` | Alle Positionen: `reshape(B*T, output_size)` |
+| torch.arange nicht ONNX-traceable | Dynamische Größe im forward | `register_buffer("pos_indices", torch.arange(seq_len))` |
+| Patch-Marker doppelt | Marker traf NetworkBody und MultiAgentNetworkBody | Marker um eindeutigen Kontext erweitert |
+| BehaviorType InferenceOnly | Agent-Prefab hatte kein Modell hinterlegt | Scene-Override auf `Default (0)` |
+| Port 5004 blockiert | Alter mlagents-Prozess noch aktiv | `taskkill //F //PID <pid>` |
+| Tag "Platform" nicht definiert | `CompareTag("Platform")` in GroundCheck ohne registrierten Tag | Tag in Unity Project Settings → Tags and Layers ergänzt |
+
+### Testergebnis (50k Steps)
+
+- Reward: −2.605 → −1.497 (Peak bei 40k) → stabil ~−1.6
+- Keine Abstürze, keine GAE-Fehler
+- Vollständiger Vergleich (2M Steps) steht aus
+
