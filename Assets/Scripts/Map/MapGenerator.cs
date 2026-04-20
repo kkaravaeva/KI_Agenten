@@ -23,6 +23,12 @@ public enum SpawnPlacementMode
     PredefinedSpawnPoints
 }
 
+public enum GoalPlacementMode
+{
+    RandomGoalCells,
+    PredefinedGoalSpawnPoints
+}
+
 public class MapGenerator : MonoBehaviour
 {
     [Header("Map Layouts")]
@@ -61,6 +67,9 @@ public class MapGenerator : MonoBehaviour
     public SpawnPlacementMode spawnPlacementMode = SpawnPlacementMode.RandomSpawnPoints;
     [Tooltip("false = Vector3.zero bei fehlendem SpawnPoint, true = Mitte der Map")]
     public bool useCenterFallback = false;
+
+    [Header("Goal Settings")]
+    public GoalPlacementMode goalPlacementMode = GoalPlacementMode.RandomGoalCells;
 
     [Header("Camera Framing")]
     public bool autoFrameCamera = true;
@@ -692,12 +701,6 @@ public class MapGenerator : MonoBehaviour
         return validSpawnCells[Random.Range(0, validSpawnCells.Count)];
     }
 
-    /// <summary>
-    /// Wählt eine zufällige Goal-Zelle.
-    /// 
-    /// Im Modus PredefinedSpawnPoints werden CellType.Obstacle-Zellen ausgeschlossen,
-    /// damit Hindernis-Spawnpunkte nicht als Zielposition verwendet werden.
-    /// </summary>
     private Vector2Int SelectRandomGoalCell(MapData mapData, Vector2Int spawnCell)
     {
         if (mapData == null || mapData.cells == null || mapData.cells.Length != mapData.width * mapData.height)
@@ -706,33 +709,58 @@ public class MapGenerator : MonoBehaviour
         List<Vector2Int> validGoalCells = new List<Vector2Int>();
         List<Vector2Int> fallbackGoalCells = new List<Vector2Int>();
 
-        for (int y = 0; y < mapData.height; y++)
+        if (goalPlacementMode == GoalPlacementMode.PredefinedGoalSpawnPoints)
         {
-            for (int x = 0; x < mapData.width; x++)
+            for (int y = 0; y < mapData.height; y++)
             {
-                CellType cellType = mapData.GetCell(x, y);
-
-                bool isValidGoalType;
-
-                if (obstaclePlacementMode == ObstaclePlacementMode.PredefinedSpawnPoints)
+                for (int x = 0; x < mapData.width; x++)
                 {
-                    // Obstacle-Zellen sind für Hindernisse reserviert, nicht für Goal
-                    isValidGoalType = (cellType == CellType.Floor || cellType == CellType.Goal || cellType == CellType.SpawnPoint);
-                }
-                else
-                {
-                    // RandomOnFloor: Alle begehbaren Zellen inkl. Obstacle
-                    isValidGoalType = (cellType == CellType.Floor || cellType == CellType.Goal || cellType == CellType.SpawnPoint || cellType == CellType.Obstacle);
-                }
+                    if (mapData.GetCell(x, y) != CellType.Goal)
+                        continue;
 
-                if (isValidGoalType)
-                {
                     Vector2Int candidate = new Vector2Int(x, y);
                     fallbackGoalCells.Add(candidate);
 
                     if (candidate != spawnCell)
-                    {
                         validGoalCells.Add(candidate);
+                }
+            }
+
+            if (validGoalCells.Count == 0 && fallbackGoalCells.Count == 0)
+            {
+                Debug.LogWarning($"MapGenerator: Layout '{mapData.name}' enthält keine CellType.Goal-Zelle. Fallback auf RandomGoalCells.");
+                goalPlacementMode = GoalPlacementMode.RandomGoalCells;
+                return SelectRandomGoalCell(mapData, spawnCell);
+            }
+        }
+        else
+        {
+            for (int y = 0; y < mapData.height; y++)
+            {
+                for (int x = 0; x < mapData.width; x++)
+                {
+                    CellType cellType = mapData.GetCell(x, y);
+
+                    bool isValidGoalType;
+
+                    if (obstaclePlacementMode == ObstaclePlacementMode.PredefinedSpawnPoints)
+                    {
+                        // Obstacle-Zellen sind für Hindernisse reserviert, nicht für Goal
+                        isValidGoalType = (cellType == CellType.Floor || cellType == CellType.Goal || cellType == CellType.SpawnPoint);
+                    }
+                    else
+                    {
+                        // RandomOnFloor: Alle begehbaren Zellen inkl. Obstacle
+                        isValidGoalType = (cellType == CellType.Floor || cellType == CellType.Goal || cellType == CellType.SpawnPoint || cellType == CellType.Obstacle);
+                    }
+
+                    if (isValidGoalType)
+                    {
+                        Vector2Int candidate = new Vector2Int(x, y);
+                        fallbackGoalCells.Add(candidate);
+
+                        if (candidate != spawnCell)
+                            validGoalCells.Add(candidate);
                     }
                 }
             }

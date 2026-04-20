@@ -1827,3 +1827,63 @@ Ermöglicht Ablationsvergleich Transformer vs. LSTM vs. MLP.
 - Keine Abstürze, keine GAE-Fehler
 - Vollständiger Vergleich (2M Steps) steht aus
 
+---
+
+## GoalPlacementMode — Goal-Platzierung konfigurierbar machen
+
+**Datum:** 20.04.2026  
+**Betroffene Datei:** `Assets/Scripts/Map/MapGenerator.cs`
+
+### Ausgangslage
+
+Goals wurden bisher immer zufällig aus allen begehbaren Zellen des Layouts gewählt — `CellType.Goal`-Zellen, die explizit im Layout markiert sind, wurden nicht bevorzugt behandelt. Für reproduzierbarere Trainingssetups war ein Toggle nötig, der Goal-Platzierung auf vordefinierte Spawn-Punkte einschränkt.
+
+### Umgesetzte Änderungen
+
+1. Neues Enum `GoalPlacementMode` (oberhalb der Klasse, analog zu `SpawnPlacementMode`)
+
+```csharp
+public enum GoalPlacementMode
+{
+    RandomGoalCells,
+    PredefinedGoalSpawnPoints
+}
+```
+
+2. Neues Inspector-Feld in `[Header("Goal Settings")]`
+
+```csharp
+public GoalPlacementMode goalPlacementMode = GoalPlacementMode.RandomGoalCells;
+```
+
+3. Erweiterung von `SelectRandomGoalCell()`
+
+Die Methode verzweigt jetzt auf Basis von `goalPlacementMode`:
+
+- `RandomGoalCells`: Bisheriges Verhalten — alle begehbaren Zellen sind Kandidaten. `CellType.Obstacle`-Zellen werden ausgeschlossen, wenn `obstaclePlacementMode == PredefinedSpawnPoints`.
+- `PredefinedGoalSpawnPoints`: Nur `CellType.Goal`-Zellen aus dem Layout werden als Kandidaten zugelassen. Enthält das Layout keine solchen Zellen, wird eine `LogWarning` ausgegeben und per Rekursion auf `RandomGoalCells` zurückgefallen.
+
+### Getroffene Entscheidungen
+
+**Entscheidung 1: Eigenes Enum statt Erweiterung von `SpawnPlacementMode`**
+
+Goal- und Spawn-Platzierung sind unabhängige Konfigurationsachsen. Ein gemeinsames Enum hätte ungültige Kombinationen erzwungen und die Lesbarkeit im Inspector verschlechtert.
+
+**Entscheidung 2: Fallback auf Random statt hartem Fehler bei fehlenden Goal-Zellen**
+
+Wenn `PredefinedGoalSpawnPoints` gewählt ist, aber das Layout keine `CellType.Goal`-Zelle enthält, bricht die Episode nicht ab — stattdessen wird ein Warning geloggt und auf `RandomGoalCells` zurückgefallen. Das verhindert unkontrolliertes Verhalten bei falsch konfigurierten Layouts und ist konsistent mit dem Fallback-Verhalten von `SpawnPlacementMode`.
+
+**Entscheidung 3: `goalPlacementMode`-Feld wird beim Fallback temporär überschrieben**
+
+Der Fallback setzt `goalPlacementMode = RandomGoalCells` und ruft sich rekursiv auf, um keine doppelte Logik zu pflegen. Das ist korrekt, da nach dem Fallback-Warning sofort neu evaluiert wird.
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| `GoalPlacementMode` im Inspector auswählbar | Erfüllt — serialisiertes Feld unter „Goal Settings" |
+| `RandomGoalCells` reproduziert bisheriges Verhalten | Erfüllt — identische Logik wie zuvor |
+| `PredefinedGoalSpawnPoints` nutzt nur `CellType.Goal`-Zellen | Erfüllt — explizite CellType-Prüfung |
+| Layout ohne Goal-Zellen bricht nicht ab | Erfüllt — Warning + Fallback auf RandomGoalCells |
+| Spawn- und Obstacle-Logik unverändert | Erfüllt — keine Änderungen an `SelectRandomSpawnCell()` oder `GetObstacleCandidateCells()` |
+
