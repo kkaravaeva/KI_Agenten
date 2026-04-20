@@ -16,7 +16,20 @@ import shutil
 import sys
 from pathlib import Path
 
-VENV           = Path(r"C:\Users\Finnl\mlagents-31008")
+_venv_arg = next((a for a in sys.argv[1:] if not a.startswith("--")), None)
+if _venv_arg:
+    VENV = Path(_venv_arg)
+else:
+    # Fallback: automatisch per `pip show mlagents` ermitteln
+    import subprocess, site
+    try:
+        _sp = subprocess.check_output([sys.executable, "-m", "pip", "show", "mlagents"],
+                                      text=True, stderr=subprocess.DEVNULL)
+        _loc = next(l.split(":", 1)[1].strip() for l in _sp.splitlines() if l.startswith("Location:"))
+        VENV = Path(_loc).parents[2]  # site-packages -> Lib -> venv-root
+    except Exception:
+        VENV = Path(r"C:\Users\Finnl\mlagents-31008")
+
 TORCH_ENTITIES = VENV / "Lib/site-packages/mlagents/trainers/torch_entities"
 SETTINGS_FILE  = VENV / "Lib/site-packages/mlagents/trainers/settings.py"
 NETWORKS_FILE  = TORCH_ENTITIES / "networks.py"
@@ -195,7 +208,7 @@ def remove_module():
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    undo = "--undo" in sys.argv
+    undo = "--undo" in sys.argv[1:]
 
     if undo:
         print("=== Patch rückgängig machen ===")
