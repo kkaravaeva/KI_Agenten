@@ -1887,3 +1887,103 @@ Der Fallback setzt `goalPlacementMode = RandomGoalCells` und ruft sich rekursiv 
 | Layout ohne Goal-Zellen bricht nicht ab | Erfüllt — Warning + Fallback auf RandomGoalCells |
 | Spawn- und Obstacle-Logik unverändert | Erfüllt — keine Änderungen an `SelectRandomSpawnCell()` oder `GetObstacleCandidateCells()` |
 
+## Issue 130: MapSelectionMode Sequential & Procedural-Layouts laden
+
+**Datum:** 21.04.2026  
+**Betroffene Dateien:** `Assets/Scripts/Map/MapGenerator.cs`, `Assets/Editor/MapGeneratorEditor.cs`
+
+### Ausgangslage
+
+`MapSelectionMode` bot bisher nur `Fixed` (fester Index) und `Random` (zufällig). Für geordnete Trainingsläufe fehlte ein Modus, der alle Layouts der Reihe nach durchläuft. Außerdem musste `mapLayouts[]` nach der prozeduralen Generierung manuell befüllt oder über den Auto-Fill-Toggle beim Generieren gesetzt werden — ein nachträgliches Laden ohne Neugenerierung war nicht möglich.
+
+### Umgesetzte Änderungen
+
+#### 1. `Sequential` zu `MapSelectionMode` hinzugefügt (`MapGenerator.cs`)
+
+```csharp
+public enum MapSelectionMode
+{
+    Fixed,
+    Random,
+    Sequential
+}
+```
+
+#### 2. `Sequential`-Zweig in `SelectMapLayout()` (`MapGenerator.cs`)
+
+```csharp
+else if (selectionMode == MapSelectionMode.Sequential)
+{
+    int nextIndex = (currentLayoutIndex + 1) % mapLayouts.Length;
+
+    if (!TryGetLayoutByIndex(nextIndex, out MapData selectedMap))
+    {
+        currentMapData = null;
+        return;
+    }
+
+    currentLayoutIndex = nextIndex;
+    selectedLayoutIndex = nextIndex;
+    currentMapData = selectedMap;
+}
+```
+
+`currentLayoutIndex` wird mit `-1` initialisiert, daher startet der erste Aufruf bei Index 0. Am Ende des Arrays wird automatisch auf 0 zurückgerollt (Modulo).
+
+#### 3. `LoadProceduralLayouts()`-Methode & Editor-Button (`MapGeneratorEditor.cs`)
+
+Neue Hilfsmethode, die `FillMapLayouts()` und den neuen Button teilen:
+
+```csharp
+private void LoadProceduralLayouts(MapGenerator generator, string folder, string undoLabel)
+{
+    string[] guids = AssetDatabase.FindAssets("Layout_P_", new[] { folder });
+    var paths = new List<string>(guids.Length);
+    foreach (string guid in guids)
+        paths.Add(AssetDatabase.GUIDToAssetPath(guid));
+
+    paths.Sort(StringComparer.OrdinalIgnoreCase);  // numerisch chronologisch
+
+    var assets = new MapData[paths.Count];
+    for (int i = 0; i < paths.Count; i++)
+        assets[i] = AssetDatabase.LoadAssetAtPath<MapData>(paths[i]);
+
+    Undo.RecordObject(generator, undoLabel);
+    generator.mapLayouts = assets;
+    EditorUtility.SetDirty(generator);
+}
+```
+
+Neuer Inspector-Button unter „Procedural Layouts laden":
+
+```
+↻  Procedural Layouts in mapLayouts[] laden
+```
+
+Lädt alle `Layout_P_`-Assets aus `_outputFolder` alphabetisch sortiert (= `001, 002, 003 ...`) in `mapLayouts[]`. Zeigt einen Dialog, wenn der Ordner nicht existiert.
+
+### Getroffene Entscheidungen
+
+**Entscheidung 1: Wrap-around bei `Sequential` statt Stopp am Ende**
+
+Der Index rollt per Modulo auf 0 zurück, sobald das letzte Layout erreicht wurde. Das passt zum Trainingsworkflow, bei dem `GenerateRuntimeMap()` nach jeder Episode aufgerufen wird und indefinit durch die Layout-Reihe rotieren soll.
+
+**Entscheidung 2: Sortierung nach Pfadname statt nach GUID**
+
+`AssetDatabase.FindAssets` gibt GUIDs ohne garantierte Reihenfolge zurück. Der Asset-Pfad enthält die Nummerierung (`Layout_P_001.asset`), daher ist alphabetische Sortierung des Pfads identisch mit chronologischer Reihenfolge.
+
+**Entscheidung 3: `LoadProceduralLayouts()` als gemeinsame Methode**
+
+`FillMapLayouts()` (intern nach Generierung) und der neue Button nutzen dieselbe Methode, um Logikduplizierung zu vermeiden. Beide Pfade produzieren ein identisch sortiertes Array.
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| `Sequential` im Inspector auswählbar | Erfüllt — Enum-Wert in `MapSelectionMode` |
+| Layouts werden in Array-Reihenfolge durchlaufen | Erfüllt — Modulo-Inkrement auf `currentLayoutIndex` |
+| Erster Aufruf startet bei Index 0 | Erfüllt — `currentLayoutIndex` initial `-1`, `(-1+1) % N = 0` |
+| Wrap-around am Ende des Arrays | Erfüllt — Modulo |
+| Button lädt Procedural-Layouts ohne Neugenerierung | Erfüllt — `LoadProceduralLayouts()` unabhängig von Generierung |
+| Layouts in `mapLayouts[]` chronologisch sortiert | Erfüllt — alphabetische Sortierung nach Asset-Pfad |
+

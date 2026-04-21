@@ -54,6 +54,26 @@ public class MapGeneratorEditor : Editor
         if (GUILayout.Button($"▶  {_layoutCount} Layouts generieren & speichern"))
             GenerateAndSave(generator);
         GUI.backgroundColor = Color.white;
+
+        // ── Procedural Layouts laden ──────────────────────────────────────────
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Procedural Layouts laden", EditorStyles.boldLabel);
+
+        EditorGUILayout.HelpBox(
+            $"Lädt alle Layout_P_-Assets aus \"{_outputFolder}\" in chronologischer Reihenfolge in mapLayouts[].",
+            MessageType.Info);
+
+        GUI.backgroundColor = new Color(0.6f, 0.8f, 1f);
+        if (GUILayout.Button("↻  Procedural Layouts in mapLayouts[] laden"))
+        {
+            if (!AssetDatabase.IsValidFolder(_outputFolder))
+                EditorUtility.DisplayDialog("Ordner nicht gefunden",
+                    $"Der Ordner \"{_outputFolder}\" existiert nicht.", "OK");
+            else
+                LoadProceduralLayouts(generator, _outputFolder,
+                    "Load procedural layouts into mapLayouts");
+        }
+        GUI.backgroundColor = Color.white;
     }
 
     // ── Generierungs-Logik ────────────────────────────────────────────────────
@@ -126,16 +146,24 @@ public class MapGeneratorEditor : Editor
 
     private void FillMapLayouts(MapGenerator generator)
     {
-        string[] guids  = AssetDatabase.FindAssets("Layout_P_", new[] { _outputFolder });
-        var      assets = new MapData[guids.Length];
+        LoadProceduralLayouts(generator, _outputFolder, "Fill mapLayouts with procedural assets");
+    }
 
-        for (int i = 0; i < guids.Length; i++)
-        {
-            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
-            assets[i] = AssetDatabase.LoadAssetAtPath<MapData>(path);
-        }
+    private void LoadProceduralLayouts(MapGenerator generator, string folder, string undoLabel)
+    {
+        string[] guids = AssetDatabase.FindAssets("Layout_P_", new[] { folder });
+        var paths = new System.Collections.Generic.List<string>(guids.Length);
 
-        Undo.RecordObject(generator, "Fill mapLayouts with procedural assets");
+        foreach (string guid in guids)
+            paths.Add(AssetDatabase.GUIDToAssetPath(guid));
+
+        paths.Sort(System.StringComparer.OrdinalIgnoreCase);
+
+        var assets = new MapData[paths.Count];
+        for (int i = 0; i < paths.Count; i++)
+            assets[i] = AssetDatabase.LoadAssetAtPath<MapData>(paths[i]);
+
+        Undo.RecordObject(generator, undoLabel);
         generator.mapLayouts = assets;
         EditorUtility.SetDirty(generator);
     }

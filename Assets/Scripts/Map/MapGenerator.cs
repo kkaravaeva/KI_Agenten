@@ -8,7 +8,8 @@ using UnityEditor;
 public enum MapSelectionMode
 {
     Fixed,
-    Random
+    Random,
+    Sequential
 }
 
 public enum ObstaclePlacementMode
@@ -175,6 +176,20 @@ public class MapGenerator : MonoBehaviour
             }
 
             currentLayoutIndex = selectedLayoutIndex;
+            currentMapData = selectedMap;
+        }
+        else if (selectionMode == MapSelectionMode.Sequential)
+        {
+            int nextIndex = (currentLayoutIndex + 1) % mapLayouts.Length;
+
+            if (!TryGetLayoutByIndex(nextIndex, out MapData selectedMap))
+            {
+                currentMapData = null;
+                return;
+            }
+
+            currentLayoutIndex = nextIndex;
+            selectedLayoutIndex = nextIndex;
             currentMapData = selectedMap;
         }
         else
