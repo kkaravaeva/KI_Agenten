@@ -1987,3 +1987,166 @@ Der Index rollt per Modulo auf 0 zurück, sobald das letzte Layout erreicht wurd
 | Button lädt Procedural-Layouts ohne Neugenerierung | Erfüllt — `LoadProceduralLayouts()` unabhängig von Generierung |
 | Layouts in `mapLayouts[]` chronologisch sortiert | Erfüllt — alphabetische Sortierung nach Asset-Pfad |
 
+
+---
+
+## Issue  # 133 – Schwierigkeitsgrade für den Layout Generator
+
+### Ziel
+
+Den prozeduralen Layout Generator um drei Schwierigkeitsgrade (Easy, Medium, Hard) erweitern. Die bestehenden Constraints (2-Tile-Gänge, Wand-Saum, Hole unüberspringbar, Lava überspringbar, Platform bei 2×2-Lava, Hole in Sackgassen, Weg zum Ziel immer möglich) bleiben unverändert. Nur die Komplexität der generierten Karten variiert.
+
+---
+
+### Neue Datei: `Assets/Scripts/Map/DifficultyLevel.cs`
+
+**Enum `DifficultyLevel`**
+
+```csharp
+public enum DifficultyLevel { Easy, Medium, Hard }
+```
+
+**Struct `DifficultySettings`**
+
+Kapselt alle schwierigkeitsabhängigen Parameter. Wird über die Factory-Methode `DifficultySettings.For(DifficultyLevel)` instanziiert.
+
+| Parameter | Easy | Medium | Hard |
+|---|---|---|---|
+| Grid-Breite (Inhalt) | 15–20 | 20–28 | 25–37 |
+| Grid-Höhe (Inhalt) | 18–25 | 25–35 | 30–45 |
+| Level-1-Korridore | 3–4 | 4–6 | 6–9 |
+| Max. Branch-Tiefe | 2 | 3 | 5 |
+| Max. Räume gesamt | 12 | 18 | 28 |
+| Terminal vom Start | 1–2 | 1–3 | 2–4 |
+| Terminal-Länge | 3–7 | 3–9 | 3–12 |
+| Loop-Wahrscheinlichkeit | 0 % | 15 % | 30 % |
+| Branch-Wahrscheinlichkeit | 50 % | 60 % | 70 % |
+| Dead-End: kein Obstacle | 50 % | 35 % | 25 % |
+| Dead-End: Hole-Chance | 8 % | 10 % | 12 % |
+| Goal-Lava Tiefe-3-Chance | 0 % | 10 % | 20 % |
+
+---
+
+### Geänderte Dateien
+
+#### `Assets/Scripts/Map/RoomCorridorGraph.cs`
+
+- Konstanten `MAX_BRANCH_DEPTH` und `MAX_TOTAL_ROOMS` entfernt (`MIN_CORRIDOR_LEN = 4` bleibt als Konstante, da schwierigkeitsunabhängig).
+- Instanzfeld `private DifficultySettings _settings` hinzugefügt.
+- Signatur geändert: `BuildTopology(int seed)` → `BuildTopology(int seed, DifficultySettings settings)`.
+- Alle vormals hardcodierten Werte (Grid-Größe, Korridorzahl, Branch-Tiefe, Räumezahl, Terminal-Länge, Loop- und Branch-Wahrscheinlichkeit) werden aus `_settings` gelesen.
+
+#### `Assets/Scripts/Map/ObstacleClusterPlacer.cs`
+
+- Signatur geändert: `PlaceClusters(MapData, RoomCorridorGraph)` → `PlaceClusters(MapData, RoomCorridorGraph, DifficultySettings)`.
+- `PlaceGoalCorridorObstacles` und `BuildLavaCluster` nehmen ebenfalls `DifficultySettings` entgegen.
+- Goal-Lava-Tiefe berechnet sich aus `settings.GoalLavaDepth3Chance`: Tiefe 3 mit dieser Wahrscheinlichkeit, Tiefe 1 und 2 teilen den Rest je hälftig.
+- Dead-End-Obstacle-Schwellen (`DeadEndNoObstacleChance`, `DeadEndHoleChance`) ersetzen die vormals hardcodierten Prozentwerte 0,25 / 0,37.
+
+#### `Assets/Scripts/Map/ProceduralLayoutGenerator.cs`
+
+- Signatur geändert: `GenerateLayout(int seed, MapData[] fallbackLayouts = null)` → `GenerateLayout(int seed, DifficultyLevel difficulty = DifficultyLevel.Hard, MapData[] fallbackLayouts = null)`.
+- Leitet intern `DifficultySettings.For(difficulty)` ab und gibt die Settings an `BuildTopology` und `PlaceClusters` weiter.
+
+#### `Assets/Scripts/Map/MapGenerator.cs`
+
+- Neues serialisiertes Feld unter dem Header „Procedural Generation": `public DifficultyLevel proceduralDifficulty = DifficultyLevel.Hard`.
+- `GenerateRuntimeMap()` übergibt `proceduralDifficulty` an `ProceduralLayoutGenerator.GenerateLayout`.
+
+#### `Assets/Editor/MapGeneratorEditor.cs`
+
+**Batch-Generierung**
+- Dropdown „Schwierigkeit" (`EnumPopup`) oben in der Sektion — steuert `generator.proceduralDifficulty`.
+- Asset-Benennung: `Layout_P_{Difficulty}_{NNN}.asset` (z. B. `Layout_P_Easy_003.asset`).
+- „Bestehende löschen" löscht nur Layouts der **gleichen** Schwierigkeit.
+- Nummerierung setzt fort statt neu zu starten (wenn „Bestehende löschen" aus ist).
+- „mapLayouts[] befüllen" nach dem Generieren lädt nur die gerade generierte Schwierigkeit nach; andere Schwierigkeiten in `mapLayouts[]` bleiben erhalten.
+
+**Laden-Sektion**
+- `EnumFlagsField` „Schwierigkeiten laden" — Mehrfachauswahl Easy/Medium/Hard.
+- HelpBox zeigt live die Anzahl passender Assets im Ausgabe-Ordner.
+- Laden ersetzt nur Einträge der gewählten Schwierigkeiten in `mapLayouts[]`; andere bleiben.
+
+**Entladen-Sektion (neu)**
+- `EnumFlagsField` „Schwierigkeiten entladen" — Mehrfachauswahl.
+- HelpBox zeigt live wie viele Layouts der gewählten Schwierigkeiten aktuell in `mapLayouts[]` sind.
+- Button „✕ Layouts aus mapLayouts[] entladen" entfernt nur die gewählten Schwierigkeiten.
+- Alle Aktionen sind Undo-fähig (`Ctrl+Z`).
+
+---
+
+### Entscheidungen
+
+**Entscheidung 1: `DifficultySettings` als Struct mit Factory-Methode statt Vererbung**
+
+Ein einfaches Datenstruct mit `DifficultySettings.For(level)` reicht aus. Vererbung oder ScriptableObject-basierte Konfiguration wäre Overengineering für drei feste Schwierigkeitsstufen.
+
+**Entscheidung 2: `MIN_CORRIDOR_LEN = 4` bleibt Konstante**
+
+Die minimale Korridorlänge ist durch die Gameplay-Constraints (Hole muss vollständig ins Ende passen) begründet und schwierigkeitsunabhängig.
+
+**Entscheidung 3: Goal-Lava-Tiefe über einen einzigen Parameter (`GoalLavaDepth3Chance`)**
+
+Tiefe 1 und 2 teilen den verbleibenden Anteil je hälftig. So reicht ein Parameter um die Schwierigkeit des Goal-Korridors zu steuern, ohne mehrere Wahrscheinlichkeitswerte synchron halten zu müssen.
+
+**Entscheidung 4: Naming-Convention `Layout_P_{Difficulty}_{NNN}`**
+
+Verhindert Namenskollisionen zwischen Schwierigkeiten. Ermöglicht gezielte Asset-Suche per `FindAssets("Layout_P_Easy_", ...)`.
+
+**Entscheidung 5: `All`-Wert aus `DifficultyMask`-Enum entfernt**
+
+Unity's `EnumFlagsField` zeigt automatisch „Everything" wenn alle Bits gesetzt sind. Ein zusätzlicher `All`-Wert erzeugte einen redundanten Eintrag im Dropdown.
+
+---
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| Drei Schwierigkeitsgrade (Easy/Medium/Hard) generierbar | Erfüllt |
+| Alle bestehenden Gameplay-Constraints unverändert | Erfüllt — `PlaceCorridor`, `PlatformPlacer`, `SemanticPathfinder` nicht angefasst |
+| Schwierigkeit im Inspector einstellbar | Erfüllt — `proceduralDifficulty`-Feld + Editor-Dropdown |
+| Easy-Layouts kleiner und simpler als Hard | Erfüllt — kleinere Grids, weniger Korridore, geringere Branch-Tiefe, weniger Obstacles |
+| Assets verschiedener Schwierigkeiten überschreiben sich nicht | Erfüllt — Difficulty im Dateinamen |
+| Layouts gezielt nach Schwierigkeit laden/entladen | Erfüllt — `EnumFlagsField` in beiden Sektionen |
+
+---
+
+## Nachbesserung Issue #133 – Sortierreihenfolge in `mapLayouts[]`
+
+### Problem
+
+Die alphabetische Sortierung der Asset-Namen (`Layout_P_Easy_`, `Layout_P_Hard_`, `Layout_P_Medium_`) ergab die Reihenfolge **Easy → Hard → Medium**, weil `H` < `M`. Beim Sequential-Modus wurden dadurch Hard-Layouts vor Medium-Layouts gespielt.
+
+### Lösung
+
+In `Assets/Editor/MapGeneratorEditor.cs` wurden die zwei alphabetischen Sort-Aufrufe durch einen schwierigkeitsbewussten Komparator ersetzt.
+
+**Neue Hilfsmethoden:**
+
+```csharp
+private static int DifficultyOrder(string name)
+{
+    if (name == null)              return int.MaxValue;
+    if (name.Contains("_Easy_"))   return 0;
+    if (name.Contains("_Medium_")) return 1;
+    if (name.Contains("_Hard_"))   return 2;
+    return 3; // nicht-prozedural oder unbekannt → hinten
+}
+
+private static int CompareDifficultyThenName(string a, string b)
+{
+    int diff = DifficultyOrder(a).CompareTo(DifficultyOrder(b));
+    if (diff != 0) return diff;
+    return string.Compare(a, b, System.StringComparison.OrdinalIgnoreCase);
+}
+```
+
+**Geänderte Sort-Aufrufe:**
+
+- `newPaths.Sort(...)` → `newPaths.Sort((a, b) => CompareDifficultyThenName(a, b))`
+- `merged.Sort(...)` → `merged.Sort((a, b) => CompareDifficultyThenName(a?.name, b?.name))`
+
+### Ergebnis
+
+`mapLayouts[]` ist nach dem Laden immer in der Reihenfolge **Easy → Medium → Hard** sortiert, innerhalb jeder Schwierigkeit weiterhin alphabetisch nach Nummer. Keine Umbenennung bestehender Assets nötig.

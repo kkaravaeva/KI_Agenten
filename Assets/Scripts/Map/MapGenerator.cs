@@ -60,6 +60,7 @@ public class MapGenerator : MonoBehaviour
     [Header("Procedural Generation")]
     [Tooltip("true = prozedurales Layout; false = MapData-Assets (Training)")]
     public bool useProceduralGeneration = false;
+    public DifficultyLevel proceduralDifficulty = DifficultyLevel.Hard;
 
     [Header("Map Settings")]
     public float cellSize = 1f;
@@ -130,7 +131,7 @@ public class MapGenerator : MonoBehaviour
         if (useProceduralGeneration)
         {
             MapData layout = ProceduralLayoutGenerator.GenerateLayout(
-                Random.Range(0, 99999), mapLayouts);
+                Random.Range(0, 99999), proceduralDifficulty, mapLayouts);
 
             if (layout != null)
                 GenerateMap(layout);

@@ -11,7 +11,7 @@ using UnityEngine;
 /// </summary>
 public static class ObstacleClusterPlacer
 {
-    public static void PlaceClusters(MapData grid, RoomCorridorGraph graph)
+    public static void PlaceClusters(MapData grid, RoomCorridorGraph graph, DifficultySettings settings)
     {
         foreach (CorridorEdge corridor in graph.corridors)
         {
@@ -24,8 +24,8 @@ public static class ObstacleClusterPlacer
             }
             else if (corridor.leadsToGoal)
             {
-                // Goal-Korridor: immer Lava (evtl. mehrfach bei langem Gang)
-                PlaceGoalCorridorObstacles(grid, corridor);
+                // Goal-Korridor: immer Lava
+                PlaceGoalCorridorObstacles(grid, corridor, settings);
             }
             else if (corridor.isLoop)
             {
@@ -39,13 +39,14 @@ public static class ObstacleClusterPlacer
             }
             else if (corridor.roomB != null && corridor.roomB.type == RoomType.DeadEnd)
             {
-                // Dead-End: 25 % kein Obstacle, 12 % Hole (selten – Holes primär in Terminal-Korridoren), 63 % Lava
-                float roll = Random.value;
-                ObstacleCluster cluster = null;
+                float roll          = Random.value;
+                float noObstThresh  = settings.DeadEndNoObstacleChance;
+                float holeThresh    = noObstThresh + settings.DeadEndHoleChance;
 
-                if      (roll < 0.25f) cluster = null;                   // kein Obstacle
-                else if (roll < 0.37f) cluster = BuildHoleCluster(corridor);
-                else                   cluster = BuildDeadEndLavaCluster(corridor);
+                ObstacleCluster cluster = null;
+                if      (roll < noObstThresh) cluster = null;
+                else if (roll < holeThresh)   cluster = BuildHoleCluster(corridor);
+                else                          cluster = BuildDeadEndLavaCluster(corridor);
 
                 if (cluster != null)
                 {
@@ -56,32 +57,26 @@ public static class ObstacleClusterPlacer
         }
     }
 
-    /// <summary>
-    /// Platziert 1–2 Lava-Cluster im Goal-Korridor je nach Ganglänge.
-    /// </summary>
-    private static void PlaceGoalCorridorObstacles(MapData grid, CorridorEdge corridor)
+    private static void PlaceGoalCorridorObstacles(MapData grid, CorridorEdge corridor,
+                                                    DifficultySettings settings)
     {
-        int corridorLength = Mathf.Abs(corridor.end.x - corridor.start.x)
-                           + Mathf.Abs(corridor.end.y - corridor.start.y) + 1;
-
         // Immer genau 1 Cluster – bei 2 Clustern würde nur der letzte registriert,
         // was den Pathfinder dazu bringt, erste-Cluster-Tiles als unbekannt zu werten.
-        ObstacleCluster c = BuildLavaCluster(corridor, 0, 1);
+        ObstacleCluster c = BuildLavaCluster(corridor, settings, 0, 1);
         PlaceCluster(grid, c);
         corridor.obstacle = c;
     }
 
     // ── Cluster-Builder ───────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Baut einen Lava-Cluster für den Goal-Korridor.
-    /// slotIndex/totalSlots teilen den Korridor in Abschnitte auf (für 2 Cluster).
-    /// </summary>
     private static ObstacleCluster BuildLavaCluster(CorridorEdge corridor,
+                                                     DifficultySettings settings,
                                                      int slotIndex = 0, int totalSlots = 1)
     {
-        float roll = Random.value;
-        int depth = roll < 0.4f ? 1 : roll < 0.8f ? 2 : 3;
+        float roll   = Random.value;
+        float depth3 = settings.GoalLavaDepth3Chance;
+        float depth12split = (1f - depth3) * 0.5f;
+        int depth = roll < depth12split ? 1 : roll < depth12split * 2f ? 2 : 3;
 
         Vector2Int origin = SlottedOrigin(corridor, depth, slotIndex, totalSlots);
 
