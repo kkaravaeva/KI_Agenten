@@ -2150,3 +2150,139 @@ private static int CompareDifficultyThenName(string a, string b)
 ### Ergebnis
 
 `mapLayouts[]` ist nach dem Laden immer in der Reihenfolge **Easy → Medium → Hard** sortiert, innerhalb jeder Schwierigkeit weiterhin alphabetisch nach Nummer. Keine Umbenennung bestehender Assets nötig.
+
+---
+
+## Issue 134: Konfigurierbarer Curriculum-Trainingsablauf (Milestone 7)
+
+### Ziel
+
+Einführung eines zweiten Trainingsmodus neben dem bestehenden Standard-Unity-Modus. Im neuen **Curriculum-Modus** wird pro Episode ein neues Layout sequenziell aus einer konfigurierten Phase geladen. Die Phasen entsprechen Schwierigkeitsgraden (Easy → Medium → Hard) und wechseln nach einer konfigurierbaren Anzahl an Episoden oder Steps automatisch. Bei mehreren Maps in einer Szene (Multi-Agent-Training) sind alle Maps synchronisiert: sie wechseln die Phase gleichzeitig.
+
+---
+
+### Neue Dateien
+
+#### `Assets/Scripts/Map/CurriculumConfig.cs`
+
+ScriptableObject das die gesamte Curriculum-Konfiguration hält.
+
+**Enthält folgende Typen:**
+
+| Typ | Art | Bedeutung |
+|---|---|---|
+| `TrainingMode` | Enum | `Standard` (bisheriges Verhalten) / `Curriculum` (neuer Modus) |
+| `ThresholdType` | Enum | `Episodes` / `Steps` – Einheit des Phasenwechsel-Schwellenwerts |
+| `CurriculumPhase` | Serializable Struct | Eine Trainingsphase: Schwierigkeit, Layouts, Schwellenwerttyp, Schwellenwert |
+| `CurriculumConfig` | ScriptableObject | Array von `CurriculumPhase[]` + `loopPhases`-Flag |
+
+**`CurriculumPhase`-Felder:**
+- `difficulty` – `DifficultyLevel` (Easy / Medium / Hard), rein informativ, beeinflusst die Logik nicht direkt
+- `layouts` – `MapData[]`-Array mit den Layouts dieser Phase in gewünschter Reihenfolge
+- `thresholdType` – ob der Schwellenwert in Episoden oder Steps gemessen wird
+- `threshold` – Anzahl Episoden/Steps nach denen auf die nächste Phase gewechselt wird
+
+**`CurriculumConfig`-Felder:**
+- `phases` – geordnetes Array der Phasen
+- `loopPhases` – nach der letzten Phase wieder von vorne beginnen (`true`) oder auf letzter Phase einfrieren (`false`)
+
+---
+
+#### `Assets/Scripts/Map/CurriculumTracker.cs`
+
+Statische Klasse die den geteilten Curriculum-Zustand über alle MapGenerator-Instanzen hinweg verwaltet.
+
+**Warum statisch statt MonoBehaviour:** Kein Update()-Tick, keine Inspector-Sichtbarkeit nötig. Mehrere MapGenerators greifen lesend/schreibend auf denselben Zustand zu – ein Singleton-MonoBehaviour würde eine explizite Referenz in jedem MapGenerator erfordern; eine statische Klasse ist direkt erreichbar ohne Szenen-Kopplung.
+
+**Zustandsfelder (alle privat, statisch):**
+
+| Feld | Bedeutung |
+|---|---|
+| `currentPhaseIndex` | Index der aktuell aktiven Phase in `config.phases` |
+| `currentLayoutIndexInPhase` | Globaler Layout-Zähler innerhalb der Phase; inkrementiert pro `GetNextLayout()`-Aufruf (d.h. pro Map pro Episode) |
+| `episodeCountInPhase` | Anzahl `GetNextLayout()`-Aufrufe seit Phasenbeginn |
+| `stepCountInPhase` | Anzahl `NotifyStep()`-Aufrufe seit Phasenbeginn |
+| `initialized` | Guard damit `Initialize()` bei mehreren MapGenerators nur einmal wirkt |
+
+**Öffentliche API:**
+
+```csharp
+CurriculumTracker.Initialize(CurriculumConfig cfg)  // Awake() eines MapGenerators
+CurriculumTracker.GetNextLayout()                    // SelectMapLayout() eines MapGenerators
+CurriculumTracker.NotifyStep()                       // OnActionReceived() des Agents
+```
+
+**Reset-Mechanismus:** `[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]` setzt alle statischen Felder beim Einstieg in den Play Mode zurück. Damit verhält sich der Tracker korrekt auch wenn Domain Reload im Editor deaktiviert ist.
+
+**Phasenwechsel-Logik (`CheckPhaseAdvance()`):**
+- Wird zu Beginn jedes `GetNextLayout()`-Aufrufs geprüft (nicht während eines Steps), damit ein Phasenwechsel nie mitten in einer Episode stattfindet
+- Ist `loopPhases = false` und die letzte Phase erreicht: frühes Return, kein Wechsel
+- Andernfalls: Index via Modulo erhöhen, alle Phasenzähler auf 0 zurücksetzen, Log-Ausgabe
+
+---
+
+### Geänderte Dateien
+
+#### `Assets/Scripts/Map/MapGenerator.cs`
+
+**Neue Felder (unter Header „Training Mode"):**
+```csharp
+public TrainingMode trainingMode = TrainingMode.Standard;
+public CurriculumConfig curriculumConfig;
+```
+
+**`Awake()`-Erweiterung:**
+```csharp
+if (trainingMode == TrainingMode.Curriculum)
+    CurriculumTracker.Initialize(curriculumConfig);
+```
+Mehrere MapGenerators rufen dies auf – der `initialized`-Guard in `CurriculumTracker` stellt sicher, dass nur der erste Aufruf wirkt.
+
+**`SelectMapLayout()`-Erweiterung:**
+```csharp
+if (trainingMode == TrainingMode.Curriculum)
+{
+    currentMapData = CurriculumTracker.GetNextLayout();
+    return;
+}
+// ... bestehende Standard-Logik unverändert
+```
+Der Curriculum-Zweig gibt früh zurück. Die gesamte Standard-Logik (Fixed / Sequential / Random) bleibt unberührt.
+
+#### `Assets/Scripts/Agent/LabyrinthAgent.cs`
+
+Eine Zeile in `OnActionReceived()` hinzugefügt:
+```csharp
+CurriculumTracker.NotifyStep();
+```
+Steht vor `AddReward()`. Wirkt nur wenn `CurriculumTracker` initialisiert ist (sonst früher Return im Tracker).
+
+---
+
+### Asset: `Assets/CurriculumConfig_Default.asset`
+
+Vorgefertigtes CurriculumConfig-Asset das alle prozeduralen Layouts aus `Assets/Layouts/Procedural/` nutzt.
+
+| Phase | Schwierigkeit | Layouts | Schwellenwerttyp | Schwellenwert |
+|---|---|---|---|---|
+| 0 | Easy | 199 (`Layout_P_Easy_001` – `_199`) | Episodes | 300 |
+| 1 | Medium | 204 (`Layout_P_Medium_001` – `_204`) | Episodes | 500 |
+| 2 | Hard | 203 (`Layout_P_Hard_001` – `_203`) | Episodes | 1000 (letzte Phase) |
+
+`loopPhases = false` – nach Phase 2 (Hard) bleibt der Trainer auf Hard eingefroren.
+
+Das Asset wurde programmatisch aus den `.meta`-GUIDs aller Layout-Assets generiert. Die Layouts sind innerhalb jeder Phase in numerischer Reihenfolge sortiert.
+
+---
+
+### Designentscheidungen
+
+| Entscheidung | Begründung |
+|---|---|
+| Statische Klasse statt Singleton-MonoBehaviour für `CurriculumTracker` | Kein Update-Tick nötig; direkt aus MapGenerator und Agent erreichbar ohne Szenen-Referenz |
+| Phasenwechsel nur am Episodenstart prüfen | Kein Phasenwechsel mitten in einer Episode; deterministisch und leicht nachvollziehbar |
+| `currentLayoutIndexInPhase` global inkrementieren (nicht pro Instanz) | Verschiedene Maps erhalten in derselben Episode unterschiedliche Layouts → Trainingsdiversität |
+| `episodeCountInPhase` zählt `GetNextLayout()`-Aufrufe (alle Maps zusammen) | Bei N Maps zählt eine Trainingsrunde als N Episoden; der Threshold ist entsprechend zu skalieren |
+| Standard-Modus vollständig unberührt | Null Regressionsrisiko; Umschaltung rein über `trainingMode`-Feld im Inspector |
+| `loopPhases`-Flag in CurriculumConfig | Ermöglicht zyklisches Curriculum ohne Code-Änderung |
+| Threshold der letzten Phase konfigurierbar | Relevant wenn `loopPhases = true`; ohne Looping wird der Wert ignoriert |

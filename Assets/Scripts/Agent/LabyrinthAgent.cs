@@ -158,6 +158,7 @@ public class LabyrinthAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
+        CurriculumTracker.NotifyStep();
         AddReward(stepPenalty);
         lastEpisodeStepCount = StepCount;
         lastEpisodeCumulativeReward = GetCumulativeReward();

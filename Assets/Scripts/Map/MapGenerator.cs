@@ -32,6 +32,10 @@ public enum GoalPlacementMode
 
 public class MapGenerator : MonoBehaviour
 {
+    [Header("Training Mode")]
+    public TrainingMode trainingMode = TrainingMode.Standard;
+    public CurriculumConfig curriculumConfig;
+
     [Header("Map Layouts")]
     public MapData[] mapLayouts;
 
@@ -99,6 +103,8 @@ public class MapGenerator : MonoBehaviour
     private void Awake()
     {
         EnsureMapRoot();
+        if (trainingMode == TrainingMode.Curriculum)
+            CurriculumTracker.Initialize(curriculumConfig);
     }
 
     private void Start()
@@ -159,6 +165,14 @@ public class MapGenerator : MonoBehaviour
 
     private void SelectMapLayout()
     {
+        if (trainingMode == TrainingMode.Curriculum)
+        {
+            currentMapData = CurriculumTracker.GetNextLayout();
+            if (currentMapData == null)
+                Debug.LogError("MapGenerator: CurriculumTracker.GetNextLayout() hat null zurückgegeben!");
+            return;
+        }
+
         if (mapLayouts == null || mapLayouts.Length == 0)
         {
             Debug.LogError("MapGenerator: Keine Map-Layouts zugewiesen!");
