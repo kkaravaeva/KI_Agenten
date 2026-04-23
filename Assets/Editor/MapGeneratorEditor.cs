@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -5,13 +6,26 @@ using UnityEngine;
 [CustomEditor(typeof(MapGenerator))]
 public class MapGeneratorEditor : Editor
 {
-    // Persistente Editor-Felder für die prozedurale Generierung
-    private int    _layoutCount    = 10;
-    private bool   _autoFill       = true;
-    private bool   _clearExisting  = true;
-    private string _outputFolder   = "Assets/Layouts/Procedural";
+    // Batch-Generierung
+    private int    _layoutCount   = 10;
+    private bool   _autoFill      = true;
+    private bool   _clearExisting = true;
+    private string _outputFolder  = "Assets/Layouts/Procedural";
+
+    // Laden / Entladen
+    private DifficultyMask _loadFilter   = DifficultyMask.Easy | DifficultyMask.Medium | DifficultyMask.Hard;
+    private DifficultyMask _unloadFilter = DifficultyMask.Easy | DifficultyMask.Medium | DifficultyMask.Hard;
 
     private const int MAX_LAYOUTS = 1000;
+
+    [System.Flags]
+    private enum DifficultyMask
+    {
+        None   = 0,
+        Easy   = 1,
+        Medium = 2,
+        Hard   = 4
+    }
 
     public override void OnInspectorGUI()
     {
@@ -41,13 +55,18 @@ public class MapGeneratorEditor : Editor
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Prozedurale Layout-Generierung", EditorStyles.boldLabel);
 
+        generator.proceduralDifficulty = (DifficultyLevel)EditorGUILayout.EnumPopup(
+            "Schwierigkeit", generator.proceduralDifficulty);
+        if (GUI.changed) EditorUtility.SetDirty(generator);
+
         _layoutCount   = EditorGUILayout.IntSlider("Anzahl Layouts", _layoutCount, 1, MAX_LAYOUTS);
         _outputFolder  = EditorGUILayout.TextField("Ausgabe-Ordner", _outputFolder);
         _clearExisting = EditorGUILayout.Toggle("Bestehende löschen", _clearExisting);
         _autoFill      = EditorGUILayout.Toggle("mapLayouts[] befüllen", _autoFill);
 
         EditorGUILayout.HelpBox(
-            $"Generiert {_layoutCount} prozedurale Layout(s) und speichert sie als .asset-Dateien.",
+            $"Generiert {_layoutCount} Layout(s) der Schwierigkeit '{generator.proceduralDifficulty}' " +
+            $"und speichert sie als .asset-Dateien.",
             MessageType.Info);
 
         GUI.backgroundColor = new Color(0.6f, 0.9f, 0.6f);
@@ -59,19 +78,58 @@ public class MapGeneratorEditor : Editor
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Procedural Layouts laden", EditorStyles.boldLabel);
 
+        _loadFilter = (DifficultyMask)EditorGUILayout.EnumFlagsField("Schwierigkeiten laden", _loadFilter);
+
+        int loadCount = CountMatchingAssets(_outputFolder, _loadFilter);
         EditorGUILayout.HelpBox(
-            $"Lädt alle Layout_P_-Assets aus \"{_outputFolder}\" in chronologischer Reihenfolge in mapLayouts[].",
+            $"{loadCount} passende Layout(s) in \"{_outputFolder}\" gefunden.\n" +
+            "Vorhandene Einträge der gewählten Schwierigkeiten in mapLayouts[] werden ersetzt.",
             MessageType.Info);
 
         GUI.backgroundColor = new Color(0.6f, 0.8f, 1f);
-        if (GUILayout.Button("↻  Procedural Layouts in mapLayouts[] laden"))
+        if (GUILayout.Button("↻  Layouts in mapLayouts[] laden"))
         {
-            if (!AssetDatabase.IsValidFolder(_outputFolder))
+            if (_loadFilter == DifficultyMask.None)
+            {
+                EditorUtility.DisplayDialog("Keine Schwierigkeit gewählt",
+                    "Bitte mindestens eine Schwierigkeit auswählen.", "OK");
+            }
+            else if (!AssetDatabase.IsValidFolder(_outputFolder))
+            {
                 EditorUtility.DisplayDialog("Ordner nicht gefunden",
                     $"Der Ordner \"{_outputFolder}\" existiert nicht.", "OK");
+            }
             else
-                LoadProceduralLayouts(generator, _outputFolder,
+            {
+                LoadProceduralLayouts(generator, _outputFolder, _loadFilter,
                     "Load procedural layouts into mapLayouts");
+            }
+        }
+        GUI.backgroundColor = Color.white;
+
+        // ── Procedural Layouts entladen ───────────────────────────────────────
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Procedural Layouts entladen", EditorStyles.boldLabel);
+
+        _unloadFilter = (DifficultyMask)EditorGUILayout.EnumFlagsField("Schwierigkeiten entladen", _unloadFilter);
+
+        int unloadCount = CountLoadedMatchingLayouts(generator, _unloadFilter);
+        EditorGUILayout.HelpBox(
+            $"{unloadCount} Layout(s) der gewählten Schwierigkeit(en) aktuell in mapLayouts[].",
+            MessageType.Info);
+
+        GUI.backgroundColor = new Color(1f, 0.75f, 0.6f);
+        if (GUILayout.Button("✕  Layouts aus mapLayouts[] entladen"))
+        {
+            if (_unloadFilter == DifficultyMask.None)
+            {
+                EditorUtility.DisplayDialog("Keine Schwierigkeit gewählt",
+                    "Bitte mindestens eine Schwierigkeit auswählen.", "OK");
+            }
+            else
+            {
+                UnloadDifficulties(generator, _unloadFilter, "Unload procedural layouts from mapLayouts");
+            }
         }
         GUI.backgroundColor = Color.white;
     }
@@ -80,7 +138,9 @@ public class MapGeneratorEditor : Editor
 
     private void GenerateAndSave(MapGenerator generator)
     {
-        // Ausgabe-Ordner anlegen
+        string diffName = generator.proceduralDifficulty.ToString();
+        string prefix   = $"Layout_P_{diffName}_";
+
         if (!AssetDatabase.IsValidFolder(_outputFolder))
         {
             string parent = Path.GetDirectoryName(_outputFolder).Replace('\\', '/');
@@ -88,13 +148,17 @@ public class MapGeneratorEditor : Editor
             AssetDatabase.CreateFolder(parent, folder);
         }
 
-        // Bestehende prozedurale Layouts löschen
+        // Nur Layouts der gleichen Schwierigkeit löschen
         if (_clearExisting)
         {
-            string[] existing = AssetDatabase.FindAssets("Layout_P_", new[] { _outputFolder });
+            string[] existing = AssetDatabase.FindAssets(prefix, new[] { _outputFolder });
             foreach (string guid in existing)
                 AssetDatabase.DeleteAsset(AssetDatabase.GUIDToAssetPath(guid));
         }
+
+        // Nummerierung fortsetzen wenn nicht gelöscht wird
+        int existingCount = _clearExisting ? 0
+            : AssetDatabase.FindAssets(prefix, new[] { _outputFolder }).Length;
 
         int saved    = 0;
         int failed   = 0;
@@ -109,16 +173,12 @@ public class MapGeneratorEditor : Editor
                     $"Layout {i + 1} / {_layoutCount}  (gespeichert: {saved}, fehlgeschlagen: {failed})",
                     (float)i / _layoutCount);
 
-                // Kein Fallback – bei Misserfolg wird gezählt statt ein bestehendes Asset zu recyceln
-                MapData layout = ProceduralLayoutGenerator.GenerateLayout(baseSeed + i * 7, null);
+                MapData layout = ProceduralLayoutGenerator.GenerateLayout(
+                    baseSeed + i * 7, generator.proceduralDifficulty, null);
 
-                if (layout == null)
-                {
-                    failed++;
-                    continue;
-                }
+                if (layout == null) { failed++; continue; }
 
-                string assetPath = $"{_outputFolder}/Layout_P_{saved + 1:D3}.asset";
+                string assetPath = $"{_outputFolder}/{prefix}{existingCount + saved + 1:D3}.asset";
                 AssetDatabase.CreateAsset(layout, assetPath);
                 saved++;
             }
@@ -131,40 +191,157 @@ public class MapGeneratorEditor : Editor
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
-        // mapLayouts[] automatisch befüllen
         if (_autoFill && saved > 0)
-            FillMapLayouts(generator);
+        {
+            DifficultyMask mask = DifficultyToMask(generator.proceduralDifficulty);
+            LoadProceduralLayouts(generator, _outputFolder, mask,
+                "Fill mapLayouts with procedural assets");
+        }
 
         Debug.Log($"Prozedurale Generierung abgeschlossen: {saved} gespeichert, {failed} fehlgeschlagen.");
         EditorUtility.DisplayDialog(
             "Generierung abgeschlossen",
             $"✓ {saved} Layouts gespeichert\n" +
-            (failed > 0 ? $"✗ {failed} Layouts fehlgeschlagen (zu wenig Platz im Grid)" : "") +
-            (_autoFill ? "\n\nmapLayouts[] wurde aktualisiert." : ""),
+            (failed > 0 ? $"✗ {failed} Layouts fehlgeschlagen (zu wenig Platz im Grid)\n" : "") +
+            (_autoFill ? "\nmapLayouts[] wurde aktualisiert." : ""),
             "OK");
     }
 
-    private void FillMapLayouts(MapGenerator generator)
+    // ── Laden ─────────────────────────────────────────────────────────────────
+
+    private void LoadProceduralLayouts(MapGenerator generator, string folder,
+                                        DifficultyMask filter, string undoLabel)
     {
-        LoadProceduralLayouts(generator, _outputFolder, "Fill mapLayouts with procedural assets");
-    }
+        // Neue Asset-Pfade sammeln
+        var newPaths = new List<string>();
+        foreach (DifficultyLevel diff in System.Enum.GetValues(typeof(DifficultyLevel)))
+        {
+            if (!FilterContains(filter, diff)) continue;
+            string prefix  = $"Layout_P_{diff}_";
+            string[] guids = AssetDatabase.FindAssets(prefix, new[] { folder });
+            foreach (string guid in guids)
+                newPaths.Add(AssetDatabase.GUIDToAssetPath(guid));
+        }
+        newPaths.Sort((a, b) => CompareDifficultyThenName(a, b));
 
-    private void LoadProceduralLayouts(MapGenerator generator, string folder, string undoLabel)
-    {
-        string[] guids = AssetDatabase.FindAssets("Layout_P_", new[] { folder });
-        var paths = new System.Collections.Generic.List<string>(guids.Length);
+        // Vorhandene mapLayouts: Einträge der gewählten Schwierigkeiten ersetzen,
+        // Einträge anderer Schwierigkeiten behalten
+        var merged = new List<MapData>();
+        if (generator.mapLayouts != null)
+        {
+            foreach (MapData m in generator.mapLayouts)
+            {
+                if (m != null && !IsMatchingFilter(m.name, filter))
+                    merged.Add(m);
+            }
+        }
 
-        foreach (string guid in guids)
-            paths.Add(AssetDatabase.GUIDToAssetPath(guid));
+        foreach (string path in newPaths)
+        {
+            MapData asset = AssetDatabase.LoadAssetAtPath<MapData>(path);
+            if (asset != null) merged.Add(asset);
+        }
 
-        paths.Sort(System.StringComparer.OrdinalIgnoreCase);
-
-        var assets = new MapData[paths.Count];
-        for (int i = 0; i < paths.Count; i++)
-            assets[i] = AssetDatabase.LoadAssetAtPath<MapData>(paths[i]);
+        merged.Sort((a, b) => CompareDifficultyThenName(a?.name, b?.name));
 
         Undo.RecordObject(generator, undoLabel);
-        generator.mapLayouts = assets;
+        generator.mapLayouts = merged.ToArray();
         EditorUtility.SetDirty(generator);
+
+        Debug.Log($"mapLayouts[]: {merged.Count} Layout(s) geladen (Filter: {filter}).");
+    }
+
+    // ── Entladen ──────────────────────────────────────────────────────────────
+
+    private void UnloadDifficulties(MapGenerator generator, DifficultyMask filter, string undoLabel)
+    {
+        if (generator.mapLayouts == null || generator.mapLayouts.Length == 0)
+        {
+            EditorUtility.DisplayDialog("Nichts zu entladen",
+                "mapLayouts[] ist bereits leer.", "OK");
+            return;
+        }
+
+        var remaining = new List<MapData>();
+        int removed   = 0;
+        foreach (MapData m in generator.mapLayouts)
+        {
+            if (m != null && IsMatchingFilter(m.name, filter))
+                removed++;
+            else
+                remaining.Add(m);
+        }
+
+        Undo.RecordObject(generator, undoLabel);
+        generator.mapLayouts = remaining.ToArray();
+        EditorUtility.SetDirty(generator);
+
+        Debug.Log($"mapLayouts[]: {removed} Layout(s) entladen (Filter: {filter}). " +
+                  $"Verbleibend: {remaining.Count}.");
+    }
+
+    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
+
+    private static bool FilterContains(DifficultyMask filter, DifficultyLevel diff)
+    {
+        DifficultyMask bit = DifficultyToMask(diff);
+        return (filter & bit) != 0;
+    }
+
+    private static DifficultyMask DifficultyToMask(DifficultyLevel diff)
+    {
+        switch (diff)
+        {
+            case DifficultyLevel.Easy:   return DifficultyMask.Easy;
+            case DifficultyLevel.Medium: return DifficultyMask.Medium;
+            default:                     return DifficultyMask.Hard;
+        }
+    }
+
+    private static bool IsMatchingFilter(string assetName, DifficultyMask filter)
+    {
+        foreach (DifficultyLevel diff in System.Enum.GetValues(typeof(DifficultyLevel)))
+        {
+            if (!FilterContains(filter, diff)) continue;
+            if (assetName.Contains($"Layout_P_{diff}_")) return true;
+        }
+        return false;
+    }
+
+    private int CountMatchingAssets(string folder, DifficultyMask filter)
+    {
+        if (!AssetDatabase.IsValidFolder(folder)) return 0;
+        int count = 0;
+        foreach (DifficultyLevel diff in System.Enum.GetValues(typeof(DifficultyLevel)))
+        {
+            if (!FilterContains(filter, diff)) continue;
+            count += AssetDatabase.FindAssets($"Layout_P_{diff}_", new[] { folder }).Length;
+        }
+        return count;
+    }
+
+    private static int CountLoadedMatchingLayouts(MapGenerator generator, DifficultyMask filter)
+    {
+        if (generator.mapLayouts == null) return 0;
+        int count = 0;
+        foreach (MapData m in generator.mapLayouts)
+            if (m != null && IsMatchingFilter(m.name, filter)) count++;
+        return count;
+    }
+
+    private static int DifficultyOrder(string name)
+    {
+        if (name == null)              return int.MaxValue;
+        if (name.Contains("_Easy_"))   return 0;
+        if (name.Contains("_Medium_")) return 1;
+        if (name.Contains("_Hard_"))   return 2;
+        return 3;
+    }
+
+    private static int CompareDifficultyThenName(string a, string b)
+    {
+        int diff = DifficultyOrder(a).CompareTo(DifficultyOrder(b));
+        if (diff != 0) return diff;
+        return string.Compare(a, b, System.StringComparison.OrdinalIgnoreCase);
     }
 }

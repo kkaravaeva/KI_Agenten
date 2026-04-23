@@ -2077,3 +2077,393 @@ Parameter gesamt: 82,432
 | Patch idempotent und rückgängig machbar | Erfüllt — `--undo` entfernt beide Module |
 | Training startet stabil, kein Absturz | Erfüllt — 10k Steps ohne Fehler |
 
+
+## Issue 131
+M7.2 — Custom LSTM Policy
+
+**Datum:** 23.04.2026  
+**Bearbeiter:** Alex Bernecker  
+**Status:** Implementiert, Proof-of-Concept-Training (10k Steps) erfolgreich
+
+### Ziel
+
+Custom `LSTMMemory`-Modul als direkte Baseline zum Transformer (Issue 113).
+Gleiche Schnittstelle (`[batch, seq_len, h_size] → [batch*seq_len, output_size]`), gleicher Einbettungspunkt im NetworkBody — nur die Verarbeitungslogik unterscheidet sich.
+Ermöglicht fairen Ablationsvergleich: beide Architekturen durchlaufen dieselbe MLP-Encoder-Pipeline und liefern identische Output-Shapes an Actor/Critic.
+
+### Getroffene Entscheidungen
+
+| Entscheidung | Gewählt | Begründung |
+|---|---|---|
+| `hidden_size` | 64 (= `memory_size // 2`) | Identisch zu mlagents-Konvention und TransformerMemory `output_size` |
+| `num_layers` | 1 | Konsistent mit mlagents Built-in LSTM; fairer Vergleichspunkt |
+| `batch_first` | True | Kein PyTorch-2.0-Bug für `nn.LSTM`; kein Transpose nötig (anders als TransformerMemory) |
+| h_0 / c_0 | nicht übergeben | mlagents liefert vollständige Sequenzen im Training (BPTT); step-weises Memory-Passing unnötig |
+| Output | alle Zeitschritte | `[batch*seq_len, output_size]` — GAE-kompatibel, identisch zu TransformerMemory |
+| Patch-Strategie | rein additiv (`elif`-Blöcke) | Transformer-Pfade in `patch_mlagents.py` vollständig unberührt |
+
+### Geänderte Dateien
+
+**Neu im Repo:**
+- `training/lstm_policy.py` — `LSTMMemory`-Modul mit Unit-Test
+- `Dokumentation/LSTM_Integration.md` — Architektur, Entscheidungen, Parametervergleich
+
+**Erweitert:**
+- `training/patch_mlagents.py` — LSTM-Branch in `NetworkBody.__init__`, `memory_size`, `forward`; kopiert `lstm_memory.py` in venv
+
+**venv-Patches (nicht im Repo, per Skript anwenden):**
+- `torch_entities/lstm_memory.py` — Kopie von `lstm_policy.py`
+- `torch_entities/networks.py` — `elif _mem_type == "lstm":` Branch in NetworkBody
+
+### Aufgetretene Probleme und Fixes
+
+| Problem | Ursache | Fix |
+|---|---|---|
+| ONNX-Export-Warnung beim Checkpoint-Speichern | PyTorch warnt bei LSTM-Export mit `batch_size > 1` und variabler Sequenzlänge ohne explizite h0/c0-Inputs | Nur Warnung, kein Fehler — ONNX-Modell funktioniert korrekt; für Inference relevant, nicht für Training |
+| `UnityTimeOutException` beim ersten Startversuch | Unity Editor war noch nicht geöffnet | mlagents-learn nach Unity-Start erneut ausgeführt |
+| `run-id already exists` beim zweiten Startversuch | Fehlgeschlagener erster Versuch hinterließ leeren Ordner | `--force` Flag verwendet |
+
+### Testergebnis (Unit-Test)
+
+```
+py training/lstm_policy.py
+Unit-Test OK — output shape: torch.Size([32, 64])
+Parameter gesamt: 82,432
+```
+
+### Testergebnis (Proof-of-Concept-Training, 10k Steps)
+
+- **Run-ID:** `lstm_baseline_v1`
+- **Reward nach 10k Steps:** −2.477
+- **Trainingszeit:** 247 s (ca. 4 min)
+- **Abstürze / GAE-Fehler:** 0
+- **Checkpoint:** `results/lstm_baseline_v1/LabyrinthNavigator-14707.onnx`
+- **Abbruch:** Unity-Verbindung getrennt (Play gestoppt) — kein Fehler im Modell
+
+### Parametervergleich
+
+| Modul | Parameter |
+|---|---|
+| `LSTMMemory` (h=256, m=128) | 82 432 |
+| `TransformerMemory` (h=256, m=128, seq=8, nhead=4, layers=2) | ~1 070 000 |
+
+### Reward-Vergleich Trainingsstart
+
+| Architektur | Reward Start (10k Steps) |
+|---|---|
+| LSTM (Custom) | −2.477 |
+| Transformer | −2.605 |
+| Vollständiger Vergleich (2M Steps) | offen |
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| `LSTMMemory`-Modul mit identischer Schnittstelle zu `TransformerMemory` | Erfüllt |
+| Output-Shape `[batch*seq_len, output_size]` korrekt | Erfüllt — Unit-Test bestätigt `(32, 64)` |
+| `memory_type: lstm` aktiviert `LSTMMemory` via Patch | Erfüllt — `elif _mem_type == "lstm":` in networks.py |
+| Transformer-Pfad unberührt | Erfüllt — nur additive `elif`-Blöcke in patch_mlagents.py |
+| Patch idempotent und rückgängig machbar | Erfüllt — `--undo` entfernt beide Module |
+| Training startet stabil, kein Absturz | Erfüllt — 10k Steps ohne Fehler |
+
+
+---
+
+## Issue  # 133 – Schwierigkeitsgrade für den Layout Generator
+
+### Ziel
+
+Den prozeduralen Layout Generator um drei Schwierigkeitsgrade (Easy, Medium, Hard) erweitern. Die bestehenden Constraints (2-Tile-Gänge, Wand-Saum, Hole unüberspringbar, Lava überspringbar, Platform bei 2×2-Lava, Hole in Sackgassen, Weg zum Ziel immer möglich) bleiben unverändert. Nur die Komplexität der generierten Karten variiert.
+
+---
+
+### Neue Datei: `Assets/Scripts/Map/DifficultyLevel.cs`
+
+**Enum `DifficultyLevel`**
+
+```csharp
+public enum DifficultyLevel { Easy, Medium, Hard }
+```
+
+**Struct `DifficultySettings`**
+
+Kapselt alle schwierigkeitsabhängigen Parameter. Wird über die Factory-Methode `DifficultySettings.For(DifficultyLevel)` instanziiert.
+
+| Parameter | Easy | Medium | Hard |
+|---|---|---|---|
+| Grid-Breite (Inhalt) | 15–20 | 20–28 | 25–37 |
+| Grid-Höhe (Inhalt) | 18–25 | 25–35 | 30–45 |
+| Level-1-Korridore | 3–4 | 4–6 | 6–9 |
+| Max. Branch-Tiefe | 2 | 3 | 5 |
+| Max. Räume gesamt | 12 | 18 | 28 |
+| Terminal vom Start | 1–2 | 1–3 | 2–4 |
+| Terminal-Länge | 3–7 | 3–9 | 3–12 |
+| Loop-Wahrscheinlichkeit | 0 % | 15 % | 30 % |
+| Branch-Wahrscheinlichkeit | 50 % | 60 % | 70 % |
+| Dead-End: kein Obstacle | 50 % | 35 % | 25 % |
+| Dead-End: Hole-Chance | 8 % | 10 % | 12 % |
+| Goal-Lava Tiefe-3-Chance | 0 % | 10 % | 20 % |
+
+---
+
+### Geänderte Dateien
+
+#### `Assets/Scripts/Map/RoomCorridorGraph.cs`
+
+- Konstanten `MAX_BRANCH_DEPTH` und `MAX_TOTAL_ROOMS` entfernt (`MIN_CORRIDOR_LEN = 4` bleibt als Konstante, da schwierigkeitsunabhängig).
+- Instanzfeld `private DifficultySettings _settings` hinzugefügt.
+- Signatur geändert: `BuildTopology(int seed)` → `BuildTopology(int seed, DifficultySettings settings)`.
+- Alle vormals hardcodierten Werte (Grid-Größe, Korridorzahl, Branch-Tiefe, Räumezahl, Terminal-Länge, Loop- und Branch-Wahrscheinlichkeit) werden aus `_settings` gelesen.
+
+#### `Assets/Scripts/Map/ObstacleClusterPlacer.cs`
+
+- Signatur geändert: `PlaceClusters(MapData, RoomCorridorGraph)` → `PlaceClusters(MapData, RoomCorridorGraph, DifficultySettings)`.
+- `PlaceGoalCorridorObstacles` und `BuildLavaCluster` nehmen ebenfalls `DifficultySettings` entgegen.
+- Goal-Lava-Tiefe berechnet sich aus `settings.GoalLavaDepth3Chance`: Tiefe 3 mit dieser Wahrscheinlichkeit, Tiefe 1 und 2 teilen den Rest je hälftig.
+- Dead-End-Obstacle-Schwellen (`DeadEndNoObstacleChance`, `DeadEndHoleChance`) ersetzen die vormals hardcodierten Prozentwerte 0,25 / 0,37.
+
+#### `Assets/Scripts/Map/ProceduralLayoutGenerator.cs`
+
+- Signatur geändert: `GenerateLayout(int seed, MapData[] fallbackLayouts = null)` → `GenerateLayout(int seed, DifficultyLevel difficulty = DifficultyLevel.Hard, MapData[] fallbackLayouts = null)`.
+- Leitet intern `DifficultySettings.For(difficulty)` ab und gibt die Settings an `BuildTopology` und `PlaceClusters` weiter.
+
+#### `Assets/Scripts/Map/MapGenerator.cs`
+
+- Neues serialisiertes Feld unter dem Header „Procedural Generation": `public DifficultyLevel proceduralDifficulty = DifficultyLevel.Hard`.
+- `GenerateRuntimeMap()` übergibt `proceduralDifficulty` an `ProceduralLayoutGenerator.GenerateLayout`.
+
+#### `Assets/Editor/MapGeneratorEditor.cs`
+
+**Batch-Generierung**
+- Dropdown „Schwierigkeit" (`EnumPopup`) oben in der Sektion — steuert `generator.proceduralDifficulty`.
+- Asset-Benennung: `Layout_P_{Difficulty}_{NNN}.asset` (z. B. `Layout_P_Easy_003.asset`).
+- „Bestehende löschen" löscht nur Layouts der **gleichen** Schwierigkeit.
+- Nummerierung setzt fort statt neu zu starten (wenn „Bestehende löschen" aus ist).
+- „mapLayouts[] befüllen" nach dem Generieren lädt nur die gerade generierte Schwierigkeit nach; andere Schwierigkeiten in `mapLayouts[]` bleiben erhalten.
+
+**Laden-Sektion**
+- `EnumFlagsField` „Schwierigkeiten laden" — Mehrfachauswahl Easy/Medium/Hard.
+- HelpBox zeigt live die Anzahl passender Assets im Ausgabe-Ordner.
+- Laden ersetzt nur Einträge der gewählten Schwierigkeiten in `mapLayouts[]`; andere bleiben.
+
+**Entladen-Sektion (neu)**
+- `EnumFlagsField` „Schwierigkeiten entladen" — Mehrfachauswahl.
+- HelpBox zeigt live wie viele Layouts der gewählten Schwierigkeiten aktuell in `mapLayouts[]` sind.
+- Button „✕ Layouts aus mapLayouts[] entladen" entfernt nur die gewählten Schwierigkeiten.
+- Alle Aktionen sind Undo-fähig (`Ctrl+Z`).
+
+---
+
+### Entscheidungen
+
+**Entscheidung 1: `DifficultySettings` als Struct mit Factory-Methode statt Vererbung**
+
+Ein einfaches Datenstruct mit `DifficultySettings.For(level)` reicht aus. Vererbung oder ScriptableObject-basierte Konfiguration wäre Overengineering für drei feste Schwierigkeitsstufen.
+
+**Entscheidung 2: `MIN_CORRIDOR_LEN = 4` bleibt Konstante**
+
+Die minimale Korridorlänge ist durch die Gameplay-Constraints (Hole muss vollständig ins Ende passen) begründet und schwierigkeitsunabhängig.
+
+**Entscheidung 3: Goal-Lava-Tiefe über einen einzigen Parameter (`GoalLavaDepth3Chance`)**
+
+Tiefe 1 und 2 teilen den verbleibenden Anteil je hälftig. So reicht ein Parameter um die Schwierigkeit des Goal-Korridors zu steuern, ohne mehrere Wahrscheinlichkeitswerte synchron halten zu müssen.
+
+**Entscheidung 4: Naming-Convention `Layout_P_{Difficulty}_{NNN}`**
+
+Verhindert Namenskollisionen zwischen Schwierigkeiten. Ermöglicht gezielte Asset-Suche per `FindAssets("Layout_P_Easy_", ...)`.
+
+**Entscheidung 5: `All`-Wert aus `DifficultyMask`-Enum entfernt**
+
+Unity's `EnumFlagsField` zeigt automatisch „Everything" wenn alle Bits gesetzt sind. Ein zusätzlicher `All`-Wert erzeugte einen redundanten Eintrag im Dropdown.
+
+---
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| Drei Schwierigkeitsgrade (Easy/Medium/Hard) generierbar | Erfüllt |
+| Alle bestehenden Gameplay-Constraints unverändert | Erfüllt — `PlaceCorridor`, `PlatformPlacer`, `SemanticPathfinder` nicht angefasst |
+| Schwierigkeit im Inspector einstellbar | Erfüllt — `proceduralDifficulty`-Feld + Editor-Dropdown |
+| Easy-Layouts kleiner und simpler als Hard | Erfüllt — kleinere Grids, weniger Korridore, geringere Branch-Tiefe, weniger Obstacles |
+| Assets verschiedener Schwierigkeiten überschreiben sich nicht | Erfüllt — Difficulty im Dateinamen |
+| Layouts gezielt nach Schwierigkeit laden/entladen | Erfüllt — `EnumFlagsField` in beiden Sektionen |
+
+---
+
+## Nachbesserung Issue #133 – Sortierreihenfolge in `mapLayouts[]`
+
+### Problem
+
+Die alphabetische Sortierung der Asset-Namen (`Layout_P_Easy_`, `Layout_P_Hard_`, `Layout_P_Medium_`) ergab die Reihenfolge **Easy → Hard → Medium**, weil `H` < `M`. Beim Sequential-Modus wurden dadurch Hard-Layouts vor Medium-Layouts gespielt.
+
+### Lösung
+
+In `Assets/Editor/MapGeneratorEditor.cs` wurden die zwei alphabetischen Sort-Aufrufe durch einen schwierigkeitsbewussten Komparator ersetzt.
+
+**Neue Hilfsmethoden:**
+
+```csharp
+private static int DifficultyOrder(string name)
+{
+    if (name == null)              return int.MaxValue;
+    if (name.Contains("_Easy_"))   return 0;
+    if (name.Contains("_Medium_")) return 1;
+    if (name.Contains("_Hard_"))   return 2;
+    return 3; // nicht-prozedural oder unbekannt → hinten
+}
+
+private static int CompareDifficultyThenName(string a, string b)
+{
+    int diff = DifficultyOrder(a).CompareTo(DifficultyOrder(b));
+    if (diff != 0) return diff;
+    return string.Compare(a, b, System.StringComparison.OrdinalIgnoreCase);
+}
+```
+
+**Geänderte Sort-Aufrufe:**
+
+- `newPaths.Sort(...)` → `newPaths.Sort((a, b) => CompareDifficultyThenName(a, b))`
+- `merged.Sort(...)` → `merged.Sort((a, b) => CompareDifficultyThenName(a?.name, b?.name))`
+
+### Ergebnis
+
+`mapLayouts[]` ist nach dem Laden immer in der Reihenfolge **Easy → Medium → Hard** sortiert, innerhalb jeder Schwierigkeit weiterhin alphabetisch nach Nummer. Keine Umbenennung bestehender Assets nötig.
+
+---
+
+## Issue 134: Konfigurierbarer Curriculum-Trainingsablauf (Milestone 7)
+
+### Ziel
+
+Einführung eines zweiten Trainingsmodus neben dem bestehenden Standard-Unity-Modus. Im neuen **Curriculum-Modus** wird pro Episode ein neues Layout sequenziell aus einer konfigurierten Phase geladen. Die Phasen entsprechen Schwierigkeitsgraden (Easy → Medium → Hard) und wechseln nach einer konfigurierbaren Anzahl an Episoden oder Steps automatisch. Bei mehreren Maps in einer Szene (Multi-Agent-Training) sind alle Maps synchronisiert: sie wechseln die Phase gleichzeitig.
+
+---
+
+### Neue Dateien
+
+#### `Assets/Scripts/Map/CurriculumConfig.cs`
+
+ScriptableObject das die gesamte Curriculum-Konfiguration hält.
+
+**Enthält folgende Typen:**
+
+| Typ | Art | Bedeutung |
+|---|---|---|
+| `TrainingMode` | Enum | `Standard` (bisheriges Verhalten) / `Curriculum` (neuer Modus) |
+| `ThresholdType` | Enum | `Episodes` / `Steps` – Einheit des Phasenwechsel-Schwellenwerts |
+| `CurriculumPhase` | Serializable Struct | Eine Trainingsphase: Schwierigkeit, Layouts, Schwellenwerttyp, Schwellenwert |
+| `CurriculumConfig` | ScriptableObject | Array von `CurriculumPhase[]` + `loopPhases`-Flag |
+
+**`CurriculumPhase`-Felder:**
+- `difficulty` – `DifficultyLevel` (Easy / Medium / Hard), rein informativ, beeinflusst die Logik nicht direkt
+- `layouts` – `MapData[]`-Array mit den Layouts dieser Phase in gewünschter Reihenfolge
+- `thresholdType` – ob der Schwellenwert in Episoden oder Steps gemessen wird
+- `threshold` – Anzahl Episoden/Steps nach denen auf die nächste Phase gewechselt wird
+
+**`CurriculumConfig`-Felder:**
+- `phases` – geordnetes Array der Phasen
+- `loopPhases` – nach der letzten Phase wieder von vorne beginnen (`true`) oder auf letzter Phase einfrieren (`false`)
+
+---
+
+#### `Assets/Scripts/Map/CurriculumTracker.cs`
+
+Statische Klasse die den geteilten Curriculum-Zustand über alle MapGenerator-Instanzen hinweg verwaltet.
+
+**Warum statisch statt MonoBehaviour:** Kein Update()-Tick, keine Inspector-Sichtbarkeit nötig. Mehrere MapGenerators greifen lesend/schreibend auf denselben Zustand zu – ein Singleton-MonoBehaviour würde eine explizite Referenz in jedem MapGenerator erfordern; eine statische Klasse ist direkt erreichbar ohne Szenen-Kopplung.
+
+**Zustandsfelder (alle privat, statisch):**
+
+| Feld | Bedeutung |
+|---|---|
+| `currentPhaseIndex` | Index der aktuell aktiven Phase in `config.phases` |
+| `currentLayoutIndexInPhase` | Globaler Layout-Zähler innerhalb der Phase; inkrementiert pro `GetNextLayout()`-Aufruf (d.h. pro Map pro Episode) |
+| `episodeCountInPhase` | Anzahl `GetNextLayout()`-Aufrufe seit Phasenbeginn |
+| `stepCountInPhase` | Anzahl `NotifyStep()`-Aufrufe seit Phasenbeginn |
+| `initialized` | Guard damit `Initialize()` bei mehreren MapGenerators nur einmal wirkt |
+
+**Öffentliche API:**
+
+```csharp
+CurriculumTracker.Initialize(CurriculumConfig cfg)  // Awake() eines MapGenerators
+CurriculumTracker.GetNextLayout()                    // SelectMapLayout() eines MapGenerators
+CurriculumTracker.NotifyStep()                       // OnActionReceived() des Agents
+```
+
+**Reset-Mechanismus:** `[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]` setzt alle statischen Felder beim Einstieg in den Play Mode zurück. Damit verhält sich der Tracker korrekt auch wenn Domain Reload im Editor deaktiviert ist.
+
+**Phasenwechsel-Logik (`CheckPhaseAdvance()`):**
+- Wird zu Beginn jedes `GetNextLayout()`-Aufrufs geprüft (nicht während eines Steps), damit ein Phasenwechsel nie mitten in einer Episode stattfindet
+- Ist `loopPhases = false` und die letzte Phase erreicht: frühes Return, kein Wechsel
+- Andernfalls: Index via Modulo erhöhen, alle Phasenzähler auf 0 zurücksetzen, Log-Ausgabe
+
+---
+
+### Geänderte Dateien
+
+#### `Assets/Scripts/Map/MapGenerator.cs`
+
+**Neue Felder (unter Header „Training Mode"):**
+```csharp
+public TrainingMode trainingMode = TrainingMode.Standard;
+public CurriculumConfig curriculumConfig;
+```
+
+**`Awake()`-Erweiterung:**
+```csharp
+if (trainingMode == TrainingMode.Curriculum)
+    CurriculumTracker.Initialize(curriculumConfig);
+```
+Mehrere MapGenerators rufen dies auf – der `initialized`-Guard in `CurriculumTracker` stellt sicher, dass nur der erste Aufruf wirkt.
+
+**`SelectMapLayout()`-Erweiterung:**
+```csharp
+if (trainingMode == TrainingMode.Curriculum)
+{
+    currentMapData = CurriculumTracker.GetNextLayout();
+    return;
+}
+// ... bestehende Standard-Logik unverändert
+```
+Der Curriculum-Zweig gibt früh zurück. Die gesamte Standard-Logik (Fixed / Sequential / Random) bleibt unberührt.
+
+#### `Assets/Scripts/Agent/LabyrinthAgent.cs`
+
+Eine Zeile in `OnActionReceived()` hinzugefügt:
+```csharp
+CurriculumTracker.NotifyStep();
+```
+Steht vor `AddReward()`. Wirkt nur wenn `CurriculumTracker` initialisiert ist (sonst früher Return im Tracker).
+
+---
+
+### Asset: `Assets/CurriculumConfig_Default.asset`
+
+Vorgefertigtes CurriculumConfig-Asset das alle prozeduralen Layouts aus `Assets/Layouts/Procedural/` nutzt.
+
+| Phase | Schwierigkeit | Layouts | Schwellenwerttyp | Schwellenwert |
+|---|---|---|---|---|
+| 0 | Easy | 199 (`Layout_P_Easy_001` – `_199`) | Episodes | 500 |
+| 1 | Medium | 204 (`Layout_P_Medium_001` – `_204`) | Episodes | 800 |
+| 2 | Hard | 203 (`Layout_P_Hard_001` – `_203`) | Episodes | – (letzte Phase, läuft bis max_steps) |
+
+`loopPhases = false` – nach Phase 2 (Hard) bleibt der Trainer auf Hard eingefroren.
+
+Das Asset wurde programmatisch aus den `.meta`-GUIDs aller Layout-Assets generiert. Die Layouts sind innerhalb jeder Phase in numerischer Reihenfolge sortiert.
+
+**Konfigurationsanpassung (Milestone 7, April 2026):** Die ursprünglichen Thresholds (Easy 300, Medium 500) und `max_steps: 2.000.000` waren inkonsistent — bei ~800 Episoden gesamt wäre Phase 2 (Hard) nie erreicht worden. Die Thresholds wurden auf Easy 500 und Medium 800 angehoben, `max_steps` auf 6.400.000 (≈ 2560 Episoden). Damit entfallen ~500 Episoden auf Easy (Grundnavigation), ~800 auf Medium (komplexere Layouts) und ~1260 auf Hard — die längste Phase, da sie die höchste Komplexität verlangt. Der Threshold der letzten Phase ist irrelevant, da `loopPhases = false` und der Tracker auf Hard eingefroren bleibt.
+
+---
+
+### Designentscheidungen
+
+| Entscheidung | Begründung |
+|---|---|
+| Statische Klasse statt Singleton-MonoBehaviour für `CurriculumTracker` | Kein Update-Tick nötig; direkt aus MapGenerator und Agent erreichbar ohne Szenen-Referenz |
+| Phasenwechsel nur am Episodenstart prüfen | Kein Phasenwechsel mitten in einer Episode; deterministisch und leicht nachvollziehbar |
+| `currentLayoutIndexInPhase` global inkrementieren (nicht pro Instanz) | Verschiedene Maps erhalten in derselben Episode unterschiedliche Layouts → Trainingsdiversität |
+| `episodeCountInPhase` zählt `GetNextLayout()`-Aufrufe (alle Maps zusammen) | Bei N Maps zählt eine Trainingsrunde als N Episoden; der Threshold ist entsprechend zu skalieren |
+| Standard-Modus vollständig unberührt | Null Regressionsrisiko; Umschaltung rein über `trainingMode`-Feld im Inspector |
+| `loopPhases`-Flag in CurriculumConfig | Ermöglicht zyklisches Curriculum ohne Code-Änderung |
+| Threshold der letzten Phase konfigurierbar | Relevant wenn `loopPhases = true`; ohne Looping wird der Wert ignoriert |

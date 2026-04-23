@@ -61,26 +61,25 @@ public class RoomCorridorGraph
     public Vector2Int goalCell;
 
     private System.Random rng;
+    private DifficultySettings _settings;
 
     private Vector2Int sizeStart;
     private Vector2Int sizeGoal;
     private Vector2Int sizeDeadEnd;
 
-    private const int MAX_BRANCH_DEPTH = 5;
-    private const int MAX_TOTAL_ROOMS  = 28;
     private const int MIN_CORRIDOR_LEN = 4;
 
-    public bool BuildTopology(int seed)
+    public bool BuildTopology(int seed, DifficultySettings settings)
     {
+        _settings = settings;
         rng = new System.Random(seed);
         rooms.Clear();
         corridors.Clear();
         startRoom = null;
         goalRoom  = null;
 
-        // Grid = Inhaltbereich (25–37 × 30–45) + 2×BORDER Puffer je Achse
-        GridWidth  = rng.Next(25, 38) + 2 * BORDER;   // 29–41
-        GridHeight = rng.Next(30, 46) + 2 * BORDER;   // 34–50
+        GridWidth  = rng.Next(_settings.GridWidthMin,  _settings.GridWidthMax  + 1) + 2 * BORDER;
+        GridHeight = rng.Next(_settings.GridHeightMin, _settings.GridHeightMax + 1) + 2 * BORDER;
 
         sizeStart   = new Vector2Int(rng.Next(3, 6), rng.Next(3, 6));
         sizeGoal    = new Vector2Int(3, 3);
@@ -96,8 +95,8 @@ public class RoomCorridorGraph
         rooms.Add(startRoom);
         spawnCell = startRoom.center;
 
-        // ── Ebene 1: 6–9 Korridore vom StartRoom ─────────────────────────────
-        int            target    = rng.Next(6, 10);
+        // ── Ebene 1: Korridore vom StartRoom ─────────────────────────────────
+        int            target    = rng.Next(_settings.Level1CorridorsMin, _settings.Level1CorridorsMax + 1);
         List<RoomNode> allPlaced = new List<RoomNode>();
 
         foreach (Direction dir in ShuffledDirections())
@@ -111,8 +110,8 @@ public class RoomCorridorGraph
             if (r != null) allPlaced.Add(r);
         }
 
-        // Terminal-Korridore direkt vom StartRoom (2–4)
-        AddTerminalCorridors(startRoom, 2, 4);
+        // Terminal-Korridore direkt vom StartRoom
+        AddTerminalCorridors(startRoom, _settings.TerminalFromStartMin, _settings.TerminalFromStartMax);
 
         if (allPlaced.Count == 0) return false;
 
@@ -148,8 +147,7 @@ public class RoomCorridorGraph
 
         if (deadEndRooms + terminalCount < 2) return false;
 
-        // Optionaler Loop (30 %)
-        if (rng.NextDouble() < 0.3)
+        if (rng.NextDouble() < _settings.LoopProbability)
             TryAddLoop(allPlaced);
 
         return goalRoom != null && rooms.Exists(r => r.type == RoomType.DeadEnd);
@@ -157,8 +155,8 @@ public class RoomCorridorGraph
 
     private void BranchFrom(RoomNode node, int depth, List<RoomNode> allPlaced)
     {
-        if (depth >= MAX_BRANCH_DEPTH) return;
-        if (rooms.Count >= MAX_TOTAL_ROOMS) return;
+        if (depth >= _settings.MaxBranchDepth) return;
+        if (rooms.Count >= _settings.MaxTotalRooms) return;
 
         int maxBranches = depth == 1 ? rng.Next(2, 5)
                         : depth == 2 ? rng.Next(1, 4)
@@ -169,8 +167,8 @@ public class RoomCorridorGraph
         foreach (Direction dir in ShuffledDirections())
         {
             if (placed >= maxBranches) break;
-            if (rooms.Count >= MAX_TOTAL_ROOMS) break;
-            if (rng.NextDouble() > 0.70) continue;
+            if (rooms.Count >= _settings.MaxTotalRooms) break;
+            if (rng.NextDouble() > _settings.BranchProbability) continue;
 
             Direction backDir = GetBackDirection(node);
             if (dir == backDir) continue;
@@ -211,7 +209,7 @@ public class RoomCorridorGraph
             int maxAvail = GetMaxTerminalLen(corrStart, dir);
             if (maxAvail < 3) continue;
 
-            int len = rng.Next(3, Mathf.Min(12, maxAvail) + 1);
+            int len = rng.Next(_settings.TerminalLengthMin, Mathf.Min(_settings.TerminalLengthMax, maxAvail) + 1);
             if (TryPlaceTerminalCorridor(source, dir, corrStart, len))
                 placed++;
         }

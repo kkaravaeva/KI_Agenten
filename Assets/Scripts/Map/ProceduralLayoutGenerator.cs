@@ -11,15 +11,20 @@ public static class ProceduralLayoutGenerator
     /// Generiert ein neues MapData-Layout prozedural.
     /// </summary>
     /// <param name="seed">Startwert für die Zufallsgenerierung.</param>
+    /// <param name="difficulty">Schwierigkeitsgrad des generierten Layouts.</param>
     /// <param name="fallbackLayouts">Asset-Layouts als Fallback (kann null sein).</param>
     /// <returns>Fertiges MapData, nie null wenn fallbackLayouts nicht leer ist.</returns>
-    public static MapData GenerateLayout(int seed, MapData[] fallbackLayouts = null)
+    public static MapData GenerateLayout(int seed,
+                                         DifficultyLevel difficulty = DifficultyLevel.Hard,
+                                         MapData[] fallbackLayouts = null)
     {
+        DifficultySettings settings = DifficultySettings.For(difficulty);
+
         for (int attempt = 0; attempt < 10; attempt++)
         {
             // Topologie zuerst – Grid-Größe kommt aus dem Graph
             RoomCorridorGraph graph = new RoomCorridorGraph();
-            if (!graph.BuildTopology(seed + attempt))
+            if (!graph.BuildTopology(seed + attempt, settings))
                 continue;
 
             MapData grid = CreateGrid(graph.GridWidth, graph.GridHeight);
@@ -37,7 +42,7 @@ public static class ProceduralLayoutGenerator
                 continue;
             }
 
-            ObstacleClusterPlacer.PlaceClusters(grid, graph);
+            ObstacleClusterPlacer.PlaceClusters(grid, graph, settings);
 
             // Cluster-Liste nach PlaceClusters neu laden (obstacle-Felder jetzt befüllt)
             var clusters = graph.GetAllClusters();

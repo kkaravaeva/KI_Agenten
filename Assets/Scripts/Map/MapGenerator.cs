@@ -32,6 +32,10 @@ public enum GoalPlacementMode
 
 public class MapGenerator : MonoBehaviour
 {
+    [Header("Training Mode")]
+    public TrainingMode trainingMode = TrainingMode.Standard;
+    public CurriculumConfig curriculumConfig;
+
     [Header("Map Layouts")]
     public MapData[] mapLayouts;
 
@@ -60,6 +64,7 @@ public class MapGenerator : MonoBehaviour
     [Header("Procedural Generation")]
     [Tooltip("true = prozedurales Layout; false = MapData-Assets (Training)")]
     public bool useProceduralGeneration = false;
+    public DifficultyLevel proceduralDifficulty = DifficultyLevel.Hard;
 
     [Header("Map Settings")]
     public float cellSize = 1f;
@@ -98,6 +103,8 @@ public class MapGenerator : MonoBehaviour
     private void Awake()
     {
         EnsureMapRoot();
+        if (trainingMode == TrainingMode.Curriculum)
+            CurriculumTracker.Initialize(curriculumConfig);
     }
 
     private void Start()
@@ -130,7 +137,7 @@ public class MapGenerator : MonoBehaviour
         if (useProceduralGeneration)
         {
             MapData layout = ProceduralLayoutGenerator.GenerateLayout(
-                Random.Range(0, 99999), mapLayouts);
+                Random.Range(0, 99999), proceduralDifficulty, mapLayouts);
 
             if (layout != null)
                 GenerateMap(layout);
@@ -158,6 +165,14 @@ public class MapGenerator : MonoBehaviour
 
     private void SelectMapLayout()
     {
+        if (trainingMode == TrainingMode.Curriculum)
+        {
+            currentMapData = CurriculumTracker.GetNextLayout();
+            if (currentMapData == null)
+                Debug.LogError("MapGenerator: CurriculumTracker.GetNextLayout() hat null zurückgegeben!");
+            return;
+        }
+
         if (mapLayouts == null || mapLayouts.Length == 0)
         {
             Debug.LogError("MapGenerator: Keine Map-Layouts zugewiesen!");
