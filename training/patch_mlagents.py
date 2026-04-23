@@ -78,7 +78,8 @@ NETWORKS_IMPORT_OLD = (
 )
 NETWORKS_IMPORT_NEW = (
     "from mlagents.trainers.torch_entities.layers import LSTM, LinearEncoder\n"
-    "from mlagents.trainers.torch_entities.transformer_memory import TransformerMemory"
+    "from mlagents.trainers.torch_entities.transformer_memory import TransformerMemory\n"
+    "from mlagents.trainers.torch_entities.lstm_memory import LSTMMemory"
 )
 
 # Unique context: NetworkBody.__init__ ends with update_normalization (MultiAgent has copy_normalization)
@@ -99,6 +100,13 @@ NETWORKS_INIT_NEW = (
     "                    h_size=self.h_size,\n"
     "                    memory_size=self.m_size,\n"
     "                    seq_len=network_settings.memory.sequence_length,\n"
+    "                )\n"
+    "            elif _mem_type == \"lstm\":\n"
+    "                self.lstm = None  # type: ignore\n"
+    "                self.transformer_memory = None  # type: ignore\n"
+    "                self.lstm_memory: LSTMMemory = LSTMMemory(\n"
+    "                    h_size=self.h_size,\n"
+    "                    memory_size=self.m_size,\n"
     "                )\n"
     "            else:\n"
     "                self.lstm = LSTM(self.h_size, self.m_size)\n"
@@ -131,6 +139,8 @@ NETWORKS_PROP_NEW = (
     "            return self.lstm.memory_size\n"
     "        elif getattr(self, 'transformer_memory', None) is not None:\n"
     "            return self.m_size\n"
+    "        elif getattr(self, 'lstm_memory', None) is not None:\n"
+    "            return self.m_size\n"
     "        return 0\n"
     "\n"
     "    def forward("
@@ -153,6 +163,8 @@ NETWORKS_FWD_NEW = (
     "            encoding = encoding.reshape([-1, sequence_length, self.h_size])\n"
     "            if getattr(self, 'transformer_memory', None) is not None:\n"
     "                encoding = self.transformer_memory(encoding)\n"
+    "            elif getattr(self, 'lstm_memory', None) is not None:\n"
+    "                encoding = self.lstm_memory(encoding)\n"
     "            else:\n"
     "                encoding, memories = self.lstm(encoding, memories)\n"
     "                encoding = encoding.reshape([-1, self.m_size // 2])\n"
@@ -164,8 +176,11 @@ NETWORKS_FWD_NEW = (
 
 def patch_networks():
     text = NETWORKS_FILE.read_text(encoding="utf-8")
+    if "LSTMMemory" in text:
+        print("networks.py: Patches bereits vorhanden — überspringe.")
+        return
     if "TransformerMemory" in text:
-        print("networks.py: Transformer-Branch bereits vorhanden — überspringe.")
+        print("networks.py: Alter Transformer-Patch gefunden — bitte zuerst --undo ausführen.")
         return
     text = _replace_once(text, NETWORKS_IMPORT_OLD, NETWORKS_IMPORT_NEW, "networks.py (import)")
     text = _replace_once(text, NETWORKS_INIT_OLD,   NETWORKS_INIT_NEW,   "networks.py (__init__)")
@@ -176,7 +191,7 @@ def patch_networks():
 
 def undo_networks():
     text = NETWORKS_FILE.read_text(encoding="utf-8")
-    if "TransformerMemory" not in text:
+    if "LSTMMemory" not in text:
         print("networks.py: kein Patch gefunden — überspringe.")
         return
     text = text.replace(NETWORKS_IMPORT_NEW, NETWORKS_IMPORT_OLD, 1)
@@ -196,6 +211,12 @@ def copy_module():
     shutil.copy(src, dst)
     print(f"transformer_memory.py OK  -> {dst}")
 
+    src_lstm = REPO_ROOT / "training" / "lstm_policy.py"
+    dst_lstm = TORCH_ENTITIES / "lstm_memory.py"
+    assert src_lstm.exists(), f"Quelldatei nicht gefunden: {src_lstm}"
+    shutil.copy(src_lstm, dst_lstm)
+    print(f"lstm_memory.py OK  -> {dst_lstm}")
+
 def remove_module():
     dst = TORCH_ENTITIES / "transformer_memory.py"
     if dst.exists():
@@ -203,6 +224,13 @@ def remove_module():
         print(f"transformer_memory.py OK  entfernt.")
     else:
         print("transformer_memory.py: nicht vorhanden — überspringe.")
+
+    dst_lstm = TORCH_ENTITIES / "lstm_memory.py"
+    if dst_lstm.exists():
+        dst_lstm.unlink()
+        print(f"lstm_memory.py OK  entfernt.")
+    else:
+        print("lstm_memory.py: nicht vorhanden — überspringe.")
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────

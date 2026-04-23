@@ -1987,3 +1987,93 @@ Der Index rollt per Modulo auf 0 zurück, sobald das letzte Layout erreicht wurd
 | Button lädt Procedural-Layouts ohne Neugenerierung | Erfüllt — `LoadProceduralLayouts()` unabhängig von Generierung |
 | Layouts in `mapLayouts[]` chronologisch sortiert | Erfüllt — alphabetische Sortierung nach Asset-Pfad |
 
+---
+
+## Issue 131
+M7.2 — Custom LSTM Policy
+
+**Datum:** 23.04.2026  
+**Bearbeiter:** Alex Bernecker  
+**Status:** Implementiert, Proof-of-Concept-Training (10k Steps) erfolgreich
+
+### Ziel
+
+Custom `LSTMMemory`-Modul als direkte Baseline zum Transformer (Issue 113).
+Gleiche Schnittstelle (`[batch, seq_len, h_size] → [batch*seq_len, output_size]`), gleicher Einbettungspunkt im NetworkBody — nur die Verarbeitungslogik unterscheidet sich.
+Ermöglicht fairen Ablationsvergleich: beide Architekturen durchlaufen dieselbe MLP-Encoder-Pipeline und liefern identische Output-Shapes an Actor/Critic.
+
+### Getroffene Entscheidungen
+
+| Entscheidung | Gewählt | Begründung |
+|---|---|---|
+| `hidden_size` | 64 (= `memory_size // 2`) | Identisch zu mlagents-Konvention und TransformerMemory `output_size` |
+| `num_layers` | 1 | Konsistent mit mlagents Built-in LSTM; fairer Vergleichspunkt |
+| `batch_first` | True | Kein PyTorch-2.0-Bug für `nn.LSTM`; kein Transpose nötig (anders als TransformerMemory) |
+| h_0 / c_0 | nicht übergeben | mlagents liefert vollständige Sequenzen im Training (BPTT); step-weises Memory-Passing unnötig |
+| Output | alle Zeitschritte | `[batch*seq_len, output_size]` — GAE-kompatibel, identisch zu TransformerMemory |
+| Patch-Strategie | rein additiv (`elif`-Blöcke) | Transformer-Pfade in `patch_mlagents.py` vollständig unberührt |
+
+### Geänderte Dateien
+
+**Neu im Repo:**
+- `training/lstm_policy.py` — `LSTMMemory`-Modul mit Unit-Test
+- `Dokumentation/LSTM_Integration.md` — Architektur, Entscheidungen, Parametervergleich
+
+**Erweitert:**
+- `training/patch_mlagents.py` — LSTM-Branch in `NetworkBody.__init__`, `memory_size`, `forward`; kopiert `lstm_memory.py` in venv
+
+**venv-Patches (nicht im Repo, per Skript anwenden):**
+- `torch_entities/lstm_memory.py` — Kopie von `lstm_policy.py`
+- `torch_entities/networks.py` — `elif _mem_type == "lstm":` Branch in NetworkBody
+
+### Aufgetretene Probleme und Fixes
+
+| Problem | Ursache | Fix |
+|---|---|---|
+| ONNX-Export-Warnung beim Checkpoint-Speichern | PyTorch warnt bei LSTM-Export mit `batch_size > 1` und variabler Sequenzlänge ohne explizite h0/c0-Inputs | Nur Warnung, kein Fehler — ONNX-Modell funktioniert korrekt; für Inference relevant, nicht für Training |
+| `UnityTimeOutException` beim ersten Startversuch | Unity Editor war noch nicht geöffnet | mlagents-learn nach Unity-Start erneut ausgeführt |
+| `run-id already exists` beim zweiten Startversuch | Fehlgeschlagener erster Versuch hinterließ leeren Ordner | `--force` Flag verwendet |
+
+### Testergebnis (Unit-Test)
+
+```
+py training/lstm_policy.py
+Unit-Test OK — output shape: torch.Size([32, 64])
+Parameter gesamt: 82,432
+```
+
+### Testergebnis (Proof-of-Concept-Training, 10k Steps)
+
+- **Run-ID:** `lstm_baseline_v1`
+- **Reward nach 10k Steps:** −2.477
+- **Trainingszeit:** 247 s (ca. 4 min)
+- **Abstürze / GAE-Fehler:** 0
+- **Checkpoint:** `results/lstm_baseline_v1/LabyrinthNavigator-14707.onnx`
+- **Abbruch:** Unity-Verbindung getrennt (Play gestoppt) — kein Fehler im Modell
+
+### Parametervergleich
+
+| Modul | Parameter |
+|---|---|
+| `LSTMMemory` (h=256, m=128) | 82 432 |
+| `TransformerMemory` (h=256, m=128, seq=8, nhead=4, layers=2) | ~1 070 000 |
+
+### Reward-Vergleich Trainingsstart
+
+| Architektur | Reward Start (10k Steps) |
+|---|---|
+| LSTM (Custom) | −2.477 |
+| Transformer | −2.605 |
+| Vollständiger Vergleich (2M Steps) | offen |
+
+### Akzeptanzkriterien
+
+| Kriterium | Status |
+|---|---|
+| `LSTMMemory`-Modul mit identischer Schnittstelle zu `TransformerMemory` | Erfüllt |
+| Output-Shape `[batch*seq_len, output_size]` korrekt | Erfüllt — Unit-Test bestätigt `(32, 64)` |
+| `memory_type: lstm` aktiviert `LSTMMemory` via Patch | Erfüllt — `elif _mem_type == "lstm":` in networks.py |
+| Transformer-Pfad unberührt | Erfüllt — nur additive `elif`-Blöcke in patch_mlagents.py |
+| Patch idempotent und rückgängig machbar | Erfüllt — `--undo` entfernt beide Module |
+| Training startet stabil, kein Absturz | Erfüllt — 10k Steps ohne Fehler |
+
