@@ -215,7 +215,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 0fa4e085528bc054a8242e82591de26c, type: 2}
     - {fileID: 11400000, guid: 7e00e585ab5133e40bc8525b9018c82e, type: 2}
     thresholdType: 0
-    threshold: 300
+    threshold: 500
   - difficulty: 1
     layouts:
     - {fileID: 11400000, guid: 9ad13880283618246a6cae57d339986d, type: 2}
@@ -423,7 +423,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 95c60ccd973ce9247963e77975fdee5c, type: 2}
     - {fileID: 11400000, guid: d03ccbd42abfef543bf52050069a96ea, type: 2}
     thresholdType: 0
-    threshold: 500
+    threshold: 800
   - difficulty: 2
     layouts:
     - {fileID: 11400000, guid: 9a5b1b237e2efca46bd633da0236bf74, type: 2}

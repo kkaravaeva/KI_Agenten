@@ -2265,13 +2265,15 @@ Vorgefertigtes CurriculumConfig-Asset das alle prozeduralen Layouts aus `Assets/
 
 | Phase | Schwierigkeit | Layouts | Schwellenwerttyp | Schwellenwert |
 |---|---|---|---|---|
-| 0 | Easy | 199 (`Layout_P_Easy_001` – `_199`) | Episodes | 300 |
-| 1 | Medium | 204 (`Layout_P_Medium_001` – `_204`) | Episodes | 500 |
-| 2 | Hard | 203 (`Layout_P_Hard_001` – `_203`) | Episodes | 1000 (letzte Phase) |
+| 0 | Easy | 199 (`Layout_P_Easy_001` – `_199`) | Episodes | 500 |
+| 1 | Medium | 204 (`Layout_P_Medium_001` – `_204`) | Episodes | 800 |
+| 2 | Hard | 203 (`Layout_P_Hard_001` – `_203`) | Episodes | – (letzte Phase, läuft bis max_steps) |
 
 `loopPhases = false` – nach Phase 2 (Hard) bleibt der Trainer auf Hard eingefroren.
 
 Das Asset wurde programmatisch aus den `.meta`-GUIDs aller Layout-Assets generiert. Die Layouts sind innerhalb jeder Phase in numerischer Reihenfolge sortiert.
+
+**Konfigurationsanpassung (Milestone 7, April 2026):** Die ursprünglichen Thresholds (Easy 300, Medium 500) und `max_steps: 2.000.000` waren inkonsistent — bei ~800 Episoden gesamt wäre Phase 2 (Hard) nie erreicht worden. Die Thresholds wurden auf Easy 500 und Medium 800 angehoben, `max_steps` auf 6.400.000 (≈ 2560 Episoden). Damit entfallen ~500 Episoden auf Easy (Grundnavigation), ~800 auf Medium (komplexere Layouts) und ~1260 auf Hard — die längste Phase, da sie die höchste Komplexität verlangt. Der Threshold der letzten Phase ist irrelevant, da `loopPhases = false` und der Tracker auf Hard eingefroren bleibt.
 
 ---
 

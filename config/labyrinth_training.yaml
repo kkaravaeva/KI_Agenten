@@ -67,11 +67,12 @@ behaviors:
         # Skalierungsfaktor für externe Rewards. 1.0 = keine zusätzliche Skalierung.
 
     seed: 42
-    max_steps: 2000000
+    max_steps: 6400000
     # GESAMTZAHL aller Umgebungsschritte über ALLE Episoden hinweg.
     # Unterschied zu MaxStep: MaxStep (in LabyrinthAgent = 2500) begrenzt eine einzelne
     # Episode. max_steps hier definiert, wann das GESAMTE Training beendet wird.
-    # 2.000.000 Steps ÷ 2500 Steps/Episode ≈ 800 Episoden für eine erste Baseline.
+    # 6.400.000 Steps ÷ 2500 Steps/Episode ≈ 2560 Episoden.
+    # Curriculum: Easy 500 Ep. (1.25M) → Medium 800 Ep. (2M) → Hard ~1260 Ep. (3.15M).
 
     time_horizon: 64
     # Wie viele Steps pro Agent gesammelt werden, bevor ein Advantage-Update
