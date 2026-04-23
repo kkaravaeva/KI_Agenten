@@ -66,6 +66,7 @@ behaviors:
         strength: 1.0
         # Skalierungsfaktor für externe Rewards. 1.0 = keine zusätzliche Skalierung.
 
+    seed: 42
     max_steps: 2000000
     # GESAMTZAHL aller Umgebungsschritte über ALLE Episoden hinweg.
     # Unterschied zu MaxStep: MaxStep (in LabyrinthAgent = 2500) begrenzt eine einzelne
