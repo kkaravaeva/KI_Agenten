@@ -1,4 +1,4 @@
-public enum DifficultyLevel { Easy, Medium, Hard }
+public enum DifficultyLevel { Trivial = 3, Easy = 0, Medium = 1, Hard = 2 }
 
 public struct DifficultySettings
 {
@@ -19,6 +19,23 @@ public struct DifficultySettings
     {
         switch (level)
         {
+            case DifficultyLevel.Trivial:
+                return new DifficultySettings
+                {
+                    GridWidthMin  = 7, GridWidthMax  = 7,
+                    GridHeightMin = 7, GridHeightMax = 7,
+                    Level1CorridorsMin = 1, Level1CorridorsMax = 1,
+                    MaxBranchDepth = 0,
+                    MaxTotalRooms  = 1,
+                    TerminalFromStartMin = 0, TerminalFromStartMax = 0,
+                    TerminalLengthMin = 0,    TerminalLengthMax = 0,
+                    LoopProbability       = 0f,
+                    BranchProbability     = 0f,
+                    DeadEndNoObstacleChance = 1f,
+                    DeadEndHoleChance       = 0f,
+                    GoalLavaDepth3Chance    = 0f
+                };
+
             case DifficultyLevel.Easy:
                 return new DifficultySettings
                 {

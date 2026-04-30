@@ -55,13 +55,29 @@ public static class CurriculumTracker
 
         CurriculumPhase phase = config.phases[currentPhaseIndex];
 
-        if (phase.layouts == null || phase.layouts.Length == 0)
+        MapData layout;
+        if (phase.difficulty == DifficultyLevel.Trivial)
         {
-            Debug.LogError($"CurriculumTracker: Phase {currentPhaseIndex} ({phase.difficulty}) hat keine Layouts zugewiesen!");
-            return null;
+            layout = ProceduralLayoutGenerator.GenerateLayout(
+                UnityEngine.Random.Range(0, 99999), DifficultyLevel.Trivial);
+
+            if (layout == null)
+            {
+                Debug.LogError($"CurriculumTracker: Trivial-Generierung für Phase {currentPhaseIndex} fehlgeschlagen!");
+                return null;
+            }
+        }
+        else
+        {
+            if (phase.layouts == null || phase.layouts.Length == 0)
+            {
+                Debug.LogError($"CurriculumTracker: Phase {currentPhaseIndex} ({phase.difficulty}) hat keine Layouts zugewiesen!");
+                return null;
+            }
+
+            layout = phase.layouts[currentLayoutIndexInPhase % phase.layouts.Length];
         }
 
-        MapData layout = phase.layouts[currentLayoutIndexInPhase % phase.layouts.Length];
         currentLayoutIndexInPhase++;
         episodeCountInPhase++;
 

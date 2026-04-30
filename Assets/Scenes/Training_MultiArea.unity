@@ -820,6 +820,26 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 565073268632254656, guid: 3c8701e500f51804482885ab44a25468, type: 3}
+      propertyPath: mapLayouts.Array.data[706]
+      value: 
+      objectReference: {fileID: 11400000, guid: ff31f4830c42b524c8da258666d6b4dd, type: 2}
+    - target: {fileID: 565073268632254656, guid: 3c8701e500f51804482885ab44a25468, type: 3}
+      propertyPath: mapLayouts.Array.data[707]
+      value: 
+      objectReference: {fileID: 11400000, guid: 6c0e00fab193a934c9eb1222bfe0ddb7, type: 2}
+    - target: {fileID: 565073268632254656, guid: 3c8701e500f51804482885ab44a25468, type: 3}
+      propertyPath: mapLayouts.Array.data[708]
+      value: 
+      objectReference: {fileID: 11400000, guid: ef41856046fdaca4ea82225083f36c94, type: 2}
+    - target: {fileID: 565073268632254656, guid: 3c8701e500f51804482885ab44a25468, type: 3}
+      propertyPath: mapLayouts.Array.data[709]
+      value: 
+      objectReference: {fileID: 11400000, guid: 4aab1c83cc577bd4b907fdff63383e76, type: 2}
+    - target: {fileID: 565073268632254656, guid: 3c8701e500f51804482885ab44a25468, type: 3}
+      propertyPath: mapLayouts.Array.data[710]
+      value: 
+      objectReference: {fileID: 11400000, guid: 87884c05a9951b94ebb23d8891ced29f, type: 2}
     - target: {fileID: 4281798274831322719, guid: 3c8701e500f51804482885ab44a25468, type: 3}
       propertyPath: m_RootOrder
       value: 2

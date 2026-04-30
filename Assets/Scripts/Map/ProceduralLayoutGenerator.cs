@@ -18,6 +18,9 @@ public static class ProceduralLayoutGenerator
                                          DifficultyLevel difficulty = DifficultyLevel.Hard,
                                          MapData[] fallbackLayouts = null)
     {
+        if (difficulty == DifficultyLevel.Trivial)
+            return GenerateTrivialLayout(seed);
+
         DifficultySettings settings = DifficultySettings.For(difficulty);
 
         for (int attempt = 0; attempt < 10; attempt++)
@@ -60,6 +63,41 @@ public static class ProceduralLayoutGenerator
             return fallbackLayouts[0];
 
         return null;
+    }
+
+    // ── Triviales Open-Room Layout (Phase 0) ─────────────────────────────────
+
+    /// <summary>
+    /// Erzeugt einen 7×7 offenen Raum ohne Hindernisse. Spawn und Goal liegen
+    /// in diagonalen Ecken; 4 Rotationen (seed % 4) verhindern Memorisierung.
+    /// </summary>
+    private static MapData GenerateTrivialLayout(int seed)
+    {
+        const int size = 7;
+        MapData grid = CreateGrid(size, size);
+        grid.name = $"Trivial_{seed % 4}";
+        grid.noRuntimeObstacles = true;
+
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+                grid.SetCell(x, y, (x == 0 || x == size - 1 || y == 0 || y == size - 1)
+                    ? CellType.Wall
+                    : CellType.Floor);
+
+        // 4 diagonale Rotationen: Agent kann keine feste Richtung memorisieren
+        Vector2Int spawn, goal;
+        switch (seed % 4)
+        {
+            case 0:  spawn = new Vector2Int(1, 1);          goal = new Vector2Int(size - 2, size - 2); break;
+            case 1:  spawn = new Vector2Int(size - 2, 1);   goal = new Vector2Int(1, size - 2);        break;
+            case 2:  spawn = new Vector2Int(1, size - 2);   goal = new Vector2Int(size - 2, 1);        break;
+            default: spawn = new Vector2Int(size - 2, size - 2); goal = new Vector2Int(1, 1);          break;
+        }
+
+        grid.SetCell(spawn.x, spawn.y, CellType.SpawnPoint);
+        grid.SetCell(goal.x,  goal.y,  CellType.Goal);
+
+        return grid;
     }
 
     // ── Grid-Initialisierung ──────────────────────────────────────────────────

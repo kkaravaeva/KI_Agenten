@@ -31,14 +31,28 @@ public class LabyrinthAgent : Agent
     [Header("Reward – Zeit")]
     [SerializeField] private float stepPenalty = -0.001f;
 
+    [Header("Wall-Climb Guard")]
+    [SerializeField] private float wallClimbMaxY = 3.0f;
+    [SerializeField] private float wallClimbPenalty = -1f;
+    [SerializeField] private float maxUpwardVelocity = 3.5f;
+
+    [Header("Reward – Shaping (PBRS)")]
+    [SerializeField] private float distanceShapingScale = 0.02f;
+    [SerializeField] private float pbrsGamma = 0.99f;
+
+    [Header("Observation – Distanz zum Ziel")]
+    [SerializeField] private float maxObservationDistance = 20f;
+
     [Header("Debug")]
     public bool debugSensors = false;
 
     private Rigidbody rb;
     private bool isGrounded;
     private Transform goalTransform;
+    private float previousDistance = 0f;
     private int lastEpisodeStepCount = 0;
     private float lastEpisodeCumulativeReward = 0f;
+    private float spawnY = 0f;
 
     public override void Initialize()
     {
@@ -54,8 +68,12 @@ public class LabyrinthAgent : Agent
 
         if (mapGenerator != null)
         {
+            mapGenerator.GenerateRuntimeMap();
             Vector3 spawnPos = mapGenerator.GetSpawnPosition();
-            transform.position = spawnPos + Vector3.up * 0.5f;
+            // 0.6f statt 0.5f: Kapsel-Unterseite (transform.y - 0.5) bei 0.1m, Boden-Top bei 0.05m
+            // → kein PhysX-Overlap, kein Depentrations-Impuls beim Spawn
+            transform.position = spawnPos + Vector3.up * 0.6f;
+            spawnY = transform.position.y;
             transform.localRotation = Quaternion.identity;
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
@@ -66,6 +84,9 @@ public class LabyrinthAgent : Agent
         }
 
         FindGoal();
+        previousDistance = goalTransform != null
+            ? Vector3.Distance(transform.position, goalTransform.position)
+            : 0f;
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -150,9 +171,15 @@ public class LabyrinthAgent : Agent
             }
         }
 
+        // === Distanz zum Ziel normalisiert (1 Observation) ===
+        float distToGoal = goalTransform != null
+            ? Vector3.Distance(transform.position, goalTransform.position)
+            : 0f;
+        sensor.AddObservation(distToGoal / maxObservationDistance);
+
         if (debugSensors)
         {
-            Debug.Log($"[Status] Velocity=({normalizedVelocity.x:F2}, {normalizedVelocity.y:F2}, {normalizedVelocity.z:F2}) isGrounded={isGrounded}");
+            Debug.Log($"[Status] Velocity=({normalizedVelocity.x:F2}, {normalizedVelocity.y:F2}, {normalizedVelocity.z:F2}) isGrounded={isGrounded} DistToGoal={distToGoal:F2}");
         }
     }
 
@@ -160,6 +187,21 @@ public class LabyrinthAgent : Agent
     {
         CurriculumTracker.NotifyStep();
         AddReward(stepPenalty);
+
+        // PBRS: F(s,s') = γΦ(s') - Φ(s), Φ(s) = -distance_to_goal
+        if (goalTransform != null)
+        {
+            float currentDistance = Vector3.Distance(transform.position, goalTransform.position);
+            AddReward((previousDistance - pbrsGamma * currentDistance) * distanceShapingScale);
+            previousDistance = currentDistance;
+        }
+
+        if (transform.position.y > spawnY + wallClimbMaxY)
+        {
+            AddReward(wallClimbPenalty);
+            Debug.Log($"[WallClimb] Y={transform.position.y:F2} > SpawnY+{wallClimbMaxY} | Penalty={wallClimbPenalty}");
+        }
+
         lastEpisodeStepCount = StepCount;
         lastEpisodeCumulativeReward = GetCumulativeReward();
 
@@ -207,12 +249,18 @@ public class LabyrinthAgent : Agent
     private void FixedUpdate()
     {
         GroundCheck();
+
+        if (rb.velocity.y > maxUpwardVelocity)
+            rb.velocity = new Vector3(rb.velocity.x, maxUpwardVelocity, rb.velocity.z);
+
     }
 
     private void GroundCheck()
     {
-        Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
-        float rayLength = 1.0f + groundCheckDistance;
+        // Ray starts at capsule center (transform.position with center.y=0).
+        // Length = half-height (0.5) + margin → detects floor within groundCheckDistance below capsule bottom.
+        Vector3 rayOrigin = transform.position;
+        float rayLength = 0.5f + groundCheckDistance;
 
         RaycastHit hit;
         if (Physics.Raycast(rayOrigin, Vector3.down, out hit, rayLength))
@@ -278,8 +326,8 @@ public class LabyrinthAgent : Agent
     private void OnDrawGizmosSelected()
     {
         // Ground Check Gizmo
-        Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
-        float rayLength = 1.0f + groundCheckDistance;
+        Vector3 rayOrigin = transform.position;
+        float rayLength = 0.5f + groundCheckDistance;
 
         Gizmos.color = isGrounded ? Color.green : Color.red;
         Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * rayLength);

@@ -26,7 +26,7 @@ else:
         _sp = subprocess.check_output([sys.executable, "-m", "pip", "show", "mlagents"],
                                       text=True, stderr=subprocess.DEVNULL)
         _loc = next(l.split(":", 1)[1].strip() for l in _sp.splitlines() if l.startswith("Location:"))
-        VENV = Path(_loc).parents[2]  # site-packages -> Lib -> venv-root
+        VENV = Path(_loc).parents[1]  # site-packages -> Lib -> venv-root
     except Exception:
         VENV = Path(r"C:\Users\Finnl\mlagents-31008")
 
@@ -129,7 +129,8 @@ NETWORKS_PROP_OLD = (
     "\n"
     "    def forward("
 )
-NETWORKS_PROP_NEW = (
+# v1-Patch (ohne Rolling-Buffer) — für Upgrade-Erkennung und Undo-Fallback
+NETWORKS_PROP_PREV = (
     "    def copy_normalization(self, other_network: \"NetworkBody\") -> None:\n"
     "        self.observation_encoder.copy_normalization(other_network.observation_encoder)\n"
     "\n"
@@ -141,6 +142,21 @@ NETWORKS_PROP_NEW = (
     "            return self.m_size\n"
     "        elif getattr(self, 'lstm_memory', None) is not None:\n"
     "            return self.m_size\n"
+    "        return 0\n"
+    "\n"
+    "    def forward("
+)
+# v2-Patch (Rolling-Buffer)
+NETWORKS_PROP_NEW = (
+    "    def copy_normalization(self, other_network: \"NetworkBody\") -> None:\n"
+    "        self.observation_encoder.copy_normalization(other_network.observation_encoder)\n"
+    "\n"
+    "    @property\n"
+    "    def memory_size(self) -> int:\n"
+    "        if self.lstm is not None:\n"
+    "            return self.lstm.memory_size\n"
+    "        elif getattr(self, 'transformer_memory', None) is not None:\n"
+    "            return (self.transformer_memory.seq_len - 1) * self.h_size\n"
     "        return 0\n"
     "\n"
     "    def forward("
@@ -158,7 +174,8 @@ NETWORKS_FWD_OLD = (
     "\n"
     "class MultiAgentNetworkBody"
 )
-NETWORKS_FWD_NEW = (
+# v1-Patch (ohne Rolling-Buffer) — für Upgrade-Erkennung und Undo-Fallback
+NETWORKS_FWD_PREV = (
     "        if self.use_lstm:\n"
     "            encoding = encoding.reshape([-1, sequence_length, self.h_size])\n"
     "            if getattr(self, 'transformer_memory', None) is not None:\n"
@@ -173,21 +190,77 @@ NETWORKS_FWD_NEW = (
     "\n"
     "class MultiAgentNetworkBody"
 )
+# v3-Patch (Rolling-Buffer + korrektes Memory-Shape):
+# torch_policy.py macht unsqueeze(0) → memories hat Shape [1, B, memory_size]
+# Wir müssen squeeze(0) beim Lesen und unsqueeze(0) beim Schreiben anwenden.
+NETWORKS_FWD_NEW = (
+    "        if self.use_lstm:\n"
+    "            if self.transformer_memory is not None:\n"
+    "                if sequence_length == 1:\n"
+    "                    # Inference: rolling buffer aus memories rekonstruieren\n"
+    "                    B = encoding.shape[0]\n"
+    "                    seq_len = self.transformer_memory.seq_len\n"
+    "                    if memories is not None:\n"
+    "                        buf = memories.squeeze(0).reshape(B, seq_len - 1, self.h_size)\n"
+    "                    else:\n"
+    "                        buf = torch.zeros(B, seq_len - 1, self.h_size, device=encoding.device, dtype=encoding.dtype)\n"
+    "                    full_seq = torch.cat([buf, encoding.unsqueeze(1)], dim=1)\n"
+    "                    memories = full_seq[:, 1:, :].reshape(B, (seq_len - 1) * self.h_size).unsqueeze(0)\n"
+    "                    all_out = self.transformer_memory(full_seq)\n"
+    "                    encoding = all_out.reshape(B, seq_len, self.transformer_memory.output_size)[:, -1, :]\n"
+    "                else:\n"
+    "                    # Training: normaler Pfad mit sequence_length aus Buffer\n"
+    "                    encoding = encoding.reshape([-1, sequence_length, self.h_size])\n"
+    "                    encoding = self.transformer_memory(encoding)\n"
+    "            else:\n"
+    "                encoding = encoding.reshape([-1, sequence_length, self.h_size])\n"
+    "                encoding, memories = self.lstm(encoding, memories)\n"
+    "                encoding = encoding.reshape([-1, self.m_size // 2])\n"
+    "        return encoding, memories\n"
+    "\n"
+    "\n"
+    "class MultiAgentNetworkBody"
+)
 
 def patch_networks():
     text = NETWORKS_FILE.read_text(encoding="utf-8")
-    if "LSTMMemory" in text:
-        print("networks.py: Patches bereits vorhanden — überspringe.")
+    # Bereits auf v3 (korrektes Memory-Shape mit squeeze/unsqueeze)?
+    if "memories.squeeze(0).reshape" in text:
+        print("networks.py: Patch (v3) bereits vorhanden — überspringe.")
         return
+    # Auf v2 (Rolling-Buffer, aber falsches Memory-Shape)? → Upgrade auf v3
+    if "(self.transformer_memory.seq_len - 1) * self.h_size" in text and NETWORKS_FWD_PREV not in text:
+        text = text.replace(
+            "                        buf = memories.reshape(B, seq_len - 1, self.h_size)\n",
+            "                        buf = memories.squeeze(0).reshape(B, seq_len - 1, self.h_size)\n",
+            1,
+        )
+        text = text.replace(
+            "                    memories = full_seq[:, 1:, :].reshape(B, (seq_len - 1) * self.h_size)\n",
+            "                    memories = full_seq[:, 1:, :].reshape(B, (seq_len - 1) * self.h_size).unsqueeze(0)\n",
+            1,
+        )
+        NETWORKS_FILE.write_text(text, encoding="utf-8")
+        print("networks.py OK  Patch (v2→v3, Memory-Shape-Fix) angewendet.")
+        return
+    # Auf v1 (alter Patch ohne Rolling-Buffer)? → Upgrade auf v3
+    if NETWORKS_PROP_PREV in text:
+        text = _replace_once(text, NETWORKS_PROP_PREV, NETWORKS_PROP_NEW, "networks.py (property v1→v3)")
+        text = _replace_once(text, NETWORKS_FWD_PREV,  NETWORKS_FWD_NEW,  "networks.py (forward v1→v3)")
+        NETWORKS_FILE.write_text(text, encoding="utf-8")
+        print("networks.py OK  Patch (v1→v3) angewendet.")
+        return
+    # Unbekannter Patch?
     if "TransformerMemory" in text:
-        print("networks.py: Alter Transformer-Patch gefunden — bitte zuerst --undo ausführen.")
+        print("networks.py: Unbekannter Transformer-Patch — bitte erst --undo, dann erneut ausführen.")
         return
+    # Frisch auf originales ML-Agents anwenden
     text = _replace_once(text, NETWORKS_IMPORT_OLD, NETWORKS_IMPORT_NEW, "networks.py (import)")
     text = _replace_once(text, NETWORKS_INIT_OLD,   NETWORKS_INIT_NEW,   "networks.py (__init__)")
     text = _replace_once(text, NETWORKS_PROP_OLD,   NETWORKS_PROP_NEW,   "networks.py (property)")
     text = _replace_once(text, NETWORKS_FWD_OLD,    NETWORKS_FWD_NEW,    "networks.py (forward)")
     NETWORKS_FILE.write_text(text, encoding="utf-8")
-    print("networks.py OK  Transformer-Branch eingefügt.")
+    print("networks.py OK  Transformer-Patch (v3) angewendet.")
 
 def undo_networks():
     text = NETWORKS_FILE.read_text(encoding="utf-8")
@@ -196,8 +269,15 @@ def undo_networks():
         return
     text = text.replace(NETWORKS_IMPORT_NEW, NETWORKS_IMPORT_OLD, 1)
     text = text.replace(NETWORKS_INIT_NEW,   NETWORKS_INIT_OLD,   1)
-    text = text.replace(NETWORKS_PROP_NEW,   NETWORKS_PROP_OLD,   1)
-    text = text.replace(NETWORKS_FWD_NEW,    NETWORKS_FWD_OLD,    1)
+    # Undo unterstützt beide Patch-Versionen
+    if NETWORKS_PROP_NEW in text:
+        text = text.replace(NETWORKS_PROP_NEW, NETWORKS_PROP_OLD, 1)
+    elif NETWORKS_PROP_PREV in text:
+        text = text.replace(NETWORKS_PROP_PREV, NETWORKS_PROP_OLD, 1)
+    if NETWORKS_FWD_NEW in text:
+        text = text.replace(NETWORKS_FWD_NEW, NETWORKS_FWD_OLD, 1)
+    elif NETWORKS_FWD_PREV in text:
+        text = text.replace(NETWORKS_FWD_PREV, NETWORKS_FWD_OLD, 1)
     NETWORKS_FILE.write_text(text, encoding="utf-8")
     print("networks.py OK  Patch rückgängig gemacht.")
 

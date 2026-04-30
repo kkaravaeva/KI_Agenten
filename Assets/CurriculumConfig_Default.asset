@@ -13,6 +13,110 @@ MonoBehaviour:
   m_Name: CurriculumConfig_Default
   m_EditorClassIdentifier: 
   phases:
+  - difficulty: 3
+    layouts:
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    thresholdType: 0
+    threshold: 3200
   - difficulty: 0
     layouts:
     - {fileID: 11400000, guid: 11288727c6ccb90419c32f79402f4d35, type: 2}
@@ -215,7 +319,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 0fa4e085528bc054a8242e82591de26c, type: 2}
     - {fileID: 11400000, guid: 7e00e585ab5133e40bc8525b9018c82e, type: 2}
     thresholdType: 0
-    threshold: 500
+    threshold: 8000
   - difficulty: 1
     layouts:
     - {fileID: 11400000, guid: 9ad13880283618246a6cae57d339986d, type: 2}
@@ -423,7 +527,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 95c60ccd973ce9247963e77975fdee5c, type: 2}
     - {fileID: 11400000, guid: d03ccbd42abfef543bf52050069a96ea, type: 2}
     thresholdType: 0
-    threshold: 800
+    threshold: 12800
   - difficulty: 2
     layouts:
     - {fileID: 11400000, guid: 9a5b1b237e2efca46bd633da0236bf74, type: 2}
@@ -630,5 +734,5 @@ MonoBehaviour:
     - {fileID: 11400000, guid: b385acc66a40c7048a768a926204ff19, type: 2}
     - {fileID: 11400000, guid: 3a3cf457bcc49aa4e9117c3245024e8e, type: 2}
     thresholdType: 0
-    threshold: 1000
+    threshold: 16000
   loopPhases: 0

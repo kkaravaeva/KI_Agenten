@@ -309,8 +309,8 @@ public class MapGenerator : MonoBehaviour
             : Vector3.zero;
 
         currentRuntimeObstacleCells.Clear();
-        // Bei prozeduraler Generierung sind Obstacles bereits im Grid eingebaut
-        if (!useProceduralGeneration)
+        // Bei prozeduraler Generierung oder explizitem noRuntimeObstacles-Flag keine Obstacle-Platzierung
+        if (!useProceduralGeneration && !mapData.noRuntimeObstacles)
             PlaceRuntimeObstacles(mapData, currentSpawnCell, currentGoalCell);
 
         for (int y = 0; y < mapData.height; y++)
@@ -590,7 +590,13 @@ public class MapGenerator : MonoBehaviour
             GameObject child = mapRoot.GetChild(i).gameObject;
 
             if (Application.isPlaying)
+            {
+                // SetActive(false) deaktiviert Trigger-Collider sofort (vor der nächsten
+                // Physics-Auswertung), damit der Agent nicht auf dem alten Goal-Trigger
+                // spawnt und die Episode in 0 Steps beendet.
+                child.SetActive(false);
                 Destroy(child);
+            }
             else
                 DestroyImmediate(child);
         }

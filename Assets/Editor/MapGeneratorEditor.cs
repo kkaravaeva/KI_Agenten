@@ -13,8 +13,8 @@ public class MapGeneratorEditor : Editor
     private string _outputFolder  = "Assets/Layouts/Procedural";
 
     // Laden / Entladen
-    private DifficultyMask _loadFilter   = DifficultyMask.Easy | DifficultyMask.Medium | DifficultyMask.Hard;
-    private DifficultyMask _unloadFilter = DifficultyMask.Easy | DifficultyMask.Medium | DifficultyMask.Hard;
+    private DifficultyMask _loadFilter   = DifficultyMask.Trivial | DifficultyMask.Easy | DifficultyMask.Medium | DifficultyMask.Hard;
+    private DifficultyMask _unloadFilter = DifficultyMask.Trivial | DifficultyMask.Easy | DifficultyMask.Medium | DifficultyMask.Hard;
 
     private const int MAX_LAYOUTS = 1000;
 
@@ -22,6 +22,7 @@ public class MapGeneratorEditor : Editor
     private enum DifficultyMask
     {
         None   = 0,
+        Trivial = 8,
         Easy   = 1,
         Medium = 2,
         Hard   = 4
@@ -292,9 +293,10 @@ public class MapGeneratorEditor : Editor
     {
         switch (diff)
         {
-            case DifficultyLevel.Easy:   return DifficultyMask.Easy;
-            case DifficultyLevel.Medium: return DifficultyMask.Medium;
-            default:                     return DifficultyMask.Hard;
+            case DifficultyLevel.Trivial: return DifficultyMask.Trivial;
+            case DifficultyLevel.Easy:    return DifficultyMask.Easy;
+            case DifficultyLevel.Medium:  return DifficultyMask.Medium;
+            default:                      return DifficultyMask.Hard;
         }
     }
 
@@ -331,11 +333,12 @@ public class MapGeneratorEditor : Editor
 
     private static int DifficultyOrder(string name)
     {
-        if (name == null)              return int.MaxValue;
-        if (name.Contains("_Easy_"))   return 0;
-        if (name.Contains("_Medium_")) return 1;
-        if (name.Contains("_Hard_"))   return 2;
-        return 3;
+        if (name == null)                return int.MaxValue;
+        if (name.Contains("_Trivial_")) return 0;
+        if (name.Contains("_Easy_"))    return 1;
+        if (name.Contains("_Medium_"))  return 2;
+        if (name.Contains("_Hard_"))    return 3;
+        return 4;
     }
 
     private static int CompareDifficultyThenName(string a, string b)
