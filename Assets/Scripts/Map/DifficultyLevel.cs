@@ -1,4 +1,14 @@
-public enum DifficultyLevel { Trivial = 3, Easy = 0, Medium = 1, Hard = 2 }
+public enum DifficultyLevel
+{
+    Trivial       = 0,  // 7×7 offener Raum, Spawn Ecke, Goal random
+    TrivialCorr   = 1,  // SpawnRaum + GoalRaum + 1 direkter Korridor
+    TrivialBranch = 2,  // + 1 Ast-Korridor (kein Raum am Ende)
+    TrivialHole   = 3,  // + Ast-Korridor endet mit 2×2 Hole
+    TrivialHazard = 4,  // + 2×1 Lava im Hauptkorridor + Hole-Ast
+    Easy          = 5,
+    Medium        = 6,
+    Hard          = 7
+}
 
 public struct DifficultySettings
 {
@@ -19,21 +29,16 @@ public struct DifficultySettings
     {
         switch (level)
         {
+            // Trivial-Varianten nutzen keine DifficultySettings (direkte Grid-Konstruktion)
             case DifficultyLevel.Trivial:
+            case DifficultyLevel.TrivialCorr:
+            case DifficultyLevel.TrivialBranch:
+            case DifficultyLevel.TrivialHole:
+            case DifficultyLevel.TrivialHazard:
                 return new DifficultySettings
                 {
                     GridWidthMin  = 7, GridWidthMax  = 7,
                     GridHeightMin = 7, GridHeightMax = 7,
-                    Level1CorridorsMin = 1, Level1CorridorsMax = 1,
-                    MaxBranchDepth = 0,
-                    MaxTotalRooms  = 1,
-                    TerminalFromStartMin = 0, TerminalFromStartMax = 0,
-                    TerminalLengthMin = 0,    TerminalLengthMax = 0,
-                    LoopProbability       = 0f,
-                    BranchProbability     = 0f,
-                    DeadEndNoObstacleChance = 1f,
-                    DeadEndHoleChance       = 0f,
-                    GoalLavaDepth3Chance    = 0f
                 };
 
             case DifficultyLevel.Easy:

@@ -2,14 +2,18 @@
 // For more information look at the used package https://typst.app/universe/package/acrostiche
 
 #let acronyms = (
-  "KB": ("Knorr-Bremse Services GmbH"),
   "AI": ("Artificial Intelligence"),
-  "DQ": ("Data Quality"),
-  "E-Commerce": ("Electronic Commerce"),
-  "IoT": ("Internet of Things"),
-  "IP": ("Information Product"),
+  "BFS": ("Breadth-First Search"),
+  "CNN": ("Convolutional Neural Network"),
+  "GAE": ("Generalized Advantage Estimation"),
   "IT": ("Informationstechnologie"),
   "KI": ("Künstliche Intelligenz"),
+  "LSTM": ("Long Short-Term Memory"),
+  "MDP": ("Markov Decision Process"),
   "ML": ("Machine Learning"),
-  "PC": ("Personal Computer"),
+  "MLP": ("Multi-Layer Perceptron"),
+  "ONNX": ("Open Neural Network Exchange"),
+  "PBRS": ("Potential-Based Reward Shaping"),
+  "PPO": ("Proximal Policy Optimization"),
+  "RL": ("Reinforcement Learning"),
 )

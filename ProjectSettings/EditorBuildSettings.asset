@@ -5,7 +5,10 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Training_MultiArea.unity
     guid: 34c746148ac65c349aaea4b11371e1a7
+  - enabled: 1
+    path: Assets/Scenes/Transformer_Test_V2.unity
+    guid: ffb0de8d60e268546b126a930a7f3404
   m_configObjects: {}
