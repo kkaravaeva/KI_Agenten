@@ -34,16 +34,21 @@ class TransformerMemory(nn.Module):
             f"hidden_units ({h_size}) muss durch nhead ({nhead}) teilbar sein"
         )
         self.output_size = memory_size // 2
+        self.seq_len = seq_len
 
         self.pos_enc = nn.Embedding(seq_len, h_size)
         # Statischer Buffer statt torch.arange() im forward — ONNX-Export-sicher
         self.register_buffer("pos_indices", torch.arange(seq_len))
 
         # batch_first=False für ONNX-Kompatibilität (PyTorch 2.0 bug mit batch_first=True)
+        # dropout=0.0: kein Train/Inference-Unterschied (Inference läuft im eval()-Modus)
         self.attn_layers = nn.ModuleList([
-            nn.MultiheadAttention(h_size, nhead, dropout=0.1, batch_first=False)
+            nn.MultiheadAttention(h_size, nhead, dropout=0.0, batch_first=False)
             for _ in range(num_layers)
         ])
+        # Causal Mask als Buffer: obere Dreiecksmatrix mit -inf — ONNX-Export-sicher
+        causal = torch.triu(torch.full((seq_len, seq_len), float("-inf")), diagonal=1)
+        self.register_buffer("causal_mask", causal)
         self.norms1 = nn.ModuleList([nn.LayerNorm(h_size) for _ in range(num_layers)])
         self.ffs = nn.ModuleList([
             nn.Sequential(
@@ -62,10 +67,11 @@ class TransformerMemory(nn.Module):
         x = x + self.pos_enc(self.pos_indices[:T])
         # MultiheadAttention erwartet [seq_len, batch, h_size] (batch_first=False)
         x = x.transpose(0, 1)
+        mask = self.causal_mask[:T, :T]
         for attn, norm1, ff, norm2 in zip(
             self.attn_layers, self.norms1, self.ffs, self.norms2
         ):
-            attn_out, _ = attn(x, x, x)
+            attn_out, _ = attn(x, x, x, attn_mask=mask)
             x = norm1(x + attn_out)
             x = norm2(x + ff(x))
         # Zurück zu [batch, seq_len, h_size], dann alle Positionen ausgeben
@@ -83,3 +89,40 @@ if __name__ == "__main__":
     print(f"Unit-Test OK — output shape: {out.shape}")
     total = sum(p.numel() for p in model.parameters())
     print(f"Parameter gesamt: {total:,}")
+
+    # Gradient-Flow-Test: prüft ob Backprop durch alle Layer fließt
+    print("\n--- Gradient-Flow-Test (Trainingspfad) ---")
+    model.train()
+    x = torch.randn(4, 8, 256, requires_grad=True)
+    out = model(x)
+    loss = out.sum()
+    loss.backward()
+    print(f"Input-Gradient vorhanden: {x.grad is not None}")
+    dead_params = []
+    for name, param in model.named_parameters():
+        if param.grad is None:
+            dead_params.append(name)
+        else:
+            norm = param.grad.norm().item()
+            status = "WARN: grad≈0" if norm < 1e-8 else "OK"
+            print(f"  {name}: grad_norm={norm:.6f}  {status}")
+    if dead_params:
+        print(f"\nFEHLER: Keine Gradienten für: {dead_params}")
+    else:
+        print("\nAlle Parameter erhalten Gradienten — Backprop OK.")
+
+    # Inference-Pfad mit Rolling-Buffer (simuliert wie der Patch ihn aufruft)
+    print("\n--- Gradient-Flow-Test (Inference-Pfad / Rolling-Buffer) ---")
+    model.eval()
+    B, seq_len, h_size = 4, 8, 256
+    encoding = torch.randn(B, h_size, requires_grad=True)
+    buf = torch.zeros(B, seq_len - 1, h_size)
+    full_seq = torch.cat([buf, encoding.unsqueeze(1)], dim=1)
+    all_out = model(full_seq)
+    enc_out = all_out.reshape(B, seq_len, model.output_size)[:, -1, :]
+    enc_out.sum().backward()
+    print(f"encoding.grad vorhanden: {encoding.grad is not None}")
+    if encoding.grad is None:
+        print("FEHLER: Gradient fließt NICHT durch Rolling-Buffer-Pfad zurück!")
+    else:
+        print(f"encoding.grad_norm: {encoding.grad.norm():.6f}  OK")

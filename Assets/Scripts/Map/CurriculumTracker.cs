@@ -9,21 +9,19 @@ public static class CurriculumTracker
     private static int stepCountInPhase;
     private static bool initialized;
 
-    public static int CurrentPhaseIndex => currentPhaseIndex;
-    public static int EpisodeCountInPhase => episodeCountInPhase;
-    public static int StepCountInPhase => stepCountInPhase;
+    public static int CurrentPhaseIndex    => currentPhaseIndex;
+    public static int EpisodeCountInPhase  => episodeCountInPhase;
+    public static int StepCountInPhase     => stepCountInPhase;
 
-    // Wird von RuntimeInitializeOnLoadMethod aufgerufen, damit statische Felder
-    // beim Starten des Play Mode im Editor korrekt zurückgesetzt werden.
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetOnDomainReload()
     {
-        config = null;
-        currentPhaseIndex = 0;
+        config                    = null;
+        currentPhaseIndex         = 0;
         currentLayoutIndexInPhase = 0;
-        episodeCountInPhase = 0;
-        stepCountInPhase = 0;
-        initialized = false;
+        episodeCountInPhase       = 0;
+        stepCountInPhase          = 0;
+        initialized               = false;
     }
 
     public static void Initialize(CurriculumConfig cfg)
@@ -34,15 +32,15 @@ public static class CurriculumTracker
             Debug.LogError("CurriculumTracker: CurriculumConfig ist null!");
             return;
         }
-        config = cfg;
+        config      = cfg;
         initialized = true;
         Debug.Log($"[Curriculum] Initialisiert. Phasen: {cfg.phases?.Length ?? 0} | Startphase: {cfg.phases?[0].difficulty}");
     }
 
-    // Gibt das nächste sequenzielle Layout der aktuellen Phase zurück.
-    // Wird einmal pro Episodenstart pro MapGenerator aufgerufen.
-    // Jeder Aufruf erhöht den Layout-Index, sodass verschiedene Maps
-    // in derselben Episode unterschiedliche Layouts erhalten.
+    /// <summary>
+    /// Gibt das nächste Layout der aktuellen Phase zurück.
+    /// Alle Phasen nutzen layouts[] — keine Sonderfälle mehr.
+    /// </summary>
     public static MapData GetNextLayout()
     {
         if (!initialized || config == null || config.phases == null || config.phases.Length == 0)
@@ -62,10 +60,11 @@ public static class CurriculumTracker
         }
 
         MapData layout = phase.layouts[currentLayoutIndexInPhase % phase.layouts.Length];
+
         currentLayoutIndexInPhase++;
         episodeCountInPhase++;
 
-        Debug.Log($"[Curriculum] Phase {currentPhaseIndex} ({phase.difficulty}) | Episode in Phase: {episodeCountInPhase}/{phase.threshold} | Layout: {layout?.name}");
+        Debug.Log($"[Curriculum] Phase {currentPhaseIndex} ({phase.difficulty}) | Episode {episodeCountInPhase}/{phase.threshold} | Layout: {layout?.name}");
 
         return layout;
     }
@@ -80,17 +79,17 @@ public static class CurriculumTracker
     {
         if (!config.loopPhases && currentPhaseIndex >= config.phases.Length - 1) return;
 
-        CurriculumPhase phase = config.phases[currentPhaseIndex];
+        CurriculumPhase phase   = config.phases[currentPhaseIndex];
         bool advance = phase.thresholdType == ThresholdType.Episodes
             ? episodeCountInPhase >= phase.threshold
-            : stepCountInPhase >= phase.threshold;
+            : stepCountInPhase   >= phase.threshold;
 
         if (!advance) return;
 
-        currentPhaseIndex = (currentPhaseIndex + 1) % config.phases.Length;
+        currentPhaseIndex         = (currentPhaseIndex + 1) % config.phases.Length;
         currentLayoutIndexInPhase = 0;
-        episodeCountInPhase = 0;
-        stepCountInPhase = 0;
+        episodeCountInPhase       = 0;
+        stepCountInPhase          = 0;
 
         Debug.Log($"[Curriculum] Phase gewechselt → Phase {currentPhaseIndex} ({config.phases[currentPhaseIndex].difficulty})");
     }

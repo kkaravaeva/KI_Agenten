@@ -7,6 +7,7 @@ public class LabyrinthAgent : Agent
 {
     [Header("Bewegung")]
     public float moveSpeed = 3f;
+    public float turnSpeed = 180f;
 
     [Header("Sprung")]
     public float jumpForce = 4.5f;
@@ -22,14 +23,38 @@ public class LabyrinthAgent : Agent
     public MapGenerator mapGenerator;
 
     [Header("Reward – Ziel")]
-    [SerializeField] private float goalReward = 1f;
+    [SerializeField] private float goalReward = 30f;
 
     [Header("Reward – Tod")]
     [SerializeField] private float lavaDeathPenalty = -1f;
     [SerializeField] private float holeDeathPenalty = -1f;
 
+    [Header("Reward – Timeout")]
+    [SerializeField] private float timeoutPenalty = -5f;
+
+    [Header("Reward – Lava-Sprung")]
+    [SerializeField] private float lavaAttemptBaseReward = 0f;
+    [SerializeField] private float lavaAboveMinDistance = 0.3f;
+
     [Header("Reward – Zeit")]
-    [SerializeField] private float stepPenalty = -0.001f;
+    [SerializeField] private float stepPenalty = -0.005f;
+
+    [Header("Wall-Climb Guard")]
+    [SerializeField] private float wallClimbMaxY = 5.0f;
+    [SerializeField] private float wallClimbPenalty = -1f;
+    [SerializeField] private float maxUpwardVelocity = 3.5f;
+
+    [Header("Reward – Shaping (PBRS)")]
+    [SerializeField] private float distanceShapingScale = 0.005f;
+    [SerializeField] private float pbrsGamma = 1.0f;
+
+    [Header("Curriculum – MaxStep pro Phase")]
+    // Index = CurriculumTracker.CurrentPhaseIndex
+    // 0-4 Trivial-Varianten | 5 Easy | 6 Medium | 7 Hard
+    [SerializeField] private int[] phaseMaxSteps = new int[] { 600, 600, 600, 600, 600, 1000, 1500, 2000 };
+
+    [Header("Observation – Distanz zum Ziel")]
+    [SerializeField] private float maxObservationDistance = 20f;
 
     [Header("Debug")]
     public bool debugSensors = false;
@@ -37,8 +62,14 @@ public class LabyrinthAgent : Agent
     private Rigidbody rb;
     private bool isGrounded;
     private Transform goalTransform;
+    private float previousDistance = 0f;
     private int lastEpisodeStepCount = 0;
     private float lastEpisodeCumulativeReward = 0f;
+    private float spawnY = 0f;
+    private bool lastEpisodeWasSuccess = false;
+    private int lavaJumpAttempts = 0;
+    private bool wasAboveLava = false;
+    private bool episodeEndedByTerminal = false;
 
     public override void Initialize()
     {
@@ -50,12 +81,28 @@ public class LabyrinthAgent : Agent
 
     public override void OnEpisodeBegin()
     {
-        Debug.Log($"[Episode] Neue Episode. Steps letzte Episode: {lastEpisodeStepCount} | Letzter Cumulative Reward: {lastEpisodeCumulativeReward:F3}");
+        Academy.Instance.StatsRecorder.Add("Custom/SuccessRate", lastEpisodeWasSuccess ? 1f : 0f);
+        Academy.Instance.StatsRecorder.Add("Custom/LavaJumpAttempts", lavaJumpAttempts);
+        Debug.Log($"[Episode] Neue Episode. Steps letzte Episode: {lastEpisodeStepCount} | Letzter Cumulative Reward: {lastEpisodeCumulativeReward:F3} | Erfolg: {lastEpisodeWasSuccess} | LavaJumps: {lavaJumpAttempts}");
+        lastEpisodeWasSuccess = false;
+        lavaJumpAttempts = 0;
+        wasAboveLava = false;
+        episodeEndedByTerminal = false;
+
+        int phase = CurriculumTracker.CurrentPhaseIndex;
+        if (phaseMaxSteps != null && phase >= 0 && phase < phaseMaxSteps.Length)
+        {
+            MaxStep = phaseMaxSteps[phase];
+        }
 
         if (mapGenerator != null)
         {
+            mapGenerator.GenerateRuntimeMap();
             Vector3 spawnPos = mapGenerator.GetSpawnPosition();
-            transform.position = spawnPos + Vector3.up * 0.5f;
+            // 0.6f statt 0.5f: Kapsel-Unterseite (transform.y - 0.5) bei 0.1m, Boden-Top bei 0.05m
+            // → kein PhysX-Overlap, kein Depentrations-Impuls beim Spawn
+            transform.position = spawnPos + Vector3.up * 0.6f;
+            spawnY = transform.position.y;
             transform.localRotation = Quaternion.identity;
             rb.velocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
@@ -66,6 +113,9 @@ public class LabyrinthAgent : Agent
         }
 
         FindGoal();
+        previousDistance = goalTransform != null
+            ? Vector3.Distance(transform.position, goalTransform.position)
+            : 0f;
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -114,7 +164,7 @@ public class LabyrinthAgent : Agent
         }
 
         // === Eigengeschwindigkeit normalisiert (3 Observations) ===
-        Vector3 normalizedVelocity = rb.velocity / moveSpeed;
+        Vector3 normalizedVelocity = transform.InverseTransformDirection(rb.velocity) / moveSpeed;
         sensor.AddObservation(normalizedVelocity.x);
         sensor.AddObservation(normalizedVelocity.y);
         sensor.AddObservation(normalizedVelocity.z);
@@ -128,7 +178,7 @@ public class LabyrinthAgent : Agent
 
         if (goalTransform != null)
         {
-            Vector3 directionToGoal = (goalTransform.position - transform.position).normalized;
+            Vector3 directionToGoal = transform.InverseTransformDirection((goalTransform.position - transform.position).normalized);
             sensor.AddObservation(directionToGoal.x);
             sensor.AddObservation(directionToGoal.y);
             sensor.AddObservation(directionToGoal.z);
@@ -150,9 +200,15 @@ public class LabyrinthAgent : Agent
             }
         }
 
+        // === Distanz zum Ziel normalisiert (1 Observation) ===
+        float distToGoal = goalTransform != null
+            ? Vector3.Distance(transform.position, goalTransform.position)
+            : 0f;
+        sensor.AddObservation(distToGoal / maxObservationDistance);
+
         if (debugSensors)
         {
-            Debug.Log($"[Status] Velocity=({normalizedVelocity.x:F2}, {normalizedVelocity.y:F2}, {normalizedVelocity.z:F2}) isGrounded={isGrounded}");
+            Debug.Log($"[Status] Velocity=({normalizedVelocity.x:F2}, {normalizedVelocity.y:F2}, {normalizedVelocity.z:F2}) isGrounded={isGrounded} DistToGoal={distToGoal:F2}");
         }
     }
 
@@ -160,27 +216,76 @@ public class LabyrinthAgent : Agent
     {
         CurriculumTracker.NotifyStep();
         AddReward(stepPenalty);
+
+        // Timeout: schlechteste Strafe, schlechter als Tod
+        if (!episodeEndedByTerminal && MaxStep > 0 && StepCount >= MaxStep - 1)
+        {
+            AddReward(timeoutPenalty);
+            Debug.Log($"[Timeout] MaxStep={MaxStep} erreicht | Penalty={timeoutPenalty}");
+        }
+
+        // PBRS: F(s,s') = γΦ(s') - Φ(s), Φ(s) = -distance_to_goal
+        if (goalTransform != null)
+        {
+            float currentDistance = Vector3.Distance(transform.position, goalTransform.position);
+            AddReward((previousDistance - pbrsGamma * currentDistance) * distanceShapingScale);
+            previousDistance = currentDistance;
+        }
+
+        if (transform.position.y > spawnY + wallClimbMaxY)
+        {
+            AddReward(wallClimbPenalty);
+            Debug.Log($"[WallClimb] Y={transform.position.y:F2} > SpawnY+{wallClimbMaxY} | Penalty={wallClimbPenalty}");
+        }
+
+        // Lava-Sprung: Belohnung beim Eintritt in "über Lava"-Zustand (Edge-Trigger)
+        bool currentlyAboveLava = DetectAboveLava();
+        if (currentlyAboveLava && !wasAboveLava)
+        {
+            lavaJumpAttempts++;
+            float attemptReward = GetLavaAttemptReward(lavaJumpAttempts);
+            if (attemptReward > 0f)
+            {
+                AddReward(attemptReward);
+                Debug.Log($"[LavaJump] Versuch={lavaJumpAttempts} | Reward={attemptReward:F4}");
+            }
+        }
+        wasAboveLava = currentlyAboveLava;
+
         lastEpisodeStepCount = StepCount;
         lastEpisodeCumulativeReward = GetCumulativeReward();
 
         int moveAction = actions.DiscreteActions[0];
-        int jumpAction = actions.DiscreteActions[1];
+        int turnAction = actions.DiscreteActions[1];
+        int jumpAction = actions.DiscreteActions[2];
+
+        float turnAmount = 0f;
+        switch (turnAction)
+        {
+            case 0: break;
+            case 1: turnAmount = -turnSpeed * Time.fixedDeltaTime; break;
+            case 2: turnAmount = turnSpeed * Time.fixedDeltaTime; break;
+        }
+
+        Quaternion targetRotation = rb.rotation;
+        if (turnAmount != 0f)
+        {
+            targetRotation = rb.rotation * Quaternion.Euler(0f, turnAmount, 0f);
+            rb.MoveRotation(targetRotation);
+        }
 
         Vector3 direction = Vector3.zero;
 
         switch (moveAction)
         {
             case 0: break;
-            case 1: direction = Vector3.forward; break;
-            case 2: direction = Vector3.back; break;
-            case 3: direction = Vector3.left; break;
-            case 4: direction = Vector3.right; break;
+            case 1: direction = targetRotation * Vector3.forward; break;
+            case 2: direction = targetRotation * Vector3.back; break;
         }
 
         if (direction != Vector3.zero)
         {
-            rb.MovePosition(transform.position + direction * moveSpeed * Time.fixedDeltaTime);
-            rb.MoveRotation(Quaternion.LookRotation(direction));
+            rb.MovePosition(transform.position + direction.normalized * moveSpeed * Time.fixedDeltaTime);
         }
 
         if (jumpAction == 1 && isGrounded)
@@ -197,22 +302,30 @@ public class LabyrinthAgent : Agent
         discreteActions[0] = 0;
         if (Input.GetKey(KeyCode.W)) discreteActions[0] = 1;
         else if (Input.GetKey(KeyCode.S)) discreteActions[0] = 2;
-        else if (Input.GetKey(KeyCode.A)) discreteActions[0] = 3;
-        else if (Input.GetKey(KeyCode.D)) discreteActions[0] = 4;
 
         discreteActions[1] = 0;
-        if (Input.GetKey(KeyCode.Space)) discreteActions[1] = 1;
+        if (Input.GetKey(KeyCode.A)) discreteActions[1] = 1;
+        else if (Input.GetKey(KeyCode.D)) discreteActions[1] = 2;
+
+        discreteActions[2] = 0;
+        if (Input.GetKey(KeyCode.Space)) discreteActions[2] = 1;
     }
 
     private void FixedUpdate()
     {
         GroundCheck();
+
+        if (rb.velocity.y > maxUpwardVelocity)
+            rb.velocity = new Vector3(rb.velocity.x, maxUpwardVelocity, rb.velocity.z);
+
     }
 
     private void GroundCheck()
     {
-        Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
-        float rayLength = 1.0f + groundCheckDistance;
+        // Ray starts at capsule center (transform.position with center.y=0).
+        // Length = half-height (0.5) + margin → detects floor within groundCheckDistance below capsule bottom.
+        Vector3 rayOrigin = transform.position;
+        float rayLength = 0.5f + groundCheckDistance;
 
         RaycastHit hit;
         if (Physics.Raycast(rayOrigin, Vector3.down, out hit, rayLength))
@@ -257,29 +370,50 @@ public class LabyrinthAgent : Agent
     {
         if (other.CompareTag("Goal"))
         {
+            episodeEndedByTerminal = true;
+            lastEpisodeWasSuccess = true;
             AddReward(goalReward);
-            Debug.Log($"[Ziel] Ziel erreicht | Reward={goalReward}");
+            Debug.Log($"[Ziel] Ziel erreicht | Reward={goalReward} | LavaJumps={lavaJumpAttempts}");
             EndEpisode();
         }
         else if (other.CompareTag("Lava"))
         {
+            episodeEndedByTerminal = true;
             AddReward(lavaDeathPenalty);
-            Debug.Log($"[Tod] Todesursache=Lava | Reward={lavaDeathPenalty}");
+            Debug.Log($"[Tod] Todesursache=Lava | Reward={lavaDeathPenalty} | LavaJumps={lavaJumpAttempts}");
             EndEpisode();
         }
         else if (other.CompareTag("KillZone"))
         {
+            episodeEndedByTerminal = true;
             AddReward(holeDeathPenalty);
             Debug.Log($"[Tod] Todesursache=Hole | Reward={holeDeathPenalty}");
             EndEpisode();
         }
     }
 
+    private bool DetectAboveLava()
+    {
+        if (isGrounded) return false;
+        RaycastHit hit;
+        if (Physics.Raycast(transform.position, Vector3.down, out hit, groundSensorRange))
+            return hit.collider.CompareTag("Lava") && hit.distance > lavaAboveMinDistance;
+        return false;
+    }
+
+    private float GetLavaAttemptReward(int attempt)
+    {
+        if (attempt == 1) return lavaAttemptBaseReward;
+        if (attempt == 2) return lavaAttemptBaseReward / 4f;
+        if (attempt == 3) return lavaAttemptBaseReward / 8f;
+        return 0f;
+    }
+
     private void OnDrawGizmosSelected()
     {
         // Ground Check Gizmo
-        Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
-        float rayLength = 1.0f + groundCheckDistance;
+        Vector3 rayOrigin = transform.position;
+        float rayLength = 0.5f + groundCheckDistance;
 
         Gizmos.color = isGrounded ? Color.green : Color.red;
         Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * rayLength);

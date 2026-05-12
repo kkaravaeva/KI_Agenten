@@ -13,6 +13,11 @@ public class MapData : ScriptableObject
     [System.NonSerialized]
     public Dictionary<Vector2Int, float> cellHeightOffsets = new Dictionary<Vector2Int, float>();
 
+    // Wenn true, überspringt MapGenerator die Runtime-Obstacle-Platzierung.
+    // Wird von GenerateTrivialLayout gesetzt.
+    [System.NonSerialized]
+    public bool noRuntimeObstacles = false;
+
     public void Init()
     {
         cells = new CellType[width * height];
