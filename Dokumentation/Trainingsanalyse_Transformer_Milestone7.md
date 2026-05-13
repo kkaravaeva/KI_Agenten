@@ -865,3 +865,320 @@ Mit diesen Änderungen sollte der Agent in TrivialHazard:
 3. Sprung als gelernte Strategie verfestigen, weil Goal-Reward (+30) Death-Risiko (-1) klar überwiegt
 
 Risiko: Curiosity kann Training initial instabiler machen. Falls Reward in Phase 0-1 abstürzt statt zu steigen, ist `curiosity.strength` zu hoch → auf 0.02 reduzieren.
+
+
+## v13 Run — Post-Mortem
+
+### Run-Stand bei Abbruch
+- **Run-ID:** `v13`
+- **Steps:** ~17.5M von 60M
+- **Laufzeit:** ~5h20min
+- **Throughput:** ~950 steps/sec
+- **Endstand Curriculum:** Player-0/1/2/3 in Phase 3 (TrivialHole), Player-4/5 in Phase 2 (TrivialBranch)
+- **Lava (Phase 4) wurde nie erreicht**
+
+### Was schiefgelaufen ist
+
+Der Run war **kein echter v13-Run**, sondern eine **kaputte Hybrid-Konfiguration**:
+
+- **Python-seitig korrekt** (YAML wurde geladen): γ=0.997, Curiosity strength 0.05, batch 1024, transformer 256/16/128
+- **Unity-seitig falsch (Prefab nicht aktualisiert):** Source-Code-Änderungen für v13 wurden nie ins `Assets/Prefabs/Agent/Agent.prefab` synchronisiert. Unity-Builds nutzen die Serialisierung im Prefab, nicht die C#-Defaults.
+
+### Konkrete Mismatches
+
+| Parameter               | v13 Source (Soll)                           | Prefab/Build (Ist)              | Konsequenz                                                                          |
+| ----------------------- | ------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------- |
+| `goalReward`            | **30**                                      | **1**                           | Goal-Anreiz im Rauschen — Agent geht nicht zielgerichtet zum Goal                   |
+| `timeoutPenalty`        | **-5**                                      | nicht serialisiert              | Timeout wird kaum bestraft, Wandern bleibt billig                                   |
+| `lavaAttemptBaseReward` | **0**                                       | nicht serialisiert (alt: 0.5)   | Falsches Konzept-Signal "Lava-Sprung ist gut" könnte noch aktiv sein                |
+| `distanceShapingScale`  | **0.005**                                   | **0.02**                        | PBRS 4× zu dominant — Agent stoppt bei Distanz-Annäherung                           |
+| `pbrsGamma`             | **1.0**                                     | **0.99**                        | PBRS-Discount aktiv                                                                 |
+| `phaseMaxSteps[]`       | `{600,600,600,600,600,1000,1500,2000}`      | **null** (Feld fehlt im Prefab) | Override greift nicht                                                               |
+| `Agent.MaxStep`         | (sollte 0 sein, damit phaseMaxSteps greift) | **6000**                        | Episoden bis 6000 Sim-Ticks ≈ 1200 Decision-Steps — viel zu lang für Trivial-Phasen |
+
+### Welche Symptome das erklärt hat
+
+1. **EpLen erreichte 1199 (Decision-Cap)** statt der erwarteten 600 → weil MaxStep=6000 statt phaseMaxSteps[3]=600
+2. **SuccessRate-Crash auf 0%** in Phase 3 → Goal-Reward von +1 wurde von Curiosity-Reward (~7-9) komplett überlagert; Agent verlor Goal-Orientierung und wanderte
+3. **Reward-Oszillation 3 ↔ 95** mit Std bis 190 → Curiosity-Spikes dominierten, keine stabile Goal-Politik
+4. **Hohe Curiosity-Werte (Reward ~8.7, ValueEstimate ~1.0)** → Agent wurde primär durch Exploration belohnt
+5. **Plateau-Reward ~2-5** → Mix aus PBRS-Annäherung + Curiosity, nicht aus Goals
+
+### Was gelernt wurde — trotzdem nützlich
+
+- Curriculum-Mechanik funktioniert (Phasenwechsel sauber via Episode-Counter)
+- 6-Unity-Setup mit ML-Agents-spawned Builds stabil (kein Crash, alle 6 durchgehend aktiv)
+- Player-4/5 sind systematisch langsamer als Player-0-3 (CPU-Contention) — gleiches Muster wie v12
+- Custom-Stats (SuccessRate, LavaJumpAttempts) sind nützliche Diagnose-Tools
+- **Phasen-Logging fehlt in TensorBoard** — Phase nicht direkt sichtbar, nur über Player-Logs ableitbar
+
+### Änderungsvorschlag für v13_002
+
+### 1. Prefab-Fix (KRITISCH — ohne das ist jeder Run ein Mock-v13)
+
+`Assets/Prefabs/Agent/Agent.prefab` im Inspector aktualisieren:
+- `goalReward = 30`
+- `timeoutPenalty = -5`
+- `lavaAttemptBaseReward = 0`
+- `distanceShapingScale = 0.005`
+- `pbrsGamma = 1.0`
+- `phaseMaxSteps`-Array befüllen: `[600, 600, 600, 600, 600, 1000, 1500, 2000]`
+- `MaxStep = 0` (damit `phaseMaxSteps` greifen kann — der Override-Pfad setzt MaxStep zur Laufzeit)
+
+### 2. Build neu erstellen
+
+`builds/KI Agenten.exe` muss neu gebaut werden — der laufende Build hat die alten Werte einkompiliert in der Szene-Serialisierung.
+
+### 3. Phasen-Logging einbauen (für Diagnose)
+
+In `Assets/Scripts/Agent/LabyrinthAgent.cs` bei `OnEpisodeBegin()` neben den bestehenden Custom-Stats ergänzen:
+```csharp
+Academy.Instance.StatsRecorder.Add("Custom/CurriculumPhase", CurriculumTracker.CurrentPhaseIndex);
+```
+→ Damit ist die Phase direkt in TensorBoard sichtbar (kein Player-Log-Parsing mehr nötig).
+
+### 4. Verifikations-Schritt vor Run-Start
+
+Nach Build und Trainer-Start die ersten ~5 Minuten Player-Log prüfen auf:
+- `[Episode] Neue Episode. … Letzter Cumulative Reward:` → Reward-Range plausibel?
+- `[Timeout] MaxStep=600 erreicht` (NICHT 6000!) → bestätigt phaseMaxSteps greift
+- Ein paar `[Ziel] Ziel erreicht | Reward=30` (NICHT Reward=1) → bestätigt goalReward übernommen
+
+### 5. Optional — Curiosity-Strength reduzieren
+
+Falls v13_002 zeigt dass Curiosity zu dominant ist (z.B. CuriosityReward > 0.5 × ExtrinsicReward konstant), in `config/labyrinth_transformer.yaml` reduzieren:
+- `curiosity.strength: 0.05 → 0.02`
+
+Erstmal aber mit 0.05 probieren — die ist nur problematisch im Verbund mit goalReward=1.
+
+### Empfohlene neue Run-ID
+
+`v13_002` (nicht `v13` überschreiben — die Logs sind als Negativ-Beispiel wertvoll für die Dokumentation).
+
+
+
+### am code geändert: 
+**Geänderte Dateien:**
+
+- `Assets/Prefabs/Agent/Agent.prefab` (LabyrinthAgent-Component):
+  - `MaxStep`: 6000 → 0 (Override aus `phaseMaxSteps` greift)
+  - `goalReward`: 1 → 30
+  - `distanceShapingScale`: 0.02 → 0.005
+  - `pbrsGamma`: 0.99 → 1
+  - **Neu:** `timeoutPenalty: -5`, `lavaAttemptBaseReward: 0`, `phaseMaxSteps: [600,600,600,600,600,1000,1500,2000]`
+
+- `Assets/Scripts/Agent/LabyrinthAgent.cs` (`OnEpisodeBegin`):
+  - **Fix Reihenfolge-Bug:** `MaxStep`-Zuweisung nach `mapGenerator.GenerateRuntimeMap()` verschoben — sonst lief die erste Episode nach Phasenwechsel mit dem MaxStep der alten Phase.
+  - **Neu:** `Academy.Instance.StatsRecorder.Add("Custom/CurriculumPhase", CurriculumTracker.CurrentPhaseIndex)` → Phase als TensorBoard-Metrik.
+
+
+## V14 — Komplette Trainingsanalyse
+
+### 1. Setup
+
+|                      |                                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Run-ID**           | `v14`                                                                                                  |
+| **Architektur**      | PPO + Transformer-Memory                                                                               |
+| **Network**          | 256 hidden units, 2 MLP-Layer, Transformer-Memory (seq_len=16, memory_size=128, nhead=4, 2 Attn-Layer) |
+| **Reward Signals**   | Extrinsic (γ=0.997, strength=1.0) + Curiosity (strength=0.05)                                          |
+| **Hyperparameter**   | lr=1e-4 (linear schedule), batch=1024, buffer=81920, beta=1e-3, eps=0.2, 3 epochs                      |
+| **Parallelisierung** | 6 headless Unity-Builds × 16 Training-Areas = **96 parallele Agents**                                  |
+| **Curriculum**       | 8 Phasen: 5× Trivial → Easy → Medium → Hard. MaxStep pro Phase: 600/600/600/600/600/1000/1500/2000     |
+| **Hardware**         | Ryzen 5 5625U + RTX 3050                                                                               |
+
+### 2. Trainings-Zeitlinie
+
+|                               |                                                           |
+| ----------------------------- | --------------------------------------------------------- |
+| **Erreichter Step**           | **31.220.000 / 60.000.000** (52.0%)                       |
+| **Trainingszeit**             | **10h 9min** (36.544 s)                                   |
+| **Effektive Geschwindigkeit** | **854 Steps/Sek** (alle 96 Agents zusammen)               |
+| **Auto-Checkpoints**          | alle 500k Steps, 5 zuletzt (29M–31M)                      |
+| **Manueller Save**            | `results/v14/manual_save/LabyrinthNavigator-30999943.pt`  |
+| **Abbruchgrund**              | bewusst abgebrochen — Plateau seit Step ~13M festgestellt |
+
+### 3. Phasen-Performance — Final-Aggregat
+
+| Phase               | Eps     | Goal%     | ⌀Reward | ⌀Steps | Tode/Lava  | Tode/Other | Timeouts |
+| ------------------- | ------- | --------- | ------- | ------ | ---------- | ---------- | -------- |
+| 0 Trivial           | 7.110   | **65.5%** | -3.66   | 349    | 0          | 0          | 4.721    |
+| 1 TrivialCorr       | 10.800  | **62.6%** | -4.17   | 461    | 0          | 0          | 8.090    |
+| 2 TrivialBranch     | 15.600  | **78.4%** | -2.54   | 419    | 0          | 0          | 6.753    |
+| 3 TrivialHole       | 21.600  | **79.4%** | -1.79   | 389    | 0          | 1.353      | 6.203    |
+| **4 TrivialHazard** | 30.000  | **0.2%**  | -0.95   | 245    | **27.967** | 25         | 3.910    |
+| 5 Easy              | 48.000  | **3.5%**  | -1.69   | 359    | 34.556     | 5.221      | 13.116   |
+| 6 Medium            | 72.000  | **4.4%**  | -1.64   | 461    | 44.433     | 15.656     | 17.474   |
+| 7 Hard              | 109.129 | **21.0%** | -2.78   | 711    | 40.635     | 22.995     | 45.245   |
+
+### 4. Lernkurven innerhalb jeder Phase (Buckets à 1000 Eps)
+
+**Phase 0 Trivial** — sauberer Anstieg:
+```
+49% → 51% → 54% → 63% → 71% → 87% → 80% → 100%
+```
+
+**Phase 1 TrivialCorr** — moderates Lernen:
+```
+51 → 62 → 54 → 59 → 59 → 56 → 64 → 65 → 78 → 65 → 80%
+```
+
+**Phase 2 TrivialBranch** — stetig:
+```
+66 → 78 → 75 → 71 → 80 → 69 → 76 → 80 → 74 → 83 → 82 → 83 → 88 → 83 → 85 → 86%
+```
+
+**Phase 3 TrivialHole** — Plateau auf hohem Niveau:
+```
+73 → 77 → 82 → 81 → 74 → 79 → 83 → 77 → 78 → 82 → 82 → ... → 81 → 83 → 74%
+```
+
+**Phase 4 TrivialHazard** — totale Wand, 30k Episoden ohne Lerneffekt:
+```
+1% 0% 0% 0% 0% 1% 0% 0% 0% 0% 1% 0% ...
+```
+
+**Phase 5 Easy** — flach bei 3-5%, kein Trend:
+```
+2 → 4 → 3 → 3 → 4 → 3 → 4 → 3 → ... → 3 → 4%
+```
+
+**Phase 6 Medium** — minimal besser, gleiches Bild:
+```
+4 → 4 → 5 → 4 → 5 → ... → 4 → 5%
+```
+
+**Phase 7 Hard** — **das spannendste Muster — drei Lern-Vergessens-Zyklen:**
+```
+Block A:  7→11→16→19→20→18→23→22→22→21→20→22→24→23→27→23→25→22→26→25→22→25→20→24→25→26→22→25→25→23
+Block B: 10→ 8→ 8→14→17→18→19→18→19→20→22→24→22→22→24→27→25→23→23→26→24→26→24→24→24→26→24→25→23→19
+Block C:  6→ 9→15→16→18→19→17→20→19→22→26→23→22→22→25→24→25→24→24→23→23→23→24→24→24→22
+Final:   13→ 9→12→14→17→22→22→22→23→25→25→21→25→26→23→23→26→24→24→23→28→19→ 4→ 5%
+```
+
+**Drei klare Crash-Recovery-Zyklen** — Agent erreicht ~25%, fällt auf 6-13%, erholt sich, fällt wieder. Das ist **klassisches Catastrophic Forgetting** oder PPO-Exploration-Schwankung. Die letzten zwei Buckets bei 4-5% zeigen einen weiteren Crash bei Trainings-Ende.
+
+### 5. Reward-Trajektorie (TensorBoard, 13 Stützpunkte)
+
+| Step   | Reward     | EpLen | Entropy | ValEst | Phase (dominierend)               |
+| ------ | ---------- | ----- | ------- | ------ | --------------------------------- |
+| 2.52M  | **+20.64** | 80    | 1.64    | 23.59  | **Phase 3 Peak**                  |
+| 5.12M  | +2.41      | 69    | 1.56    | 2.58   | Übergang in Phase 4               |
+| 7.54M  | **-2.57**  | 74    | 1.79    | -1.38  | **Phase 4 Wall** (Entropy steigt) |
+| 10.26M | -0.38      | 70    | 1.52    | 0.16   | Phase 5 Start                     |
+| 12.46M | +0.10      | 83    | 1.48    | 0.91   | Phase 5                           |
+| 14.64M | +2.24      | 81    | 1.39    | 2.65   | Phase 5 Ende                      |
+| 16.92M | +4.71      | 79    | 1.57    | 4.67   | Phase 5/6                         |
+| 19.24M | +3.92      | 145   | 1.58    | 4.02   | Phase 6 (EpLen steigt)            |
+| 21.56M | +1.23      | 196   | 1.34    | 3.41   | Phase 6/7                         |
+| 23.94M | +0.72      | 194   | 1.15    | 3.54   | Phase 7 Beginn                    |
+| 26.22M | +2.67      | 217   | 1.12    | 6.06   | Phase 7                           |
+| 28.52M | +1.30      | 205   | 1.05    | 5.08   | Phase 7                           |
+| 31.02M | **-7.54**  | 98    | 1.06    | 3.89   | Phase 7 Crash-Ende                |
+
+**Wichtigste Beobachtung:** Reward-Peak bei Step 2.5M mit +20.6 (in Phase 3). Danach kontinuierlicher Abfall, nur zwischenzeitliche Erholung in Phase 7 mit Maximum +4.7 — **die +20 wurden nie wieder erreicht**. Ende mit Reward = -7.54 deutet auf einen finalen Crash hin.
+
+### 6. Der Lava-Sprung-Skandal
+
+Das Logging zählt jeden Sprung über Lava als "LavaJump". Die Realität:
+
+| Phase           | Sprünge gesamt | in Erfolgen | in Fehlern | **Sprung→Tod Rate** |
+| --------------- | -------------- | ----------- | ---------- | ------------------- |
+| 4 TrivialHazard | 11.415         | 5           | 11.410     | **99.96%**          |
+| 5 Easy          | 16.895         | 607         | 16.288     | 96.4%               |
+| 6 Medium        | 19.449         | 495         | 18.954     | 97.5%               |
+| 7 Hard          | 14.838         | 157         | 14.681     | **98.9%**           |
+
+**Übersetzt:** Wenn der Agent in Phase 7 versucht über Lava zu springen, **stirbt er in 99 von 100 Fällen**. Der Agent hat nicht "Lava springen" gelernt — er hat gelernt, **Lava komplett zu vermeiden**:
+
+| Phase      | Erfolge ohne Sprünge | Erfolge mit Sprüngen |
+| ---------- | -------------------- | -------------------- |
+| 5 Easy     | 1.144                | 521                  |
+| 6 Medium   | 2.719                | 455                  |
+| **7 Hard** | **22.740**           | **137**              |
+
+In Phase 7 erfolgen **99.4% aller Goal-Erreichungen ganz ohne Lava-Sprung** — der Agent navigiert um Hazards herum. Bei den 137 mit-Sprung-Erfolgen war's vermutlich nur ein einzelner ungefährlicher Sprung gegen Ende einer ohnehin geschafften Episode.
+
+### 7. Was funktioniert — was nicht
+
+**✅ Funktioniert sehr gut:**
+- Reine Labyrinth-Navigation (Phasen 0-3, alle >60% Success, Phase 0 auf 100% gelernt)
+- Hindernis-Umgehung (Phase 3 TrivialHole mit 79% trotz Hindernissen, keine Lava-Tode)
+- PPO + Transformer-Architektur grundsätzlich (Critic kalibriert sich, Entropy fällt geordnet)
+
+**⚠️ Funktioniert mittelmäßig:**
+- Hard-Navigation: 21% Success-Rate, durchsetzt von Crash-Recovery-Zyklen
+- Lava-Vermeidung (keine direkten Sprünge): der Agent weiß, dass Lava tödlich ist und meidet sie
+
+**❌ Funktioniert gar nicht:**
+- Lava-Springen / Hazard-Traversierung: 99% Tod-Rate beim Sprungversuch
+- Phase 4 (TrivialHazard) als Bridge-Phase
+- Lernen bei kombinierten Hazards in Easy/Medium
+
+### 8. Diagnose der Bottlenecks
+
+**Hauptproblem: Curriculum-Stufe von Phase 3 (TrivialHole) zu Phase 4 (TrivialHazard) zu steil.**
+
+Phase 3 hatte Hindernisse (Löcher) ohne Tod-Mechanik. Phase 4 führte abrupt Lava ein — eine völlig neue Mechanik, die Tod auslöst. Der Agent hatte 30.000 Episoden Zeit, hat aber **gar keinen Fortschritt** gemacht. Der Lernsignal war:
+- 87.6% Tod → -1 Penalty
+- 13% Timeout → -5 Penalty (Anti-Stehen-bleiben)
+- 0.2% Erfolg → +30 Reward
+
+Das Verhältnis war so ungünstig, dass der Agent nie genug positive Trajektorien gesammelt hat, um Hazard-Avoidance zu lernen. Vermutlich hat er stattdessen gelernt: **"Lava = sterben → niemals in Lava-Nähe gehen"** — was in Easy/Medium funktioniert (= um Lava herum), aber nicht in Hard wo Sprünge nötig wären.
+
+**Sekundäres Problem: Catastrophic Forgetting in Phase 7.**
+
+Die drei klaren Reset-Zyklen in der Phase-7-Lernkurve deuten darauf hin, dass der Agent Strategien wieder vergisst, sobald er stark explorativ wird (Entropy bleibt bei 1.05-1.06). PPO mit linearem LR-Schedule auf 1e-4 plus Curiosity-Signal könnte den Optimierer immer wieder aus stabilen Politiken herausschmeißen.
+
+**Tertiärproblem: Logging-Inkonsistenz.**
+
+`LavaJumps` wird beim "betreten der Lava-Zone" gezählt — egal ob der Agent's nächster Step ein erfolgreicher Sprung war oder ein Tod. Das verfälscht die Statistik. Sauberer wäre: zwei separate Counter "LavaJumpsAttempted" und "LavaJumpsSuccessful".
+
+### 9. Empfehlungen für den nächsten Run
+
+1. **Curriculum-Stufe Phase 4 sanfter gestalten:**
+   - Schmälere Lava-Streifen
+   - Höheres Step-Budget (z. B. 1500 statt 600)
+   - Optional: Verhalten "Stehen bleiben in Lava-Nähe" mit kleinem positiven Reward belohnen, bevor man Sprünge erzwingt
+
+2. **Reward-Shaping für Hazard-Traversierung:**
+   - Aktuell: Lava-Sprung +0 bis Erfolg, dann +30. Lava-Tod -1.
+   - Vorschlag: erfolgreichen Lava-Sprung mit +5 belohnen (Zwischenziel), unabhängig vom Goal-Erreichen
+   - Damit hat der Agent ein dichteres Trainingssignal für Hazard-Skills
+
+3. **Anti-Forgetting-Maßnahmen:**
+   - Phase-Mixing: nicht 100% Phase 4 für 30k Episoden, sondern 70% Phase 4 + 30% Phase 3 (Wiederholung um Basis nicht zu vergessen)
+   - Niedrigere learning_rate in späten Phasen (z. B. lr-Schedule, das ab Phase 5 noch flacher wird)
+
+4. **Logging-Fix:**
+   - `LavaJumpsAttempted` zählen wenn Agent in Lava-Zone springt
+   - `LavaJumpsSuccessful` nur zählen wenn Agent die Lava-Zone heil verlässt
+   - Beides separat loggen
+
+5. **Längere Phasen für die schweren:**
+   - Phase 4: aktuell 5000 Episoden Limit → mind. 15000
+   - Phase 5/6: aktuell 4000/6000 → mind. 10000 jeweils
+
+### 10. Artefakte für Wiederverwendung
+
+```
+results/v14/
+├── manual_save/
+│   ├── LabyrinthNavigator-30999943.pt   (28 MB, Policy state_dict)
+│   ├── checkpoint.pt                    (28 MB, Optimizer + Policy)
+│   └── v14_actor.pt                     (4.8 MB, TorchScript)
+├── LabyrinthNavigator/
+│   ├── *.pt                             (Auto-Checkpoints 29M-31M)
+│   └── events.out.tfevents.*            (TensorBoard, ~17 MB)
+└── run_logs/Player-0..5.log             (Episode-Logs, ~400 MB total)
+
+config/labyrinth_transformer.yaml         (Trainingskonfig v14)
+Dokumentation/Trainingsanalyse_Transformer_Milestone7.md  (vorherige Dok, M)
+```
+
+### TL;DR
+
+V14 hat die **reine Navigation gemeistert** (Phasen 0-3 mit 60-100% Success) und ist **an Hazard-Avoidance gescheitert**. Phase 4 war ein Curriculum-Bottleneck mit 30.000 Episoden ohne Lerneffekt. In Phase 7 (Hard) erreicht der Agent zwar 21% Success — aber durch **Umgehen von Lava**, nicht durch Springen. Das Training-Plateau ab Step 13M war kein Architektur-Problem (PPO+Transformer arbeiten technisch sauber, Critic kalibriert), sondern ein **Curriculum-Problem**. Nächster Run braucht sanftere Hazard-Einführung, dichteres Reward-Signal für Sprünge und Anti-Forgetting-Mixing.
+
+### Beobachtung mit trainiertem Modelle:
+**Live-Beobachtung beim Inference-Test (3 verschiedene Hard-Maps, MaxStep=2000, alle Settings korrekt konfiguriert):** Auf keiner der drei getesteten Maps konnte eine Episode beobachtet werden, in der der Agent das Ziel erreicht hat. Es konnte ebenfalls keine erfolgreiche Lava-Überquerung beobachtet werden — der Agent ist bei jedem Sprungversuch in der Lava gestorben. Auffällig war zudem ein Logging-Bug: der `LavaJumps`-Counter wurde auch dann erhöht, wenn der Agent direkt im Anschluss durch die Lava gestorben ist — der Counter trennt also nicht zwischen erfolgreichen Sprüngen und tödlichen Versuchen. Diese Beobachtungen bestätigen die aggregierten Trainingsdaten qualitativ: die 21% Goal-Rate in Phase 7 entsteht durch Lava-Umgehung, nicht durch Lava-Sprünge, und das Verhalten ist auf einzelnen fixen Maps stark anfällig für lokale Schwächen der Policy.

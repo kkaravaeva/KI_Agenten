@@ -53,6 +53,9 @@ public class LabyrinthAgent : Agent
     // 0-4 Trivial-Varianten | 5 Easy | 6 Medium | 7 Hard
     [SerializeField] private int[] phaseMaxSteps = new int[] { 600, 600, 600, 600, 600, 1000, 1500, 2000 };
 
+    [Tooltip("Wenn > 0, ueberschreibt phaseMaxSteps fuer diese Szene/Instanz. Nur fuer Tests, im Training auf 0 lassen.")]
+    [SerializeField] private int testOverrideMaxSteps = 0;
+
     [Header("Observation – Distanz zum Ziel")]
     [SerializeField] private float maxObservationDistance = 20f;
 
@@ -83,17 +86,12 @@ public class LabyrinthAgent : Agent
     {
         Academy.Instance.StatsRecorder.Add("Custom/SuccessRate", lastEpisodeWasSuccess ? 1f : 0f);
         Academy.Instance.StatsRecorder.Add("Custom/LavaJumpAttempts", lavaJumpAttempts);
+        Academy.Instance.StatsRecorder.Add("Custom/CurriculumPhase", CurriculumTracker.CurrentPhaseIndex);
         Debug.Log($"[Episode] Neue Episode. Steps letzte Episode: {lastEpisodeStepCount} | Letzter Cumulative Reward: {lastEpisodeCumulativeReward:F3} | Erfolg: {lastEpisodeWasSuccess} | LavaJumps: {lavaJumpAttempts}");
         lastEpisodeWasSuccess = false;
         lavaJumpAttempts = 0;
         wasAboveLava = false;
         episodeEndedByTerminal = false;
-
-        int phase = CurriculumTracker.CurrentPhaseIndex;
-        if (phaseMaxSteps != null && phase >= 0 && phase < phaseMaxSteps.Length)
-        {
-            MaxStep = phaseMaxSteps[phase];
-        }
 
         if (mapGenerator != null)
         {
@@ -110,6 +108,21 @@ public class LabyrinthAgent : Agent
         else
         {
             Debug.LogWarning("LabyrinthAgent: Kein MapGenerator zugewiesen!");
+        }
+
+        // MaxStep NACH GenerateRuntimeMap setzen: GetNextLayout() kann die Phase advancen,
+        // sonst läuft die erste Episode der neuen Phase mit dem MaxStep der alten Phase.
+        if (testOverrideMaxSteps > 0)
+        {
+            MaxStep = testOverrideMaxSteps;
+        }
+        else
+        {
+            int phase = CurriculumTracker.CurrentPhaseIndex;
+            if (phaseMaxSteps != null && phase >= 0 && phase < phaseMaxSteps.Length)
+            {
+                MaxStep = phaseMaxSteps[phase];
+            }
         }
 
         FindGoal();
