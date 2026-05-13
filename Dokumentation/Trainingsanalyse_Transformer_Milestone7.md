@@ -1,3 +1,60 @@
+# Übersicht:
+| Version / Schritt            | Hauptproblem                                 | Änderung / Fix                                    | Ergebnis / Effekt                                   |
+| ---------------------------- | -------------------------------------------- | ------------------------------------------------- | --------------------------------------------------- |
+| Initial (Transformer + LSTM) | Kein Lernen, Reward konstant ~-2.45          | Analyse der PPO-Ratio + Sparse-Reward-Problematik | Zwei unabhängige Bugs identifiziert                 |
+| Bug 1 Analyse                | Transformer trainiert seq=8, inferiert seq=1 | Rolling-Sequence-Konzept geplant                  | Ursache für ungültige PPO-Ratio gefunden            |
+| Bug 2 Analyse                | Goal wird nie erreicht                       | PBRS vorgeschlagen + Easy-Maps                    | Reward-Signal als Hauptblocker identifiziert        |
+| Fix 1                        | PPO-Ratio inkonsistent                       | Rolling-Buffer für letzte 7 Encodings             | Inference- und Trainingskontext identisch           |
+| Fix 2                        | Sparse Reward                                | Trivial-Maps + Curriculum + höhere MaxSteps       | Agent bekommt erstmals erreichbare Goals            |
+| Fix 3                        | Wall-Climb Exploit                           | Out-of-Bounds-Guard + Velocity-Clamp              | Rewards normalisieren sich, mehr Goals              |
+| v5                           | Kein Lernen                                  | Ursprünglicher Transformer                        | Entropy bleibt ~2.27                                |
+| v6                           | Zu hohe Entropy-Regularisierung              | Causal Mask + LR runter                           | Erste leichte Entropy-Abfälle                       |
+| v7                           | Value-Kollaps                                | Beta reduziert auf 1e-3                           | Stark bessere Konvergenz                            |
+| v8                           | Zu kleine Advantage-Statistik                | Buffer 4× größer                                  | Stabilere PPO-Updates                               |
+| Goal-Fix                     | Goal halb im Boden                           | Goal-Y auf 0.5 korrigiert                         | Trigger-Radius korrekt                              |
+| Trivial-Refactor             | Nur 4 Layouts → Memorization                 | Seed-basierte Variationen                         | Mehr Generalisierung                                |
+| TilePool-System              | Destroy/Instantiate teuer                    | Pooling eingeführt                                | Weniger GC + stabilere Runtime                      |
+| Curriculum-Rework            | Harte Difficulty-Sprünge                     | 8 Difficulty-Stufen                               | Feineres Curriculum                                 |
+| Trivial-Familie Refactor     | Zu wenige Varianten                          | Parametrisierte Generatoren                       | Deutlich mehr Layoutdiversität                      |
+| v9                           | Reward-Exploiting / Wandern                  | Analyse des PBRS-Verhaltens                       | Plateau bei Reward ~9 erkannt                       |
+| v10                          | Timeout-Strategie profitabel                 | goalReward=10, stepPenalty=-0.005, pbrsGamma=1    | Wandern nicht mehr lohnend                          |
+| v11                          | Weltachsen-Bewegung                          | Agent-relative Bewegung + Turn-Action             | Sensorik und Aktionen konsistent                    |
+| v11                          | Zu wenig zeitlicher Kontext                  | sequence_length 8→16                              | Mehr Memory-Kontext                                 |
+| v12                          | Lava komplett ungelöst                       | timeoutPenalty=-2, Lava-Adrenalin-Reward          | Agent versucht erstmals Sprünge                     |
+| v12                          | WallClimb kollidiert mit Lava-Sprüngen       | wallClimbMaxY 3→5                                 | Legitime Sprünge nicht mehr bestraft                |
+| v13                          | Goal zu weit „wegdiscountet“                 | gamma 0.99→0.997                                  | Langfristige Rewards sichtbarer                     |
+| v13                          | Zu wenig Exploration                         | Curiosity eingeführt                              | Intrinsische Exploration                            |
+| v13                          | PBRS zu dominant                             | distanceShapingScale 0.02→0.005                   | Weniger Distanz-Ausnutzung                          |
+| v13                          | Episoden viel zu lang                        | phaseMaxSteps je Difficulty                       | Besseres Credit Assignment                          |
+| v13 Post-Mortem              | Prefab-Werte nicht übernommen                | Prefab-Fix + Build-Rebuild nötig                  | Training lief mit Hybrid-Konfig                     |
+| v13_002 Fix                  | MaxStep Override kaputt                      | MaxStep=0 + phaseMaxSteps aktiv                   | Richtige Episodenlimits                             |
+| v13_002 Fix                  | Keine Phasen-Transparenz                     | CurriculumPhase-Logging                           | Phase direkt in TensorBoard sichtbar                |
+| v14                          | Große Gesamtanalyse                          | Vollständige Ursachenanalyse                      | Curriculum statt Architektur als Bottleneck erkannt |
+| v14 Ergebnis                 | Navigation gelernt                           | 60–100% Success in frühen Phasen                  | PPO+Transformer grundsätzlich funktional            |
+| v14 Problem                  | Lava-Sprünge scheitern                       | Analyse zeigt 99% Todesrate                       | Agent umgeht Lava statt zu springen                 |
+| v14 Diagnose                 | Catastrophic Forgetting                      | Crash-Recovery-Zyklen identifiziert               | Hard-Phase instabil                                 |
+| V15 Analyse A1               | Reward-Vakuum beim Sprung                    | Erfolgreiche Landung soll Reward geben            | Sprung bekommt erstmals direktes Signal             |
+| V15 Analyse A2               | PBRS belohnt Lava-Umgehung                   | PBRS über Lava deaktivieren                       | Kein „Steh-vor-Lava“-Exploit                        |
+| V15 Analyse B1               | Phase 4 zu harter Skill-Bruch                | Lava in mehrere Subphasen splitten                | Sanftere Skill-Einführung                           |
+| V15 Analyse B2               | Curriculum nur episodenbasiert               | Advance via Success-EMA geplant                   | Kein Überspringen ungelöster Phasen                 |
+| V15 Analyse B3               | Forgetting                                   | Phase-Mixing vorgeschlagen                        | Alte Skills bleiben erhalten                        |
+| V15 Analyse C1               | Sensorik zu kurz                             | Mehr Forward-/Side-Raycasts                       | Bessere Sprungplanung                               |
+| V15 Analyse C2/C3            | Euklidische Distanz falsch                   | Pfaddistanz statt Luftlinie                       | PBRS semantisch korrekt                             |
+| V15 Analyse D1               | MovePosition + AddForce inkonsistent         | Velocity-basierte Physik geplant                  | Natürlichere Sprünge                                |
+| V15 Analyse E                | Hyperparameter-Spannungen                    | LR-/Curiosity-Anpassungen geplant                 | Stabilere Hard-Phasen                               |
+| V15 Analyse F                | Transformer-Kontext zu klein                 | Größere/korrektere Memory-Ideen                   | Langfristige Strategie besser lernbar               |
+| V15 Analyse H                | Logging unpräzise                            | Separate LavaJump-Metriken                        | Sauberere Diagnostik                                |
+| V15 Priorität 1              | Lava-Skill ungelöst                          | Landing-Reward + PBRS-Pause + billiger Tod        | Hauptansatz für Phase-4-Lösung                      |
+| V15 Priorität 2              | Forgetting                                   | Phase-Mixing + Success-Gating                     | Stabilere Langzeit-Policies                         |
+| V15 Priorität 3              | Beobachtungen zu schwach                     | Mehr Sensoren + PathDistance                      | Agent versteht Hazards besser                       |
+| V15 Priorität 4              | Reward-Drift                                 | Reward-Komponenten separat loggen                 | Bessere Ursachenanalyse                             |
+| V15 Priorität 5              | Diagnose-Lücken                              | TerminalReason + PhaseStats                       | Präzisere Trainingsanalyse                          |
+| V15 Priorität 6              | Physik-Probleme                              | Velocity-Movement + stärkere Sprünge              | Robustere Traversierung                             |
+| V15 Priorität 7              | Build-Risiko                                 | Verifikationsskript vor Run                       | Keine Hybrid-Konfigurationen mehr                   |
+
+
+
+
 # Trainingsanalyse Milestone 7 – Fehlerdiagnose
 
 **Datum:** 2026-04-28
@@ -1182,3 +1239,607 @@ V14 hat die **reine Navigation gemeistert** (Phasen 0-3 mit 60-100% Success) und
 
 ### Beobachtung mit trainiertem Modelle:
 **Live-Beobachtung beim Inference-Test (3 verschiedene Hard-Maps, MaxStep=2000, alle Settings korrekt konfiguriert):** Auf keiner der drei getesteten Maps konnte eine Episode beobachtet werden, in der der Agent das Ziel erreicht hat. Es konnte ebenfalls keine erfolgreiche Lava-Überquerung beobachtet werden — der Agent ist bei jedem Sprungversuch in der Lava gestorben. Auffällig war zudem ein Logging-Bug: der `LavaJumps`-Counter wurde auch dann erhöht, wenn der Agent direkt im Anschluss durch die Lava gestorben ist — der Counter trennt also nicht zwischen erfolgreichen Sprüngen und tödlichen Versuchen. Diese Beobachtungen bestätigen die aggregierten Trainingsdaten qualitativ: die 21% Goal-Rate in Phase 7 entsteht durch Lava-Umgehung, nicht durch Lava-Sprünge, und das Verhalten ist auf einzelnen fixen Maps stark anfällig für lokale Schwächen der Policy.
+
+## V15
+
+### Verbesserung von v14 -> v15:
+### V14 — Komplette Ursachen-Analyse
+
+Strukturiert in **Ursachen-Kategorien** (A–J), absteigend nach geschätzter Erklärungskraft für die Beobachtungen. Anschließend eine **priorisierte Fix-Liste**.
+
+---
+
+### A. Reward-Architektur: Strukturell fehlendes Lernsignal für Sprünge
+
+#### A1. **Reward-Vakuum beim Lava-Sprung** ⭐ **wahrscheinlich Haupt­ursache**
+
+V13/V14 hat `lavaAttemptBaseReward = 0` gesetzt, weil V12s `+0.5` als „farmbar / falsches Konzept-Signal" identifiziert wurde. Im V14 gilt nun:
+
+| Ereignis                           | Sofort-Reward                         |
+| ---------------------------------- | ------------------------------------- |
+| Sprung in Luft über Lava           | **0**                                 |
+| Lava berühren (Tod)                | **−1**                                |
+| Sprung schaffen + auf Floor landen | **0**                                 |
+| Goal nach Sprung erreichen         | +30 (mit γ-Discount stark abgewertet) |
+
+Damit ist die **gesamte Sprung-Trajektorie aus Sicht des Agenten dominiert von −1**. Selbst wenn 1 % der Sprünge erfolgreich wären und +30 brächten, ist EV bei γ=0.997 und ~80 Steps zwischen Sprung und Goal: `0.01 × 30 × 0.997^80 − 0.99 × 1 = 0.01 × 23.4 − 0.99 = −0.76` → **negativer Erwartungswert pro Sprungversuch**. Der Agent lernt rational: nicht springen.
+
+#### A2. **PBRS belohnt Lava-Umgehung positiv**
+
+`distanceShapingScale = 0.005` × `(prevDist − currDist)` (`pbrsGamma=1.0`).
+Euklidische Distanz schrumpft auch, wenn der Agent **um Lava herumläuft** — sobald irgendein Pfad das Ziel räumlich näherbringt, kassiert er positives Shaping. Phase 7 (Hard) belegt das empirisch: 99,4 % der Goal-Reaches **ohne Sprung**. Der Agent hat eine optimale Strategie unter dem gegebenen Reward gefunden — Lava ist aus Reward-Sicht nie nötig.
+
+#### A3. **Sterben ist nicht teuer genug relativ zum erwarteten Goal-Wert**
+
+```text
+lavaDeathPenalty = −1
+timeoutPenalty   = −5
+goalReward       = +30  (~ +6 nach γ-Discount aus Step 0 einer 1500-Step-Episode bei γ=0.997)
+```
+
+Tod kostet nur 1/30 des Goals — das **klingt** wie ein guter Risiko-Anreiz. Aber:
+
+* Bei 1 % Sprungerfolgsrate: EV(springen) = 0.01·6 − 0.99·1 = **−0.93**
+* EV(nicht springen, Goal über Umweg in 50 % der Fälle erreichen) = 0.5·5 − 0.5·5 = **+0** (PBRS bleibt positiv über Umweg)
+
+Mit so niedriger initialer Erfolgsrate ist die Death-Penalty **zu hoch relativ zur Sprung-Lernkurve**. Die Penalty müsste entweder kleiner sein, oder Erfolgssignale müssten zwischendrin existieren.
+
+#### A4. **Curiosity-Modul-Interferenz**
+
+`curiosity.strength=0.05` mit eigener γ=0.99. Curiosity gibt **intrinsischen Reward für seltene States** — Lava-Zonen wurden in Phase 4 schnell „erkundet" durch Tod-Anflug, also bekommt der Agent dort kaum noch Novelty-Bonus. Stattdessen erhält er Curiosity-Reward für Erkundung weit weg von Lava → **verstärkt Avoidance**.
+
+#### A5. **Wall-Climb-Penalty als versteckter Sprung-Bestrafer**
+
+`wallClimbPenalty = −1` bei `transform.position.y > spawnY + 5.0f`. Bei Lava-Sprüngen kann der Agent kurzzeitig hoch katapultiert werden (PhysX-Depenetration an Lava-Cube-Kollidern). Mit `maxUpwardVelocity = 3.5` und `jumpForce = 4.5` sollte er <5m bleiben — aber **das ist nicht garantiert**, weil Lava-Cubes als Trigger fungieren und PhysX kann unter Edge-Cases trotzdem Impulse erzeugen. Verifizieren!
+
+---
+
+### B. Curriculum-Design
+
+#### B1. **Phase 4 ist eine Mauer, kein Zwischenschritt** ⭐ wahrscheinlich Haupt­ursache
+
+| Phase           | Mechanik                                    | Lerneffekt erwartet     |
+| --------------- | ------------------------------------------- | ----------------------- |
+| 3 TrivialHole   | Hole-Avoidance (passiv: nicht reinfallen)   | Avoidance ✓             |
+| 4 TrivialHazard | **+ Lava-Sprung (aktiv: drüber springen!)** | komplett neue Skill     |
+| 5 Easy          | Komplexe Maps, gelegentlich Lava            | Skill-Transfer erwartet |
+
+Phase 4 verlangt eine **neue Skill-Klasse** (zeitkritische Aktion mit Risiko), nicht eine Erweiterung. Das Curriculum behandelt sie als „Hole + 1 Lava-Tile", aber konzeptionell ist es ein Bruch.
+
+#### B2. **CurriculumTracker advanced auf Episodenzahl, nicht auf Erfolg**
+
+```csharp
+bool advance = phase.thresholdType == ThresholdType.Episodes
+    ? episodeCountInPhase >= phase.threshold : ...;
+```
+
+Phase 4 wechselt nach 5000 Episoden in Phase 5 — auch bei 0.2 % Success. Der Agent betritt Phase 5/6/7 mit der **gelernten Anti-Lava-Policy**. Die Skill-Lücke wird über alle nachfolgenden Phasen weitergeschleppt.
+
+#### B3. **Kein Phase-Mixing → Vergessen unvermeidbar**
+
+Die 3 Crash-Recovery-Zyklen in Phase 7 sind kein Zufall: PPO trainiert reinen Hard-Content, vergisst Hindernis-Avoidance aus Phase 3, lernt neu, vergisst Navigation aus Phase 0/1, lernt neu. Klassisches Catastrophic Forgetting ohne Replay-Mechanismus.
+
+#### B4. **Phase 4 Lava-Tile-Geometrie ist hart**
+
+In `BuildTrivialBase` ist die Lava 1×1 (corrWidth=1) oder **2×1** (corrWidth=2) quer im Hauptkorridor. Beim 2-breiten Lava-Streifen + `jumpForce=4.5` und `maxUpwardVelocity=3.5` (`gravity=−9.81`):
+
+Sprungzeit zu Peak: ~0.36s → Höhe ~0.63m. Reichweite bei `moveSpeed=3`: ~2.16m horizontal vor Boden­kontakt. Lava ist 2 Tiles × cellSize=1 = **2m breit + Agent-Kapsel-Durchmesser** (0.5m). Effektive zu überspringende Distanz: ~2.5m, verfügbare Reichweite ~2.16m. **Physikalisch grenzwertig.** Der Agent kann theoretisch springen, aber nur unter perfekten Bedingungen (Anlauf, Vollgeschwindigkeit, exakter Timing).
+
+#### B5. **TrivialHazard hat keine Pfadvarianz**
+
+Lava liegt immer im Hauptkorridor zwischen Spawn- und Goal-Raum. Es gibt keinen Umweg → Agent muss springen ODER timeouten. Das **wäre** gut, aber wenn die Sprung-Erfolgsquote ~0 ist, bedeutet das nur: jede Episode endet in Tod oder Timeout. Kein Lernsignal.
+
+#### B6. **Easy/Medium/Hard haben strukturell anderen Lava-Kontext**
+
+Easy/Medium/Hard nutzt `RoomCorridorGraph` + `ObstacleClusterPlacer` + `PlatformPlacer`. **Lava in diesen Phasen ist mit Platforms kombiniert** (siehe `PlatformPlacer.PlacePlatforms`). Lava in Hard ist nicht „springen", sondern „auf Plattform". Die Phase-4-Skill „Sprung mit Anlauf" transferiert nicht.
+
+#### B7. **Trivial-Phasen sind trotz Refactoring eingeschränkt**
+
+`seed % 200` in TrivialBranch/Hole/Hazard. Pro 1000 Eps × 4 Variations (durch interne RNG-Splits) × 96 Agents = Agent sieht jede Variante 100+ Mal. Statt zu generalisieren, kann er overfitten auf spezielle Spawn-Position-Sequenzen.
+
+---
+
+### C. Beobachtungen (Sensorik): Sprung-Planung blind
+
+#### C1. **Boden-Sensor nur in 3 Punkten, alle entlang `forward`**
+
+```csharp
+Vector3[] checkOffsets = { Vector3.zero, forward*1, forward*2 };
+```
+
+Der Agent sieht:
+
+* Was direkt unter ihm ist
+* Was 1 Zelle vor ihm ist
+* Was 2 Zellen vor ihm ist
+
+Aber **nicht** ob Lava breit oder schmal ist, ob es einen Umweg gibt, was 3 Zellen vor ihm liegt (Landefläche). **Sprung-Planung erfordert mind. 4–5 Zellen Vorausschau** plus seitliche Sensoren (Lava neben dem Pfad).
+
+#### C2. **`directionToGoal` ist normalisiert → versteckt Distanz**
+
+Der Vektor zeigt durch Lava hindurch zum Goal. PBRS + Richtungs-Observation sagen beide: „direkt durch Lava". Der Agent stirbt → seine internen Repräsentationen bekommen widersprüchliche Signale.
+
+#### C3. **`distToGoal` ist euklidisch, nicht Pfad­distanz**
+
+Wenn der Agent eine Lava umgeht, wird die euklidische Distanz oft kleiner als die Pfaddistanz wäre. PBRS rewardt Annäherung an unerreichbare Ziele.
+
+#### C4. **Velocity-Observation kann unnormalisiert sein**
+
+```csharp
+Vector3 normalizedVelocity = transform.InverseTransformDirection(rb.velocity) / moveSpeed;
+```
+
+`moveSpeed=3`, aber `maxUpwardVelocity=3.5` → Y-Komponente kann >1 sein. Plus horizontale Velocity bei `MovePosition`-induced kann andere Werte annehmen. **Observation-Normalisierungs-Bruch** während des Sprungs.
+
+#### C5. **Kein „Air time"-Indikator**
+
+Der Agent kann nicht direkt beobachten, wie lange er schon in der Luft ist. Sprung-Trajektorien werden für PPO im Memory rekonstruiert, aber 16 Steps Sequenz @ 50ms = 0.8s deckt einen Sprung gerade so ab — keine Reserve.
+
+---
+
+### D. Aktionen / Physik
+
+#### D1. **`MovePosition` + `AddForce` mischen Kinematic-ähnliche und dynamische Bewegung**
+
+```csharp
+rb.MovePosition(transform.position + direction * moveSpeed * dt);  // Position-Setting
+rb.AddForce(Vector3.up * jumpForce, Impulse);                        // Echte Physik
+```
+
+Während ein Sprung im Gange ist, **überschreibt MovePosition jeden Frame die horizontale Position direkt** und ignoriert die durch AddForce gegebene Velocity. Das macht Lava-Sprünge **deterministisch in der Reichweite** (immer `moveSpeed * airTime`) statt parabolisch — was ggf. der Sprung-Reichweite hilft, aber unnatürlich/inkonsistent ist und PPO erschwert (state-action-mapping unstetig).
+
+#### D2. **Sprung-Action ist nur Boolean**
+
+```csharp
+if (jumpAction == 1 && isGrounded) AddForce(Vector3.up * jumpForce, Impulse);
+```
+
+Keine variable Sprunghöhe / -richtung. Ein „starker Sprung" ist nicht möglich. Für 2-Tile-Lava muss der Agent perfekt zentriert in Bewegung sein. Kein margin of error.
+
+#### D3. **`isGrounded` wird zwischen Aktionen falsch zurückgesetzt**
+
+```csharp
+if (jumpAction == 1 && isGrounded) { ... isGrounded = false; }
+```
+
+Direkt nach Sprung-Auslösung wird `isGrounded` auf `false` gesetzt. Der nächste FixedUpdate-Tick führt aber `GroundCheck()` aus, der auf Kollision mit Floor prüft. Wenn der Sprung kaum vom Boden abhebt (kleine Velocity), kann `isGrounded` in der nächsten Frame wieder true sein → Doppelsprung-Versuche fehlschlagen / inkonsistent.
+
+#### D4. **`turnSpeed = 180°/s` × `fixedDeltaTime = 50ms` = 9°/Step**
+
+In 16 Steps (Memory-Sequenz) = 144° Drehung möglich. Während eines Sprungs (~12 Steps Air time) kann der Agent **die Hälfte einer Umdrehung** machen. Sprung-Landung-Orientierung ist hochvariabel — schwer für PPO zu lernen.
+
+---
+
+### E. Hyperparameter / Training-Konfig
+
+#### E1. **γ=0.997 hilft, aber Episode-Länge in Hard überfordert es**
+
+```text
+30 × 0.997^2000 ≈ 30 × 0.00248 ≈ 0.074
+```
+
+Auch mit verbessertem γ ist Goal-Reward aus Step 0 in einer 2000-Step-Hard-Episode praktisch unsichtbar. Der **Critic lernt's** (durch Bootstrapping), aber das Lernen ist langsam.
+
+#### E2. **Linearer LR-Schedule auf 60M Steps**
+
+Bei 31M Steps ist `lr ≈ 1e-4 × (1 − 31/60) = 4.83e-5`. Das ist OK für Konvergenz, aber **für Catastrophic-Forgetting-Recovery in Hard zu hoch**. Wenn der Agent in Hard zwischen guten und schlechten Policies oszilliert, würde eine **stärker abfallende LR oder Plateau-Detection** Stabilisierung erlauben.
+
+#### E3. **β=1e-3 → Entropy fällt auf 1.05**
+
+3 Discrete Branches mit (3,3,2) — maximale Entropy ist `ln(3)+ln(3)+ln(2) = 2.49`. Endwert 1.05 = 42 % davon. **Nicht kollabiert**, aber niedrig genug, dass Re-Exploration nach Forgetting schwer wird.
+
+#### E4. **Buffer 81920 / Time Horizon 256 = 320 trajectories**
+
+Bei 16 Areas × 6 Builds × kurzen Episoden in Trivial sind 320 Trajektorien stark gemischt. In Hard mit 700-Step-Episoden = ~470 Steps Mittelung. Buffer ist OK, könnte aber bei großen Maps zu klein für stabile Advantage-Schätzung sein.
+
+#### E5. **Curiosity hat `gamma=0.99` ≠ extrinsic `0.997`**
+
+Inkonsistente Discounts in zwei Reward-Streams machen Value-Estimation komplizierter. Curiosity wird über kürzeren Horizont gewichtet → bevorzugt **lokale Exploration** (Lava-nahe Bereiche **nicht** mehr, weil bereits erkundet) statt **globaler Exploration** (Goal hinter Lava).
+
+#### E6. **3 Epochs × 1024 Batch × ~80 Mini-Batches/Update**
+
+PPO über 3 Epochs ist Standard, aber **mit Curiosity-Reward-Drift** kann 3 Epochs reichen, um Policy zu weit zu bewegen → Trust-Region-Verletzung → Performance-Crash. Erklärt die Reset-Zyklen in Phase 7.
+
+---
+
+### F. Transformer-Memory-Spezifika
+
+#### F1. **`memory_size=128 → output_size=64`**
+
+ML-Agents teilt memory_size durch 2 für LSTM-Kompatibilität. Effektiver Output-Vektor ist 64-dim. Das ist klein für 8 Phasen × komplexe Map-Variationen.
+
+#### F2. **`sequence_length=16` × 50ms = 0.8s Kontextfenster**
+
+Reicht für einen Sprung (kurz), reicht **nicht** für eine ganze TrivialHazard-Episode (~245 Steps = 12s). Der Transformer kann keine längerfristigen Pattern­erkennungs-Strategien lernen.
+
+#### F3. **Rolling-Buffer-Fix aus v8 ist möglicherweise nicht 100 % korrekt**
+
+Die Doku erwähnt einen Patch in `transformer_policy.py` / `networks.py` / `patch_mlagents.py`. Wenn der Rolling-Buffer die letzten 7 Encodings statt der letzten 15 speichert oder die Reihenfolge invertiert ist, hat der Transformer subtle Inkonsistenz zwischen Inference und Training. **Konkret prüfen.**
+
+#### F4. **Causal Mask + Padding für frühe Steps**
+
+In den ersten 15 Steps jeder Episode hat der Transformer nur partielle Sequenz. Padding-Strategie nicht in der Doku spezifiziert — falls Zero-Padding und Mask fehlt, wird das Lernen verlangsamt.
+
+---
+
+### G. Inferenz vs. Training
+
+#### G1. **Live-Test: 0/3 Maps geschafft, immer Lava-Tod**
+
+Live-Test ohne Curriculum bedeutet typischerweise **Standalone-Map**. Mögliche Probleme:
+
+* Memory state startet leer (Transformer braucht ~16 Steps Warmup)
+* Stochastisch vs. deterministisch — ML-Agents Inferenz nutzt mit `BehaviorParameters.BehaviorType.InferenceOnly` typischerweise deterministische Aktionen (argmax statt sample). Wenn der Agent in Training Erfolg durch Stochastik hatte, scheitert er deterministisch.
+* TimeScale auf 1 statt 20 → andere FixedUpdate-Frequenz möglich
+
+#### G2. **Test auf Hard-Maps → Lava-Skill nie gelernt**
+
+Konsistent mit den 99 % Tod-Raten in Phase 7. Die Inferenz bestätigt: der Agent hat keine Lava-Sprung-Policy. Punkt.
+
+---
+
+### H. Logging & Metrik-Verfälschung
+
+#### H1. **`LavaJumps`-Counter zählt Eintritte, nicht Erfolge**
+
+```csharp
+if (currentlyAboveLava && !wasAboveLava) lavaJumpAttempts++;
+```
+
+`wasAboveLava` wird auf Edge-Trigger gesetzt — beim Eintritt in „in der Luft + Raycast nach unten trifft Lava". Beim Tod (`OnTriggerEnter("Lava")`) wird der Counter nicht aktualisiert. Statistik:
+
+* 11.415 Sprünge in Phase 4, 11.410 führten zum Tod = 99.96 %.
+* Aber: Was passiert, wenn der Agent über Lava springt, runter kommt, aber **knapp daneben** im Lava-Trigger landet? Das ist 1 Edge-Trigger + 1 Tod = beides gezählt.
+
+Der Counter überschätzt die „Versuche", weil **alle Lava-Annäherungen** mitgezählt werden, auch fehlgeschlagene.
+
+#### H2. **Custom-Stats sind Episode-Ende-Snapshots, kein Histogram**
+
+`Academy.Instance.StatsRecorder.Add` wird in `OnEpisodeBegin` (sic!) aufgerufen — schreibt also die Stats der **vergangenen** Episode beim Start der nächsten. Bei Build-Crash kann die letzte Episode-Stat verloren gehen. Mehr Datenverlust als nötig.
+
+#### H3. **Kein Reward-Komponenten-Logging**
+
+Wie viel von `lastEpisodeCumulativeReward` kommt von:
+
+* Goal? Death? Timeout? StepPenalty? PBRS? Curiosity? LavaAttempt? Wall-Climb?
+
+Nicht aufgeschlüsselt → schwer zu diagnostizieren, ob PBRS-Avoidance oder Goal-Search dominiert.
+
+---
+
+### I. Build / Prefab-Konsistenz (Wiederholung von v13!)
+
+#### I1. **War der V14-Build wirklich V14?**
+
+V13's Post-Mortem zeigt: `Agent.prefab` Inspector-Werte überschreiben Source-Defaults. Ohne **echte Verifikation** kann V14 wieder eine Hybrid-Konfig sein:
+
+* `goalReward = 30` im Inspector? Verifiziert
+* `phaseMaxSteps = [600,...]` korrekt? Verifiziert
+* `MaxStep = 0` (sonst override greift nicht)?
+* `testOverrideMaxSteps = 0`?
+* `distanceShapingScale = 0.005`?
+* Build-Datum nach letzter Prefab-Änderung?
+
+Die V14-Trainingsdaten zeigen Phase-EpLen `~245` in Phase 4 — mit `phaseMaxSteps[4]=600` plausibel. Phase 7 EpLen `~711` mit `phaseMaxSteps[7]=2000` plausibel. **Sieht korrekt aus**, aber explizit verifizieren.
+
+#### I2. **96 parallele Agents, 6 Builds — Phase-Drift**
+
+Jeder Build hat einen eigenen statischen `CurriculumTracker`. Wenn Build 1 schneller läuft als Build 5, ist Build 1 in Phase 6, während Build 5 noch in Phase 3 ist. PPO lernt aus dem **gemischten Replay-Buffer** = simultane Trajektorien aus Phase 3 + 6.
+
+**Das könnte ein verstecktes Plus sein**: implizites Phase-Mixing! Aber: unkontrolliert. Die Verteilung von Phase-Anteilen ist ein Zufallsprodukt der CPU-Scheduling. Erklärung für Reward-Volatilität in Phase 7?
+
+#### I3. **Custom/CurriculumPhase wird nur eine Phase loggen**
+
+`Academy.Instance.StatsRecorder.Add("Custom/CurriculumPhase", phase)` mittelt über alle Agents im Stat-Window. Wenn Build 1 in Phase 6 und Build 5 in Phase 3 → gemittelter Wert ist 4.5. Phase-Logging ist also irreführend.
+
+---
+
+### J. Sekundäres / Hypothesen niedrigerer Priorität
+
+#### J1. **`maxObservationDistance = 20` aber Hard-Maps können größer sein**
+
+Bei Distanzen >20m wird die Obs auf 1 geclamped → Sättigung. Agent sieht „weit weg = immer weit weg" ohne Gradient.
+
+#### J2. **`pbrsGamma = 1.0` macht PBRS technisch nicht potentialbasiert**
+
+Theoretisch braucht PBRS γ_shaping = γ_env, damit der Beweis (Ng et al. 1999) gilt: optimale Policy unverändert. Mit `pbrsGamma = 1.0` und env-γ=0.997 ist die Theorie verletzt — die optimale Policy *kann* sich verändern, typischerweise zugunsten von „bleibe nahe am Ziel ohne es zu erreichen". Schwacher Effekt, aber nicht null.
+
+#### J3. **`timeoutPenalty = -5` wird zusätzlich zum step-Penalty bezahlt**
+
+```csharp
+AddReward(stepPenalty); ... if (StepCount >= MaxStep-1) AddReward(timeoutPenalty);
+```
+
+Phase 4 (`MaxStep=600`): Timeout-Reward ≈ −5 + 600·(−0.005) = −8. Phase 7 (`MaxStep=2000`): ≈ −5 + 2000·(−0.005) − 10·PBRS-Bonus = −13 bis −15. Death ist −1 (plus step-Penalty bis dahin). **Tod ist 5–10× billiger als Timeout in späten Phasen** → Agent hat einen Anreiz, **schneller zu sterben**.
+
+#### J4. **`CurriculumTracker.episodeCountInPhase` und `stepCountInPhase` sind static und nicht thread-safe**
+
+In Unity sind alle Agents im Main Thread, aber innerhalb eines Builds ruft jeder der 16 Agents `GetNextLayout()` und `NotifyStep()` auf. Race conditions sind unwahrscheinlich (alle in MainThread serialisiert), aber **bei 16 parallelen Episoden-Endes im selben Frame kann der Counter um 16 springen** statt 1, und der Phase-Wechsel passiert beim ersten Agent, die anderen 15 starten noch mit alter Phase aber neuem MaxStep. → Subtle Off-by-Ones.
+
+#### J5. **Reset der `wasAboveLava`-Flag passiert nur in `OnEpisodeBegin`**
+
+Bei Tod über Lava (OnTriggerEnter → EndEpisode → OnEpisodeBegin) wird die Flag korrekt resettet. Aber: zwischen Sprung-Ende und nächstem Edge-Trigger gibt es keine Wartezeit → bei Doppel-Sprungversuchen in einer Episode kann der Counter zu schnell hochgehen.
+
+#### J6. **Die ProceduralLayoutGenerator-Trivial-Familie hat keine zusätzliche Variation für Lava-Streifen-Breite**
+
+```csharp
+int midX = cx0 + seg1Len / 2 - 1;
+r.lavaCell1 = (midX, corrY);
+r.lavaCell2 = corrWidth >= 2 ? (midX, corrY + 1) : r.lavaCell1;
+```
+
+→ **Lava ist immer 1 Tile breit in Sprung-Richtung** (nur entlang `corrWidth` ist sie 1–2 Tiles breit, das ist senkrecht zum Anlauf). Das **vereinfacht** den Sprung. Sollte für den Agenten machbar sein… aber er macht's nicht. Stark deutend auf Lernsignal-Mangel.
+
+---
+
+### Priorisierte Fix-Liste
+
+Geordnet nach **(Erwarteter Impact) × (1 / Umsetzungsaufwand)**.
+
+---
+
+### 🔴 Stufe 1: Diese 4 Fixes sind die Hypothese, dass Phase 4 lösbar wird
+
+#### Fix 1.1 — **Konditionaler Lava-Sprung-Reward bei erfolgreicher Landung**
+
+Ersetze den vorhandenen `lavaAttemptBaseReward`-Mechanismus durch einen **Edge-Trigger auf Landung**:
+
+```text
+WHEN wasAboveLava == true AND isGrounded == true 
+  AND ground-tag == "Floor"
+THEN AddReward(+5)
+     lavaCrossingsCompleted++
+```
+
+Das ist nicht farmbar (Agent muss *übers Lava drüber* sein), gibt klares Lernsignal, und ist nur einmal pro Lava-Stelle pro Episode vergeben (Edge-Trigger).
+
+#### Fix 1.2 — **PBRS pausiert über Lava-Zone**
+
+Wenn der Agent über Lava ist (`DetectAboveLava() == true`) oder Lava direkt vor ihm ist (Bodensensor 1 Zelle voraus = Lava-Tag) → setze `distanceShapingScale = 0` für diesen Step. Verhindert, dass PBRS dem Agenten sagt „du bist nahe genug, bleib stehen" während Lava blockiert.
+
+#### Fix 1.3 — **Phase 4 verlängern + abgestuft einführen**
+
+Aufteilen in 3 Sub-Phasen vor Easy:
+
+* **4a TrivialLavaSurround**: Lava als visuelle Bedrohung in Sackgassen (am Branch-Ende statt Hole). Agent muss Lava sehen, kann aber drumrum.
+* **4b TrivialLavaCrossable**: 1-Tile-Lava im Hauptkorridor, breiter Anlauf. `threshold = 15000` Episoden statt 5000.
+* **4c TrivialLavaWide**: 2-Tile-Lava, knapper Anlauf.
+
+Alternativ: Phase 4 auf 15000 erhöhen, aber nur mit Fix 1.1+1.2 sinnvoll.
+
+#### Fix 1.4 — **Death-Penalty auf −0.3 reduzieren, Tod muss billig sein während Skill-Lernen**
+
+`lavaDeathPenalty: -1 → -0.3` (oder sogar −0.1) temporär für Phase 4, dann zurück auf −1 in Hard. Das senkt die Hürde für explorative Sprünge. Sterben wird zu „kostenloser Reset", Versuche kostengünstig.
+
+---
+
+### 🟠 Stufe 2: Anti-Catastrophic-Forgetting
+
+#### Fix 2.1 — **Phase-Mixing in CurriculumTracker**
+
+```csharp
+public static MapData GetNextLayout()
+{
+    // 70% aktuelle Phase, 20% direkter Vorgänger, 10% zufällig aus allen früheren
+    int draw = rng.Next(100);
+    int targetPhase = draw < 70 ? currentPhaseIndex
+                   : draw < 90 ? Mathf.Max(0, currentPhaseIndex - 1)
+                   : rng.Next(currentPhaseIndex + 1);
+    return config.phases[targetPhase].layouts[...];
+}
+```
+
+Verhindert Vergessen aus Phase 3 in Phase 7. Erwartung: Drei-Zyklen-Crash in Hard verschwindet.
+
+#### Fix 2.2 — **CurriculumTracker advanced auf SuccessRate-EMA, nicht Episodenzahl**
+
+```csharp
+if (recentSuccessRate > 0.7 && episodeCountInPhase > 1000) advance();
+```
+
+Verhindert Skip von Phase 4 mit 0 % Success. Kombiniert mit Fix 1.1, sonst hängt der Agent ewig in Phase 4.
+
+#### Fix 2.3 — **Learning Rate plateaut früher**
+
+```yaml
+learning_rate_schedule: constant
+# ODER: cosine mit min_lr=1e-5 ab 30M Steps
+```
+
+Niedriges LR in späten Phasen reduziert Policy-Updates → weniger Forgetting.
+
+---
+
+### 🟡 Stufe 3: Observation / Sensor
+
+#### Fix 3.1 — **Bodensensor um 4 Strahlen erweitern**
+
+```csharp
+checkOffsets = {
+  zero, forward*1, forward*2, forward*3,
+  forward*1 + right*0.5, forward*1 - right*0.5
+};
+```
+
+→ Agent sieht Lava-Breite und Landefläche.
+
+#### Fix 3.2 — **Pfad-Distanz statt euklidische Distanz**
+
+`distToGoal` aus A*-Berechnung auf Grid (oder einfacher: Manhattan-Distance mit Lava als Wand). Einmalige Berechnung in `GenerateMap` cachen.
+
+#### Fix 3.3 — **`Custom/PathDistanceToGoal` als Observation und für PBRS**
+
+PBRS auf Pfad-Distanz löst gleichzeitig 2 Probleme: Lava-Umgehung wird nicht mehr fälschlicherweise belohnt, und der Agent hat ein „intelligentes" Annäherungssignal.
+
+---
+
+### 🟡 Stufe 4: Reward-Refinement
+
+#### Fix 4.1 — **Curiosity strength reduzieren oder phasen-spezifisch ausschalten**
+
+`curiosity.strength: 0.05 → 0.02` (oder `0` ab Phase 5). Curiosity hat in Phase 4 nicht geholfen (laut Doku V13), in Hard verstärkt sie Forgetting.
+
+#### Fix 4.2 — **Reward-Komponenten einzeln loggen**
+
+```csharp
+Academy.Instance.StatsRecorder.Add("Reward/Goal", goalRewardThisEpisode);
+Academy.Instance.StatsRecorder.Add("Reward/PBRS", pbrsThisEpisode);
+Academy.Instance.StatsRecorder.Add("Reward/Curiosity", ...);
+```
+
+Erlaubt Post-Hoc-Analyse, ob PBRS dominiert.
+
+#### Fix 4.3 — **`pbrsGamma = 0.997`**
+
+Wiederherstellung der theoretischen Korrektheit. Wahrscheinlich kleiner Effekt, aber risikoarm.
+
+#### Fix 4.4 — **Step-Penalty leicht reduzieren in langen Phasen**
+
+In Phase 7 mit MaxStep=2000: kumulativ −10 nur durch Step-Penalty. `stepPenalty = -0.002` in Hard macht Goal-Reward dominanter.
+
+---
+
+### 🟢 Stufe 5: Logging / Diagnose
+
+#### Fix 5.1 — **`LavaJumpsAttempted` vs `LavaJumpsSuccessful` getrennt**
+
+```csharp
+// im DetectAboveLava-Edge: lavaJumpAttempts++
+// in Landings-Check: lavaJumpsSuccessful++
+// im OnTriggerEnter("Lava"): lavaJumpsFailed++
+```
+
+#### Fix 5.2 — **SuccessRate pro Phase loggen**
+
+Statt `Custom/SuccessRate` (gemittelt) → `Custom/SuccessRate_P0`, `..._P1`, ..., `..._P7`.
+
+#### Fix 5.3 — **TerminalReason als kategoriale Stat**
+
+`Custom/TerminalReason` mit Werten:
+
+* `0 = Goal`
+* `1 = Lava`
+* `2 = Hole`
+* `3 = Timeout`
+
+Mit Histogram pro Phase.
+
+---
+
+### 🟢 Stufe 6: Physik / Aktionen
+
+#### Fix 6.1 — **`MovePosition` durch Velocity ersetzen**
+
+```csharp
+rb.velocity = new Vector3(direction.x * moveSpeed,
+                          rb.velocity.y,
+                          direction.z * moveSpeed);
+```
+
+Vollständig physikalische Bewegung. Risiko: Regression in funktionierenden frühen Phasen.
+
+#### Fix 6.2 — **Air-Control reduzieren**
+
+In der Luft `moveSpeed *= 0.5f`.
+
+#### Fix 6.3 — **Sprung-Force-Boost in Phase 4+**
+
+Temporär `jumpForce = 6.0` in Phase 4, später wieder reduzieren.
+
+---
+
+### 🟢 Stufe 7: Build & Verifikation
+
+#### Fix 7.1 — **Pre-Run-Verifikations-Skript**
+
+Prüft:
+
+* Build-Datum > Prefab-Last-Modified
+* Inspector-Werte konsistent
+* `MaxStep == 0`
+* `testOverrideMaxSteps == 0`
+* `phaseMaxSteps == [...]`
+
+#### Fix 7.2 — **6 Builds → 1 Build × 16 Areas testen**
+
+Eliminiert Phase-Drift als Variable.
+
+---
+
+### TL;DR der Analyse
+
+**Drei strukturelle Hauptursachen** erklären vermutlich den Großteil der Symptome:
+
+1. **Reward-Vakuum**
+   Sprung-Erfolg gibt kein direktes Signal. `lavaAttemptBaseReward=0` war ein Overcorrect aus V12.
+   → **Fix 1.1**
+
+2. **PBRS-Interferenz**
+   Euklidisches Shaping belohnt Lava-Umgehung.
+   → **Fix 1.2 + 3.2**
+
+3. **Curriculum-Cliff**
+   Phase 4 ist ein Skill-Bruch ohne Erfolgsgating.
+   → **Fix 1.3 + 2.2**
+
+Das Catastrophic Forgetting in Hard wirkt eher wie ein Folgeeffekt dieser strukturellen Probleme als wie die eigentliche Root Cause.
+
+
+## Noch offen -> UPDATE: GESCHLOSSEN:
+
+manuell im Inspector tun musst
+
+  1. CurriculumConfig.asset: 3 neue Phasen einfügen (TrivialLavaSurround, TrivialLavaCrossable, TrivialLavaWide) zwischen Phase 3
+  (TrivialHole) und der aktuellen Phase 4 (TrivialHazard). enablePhaseMixing = true, useSuccessRateAdvance = true falls gewünscht.
+  2. Layouts generieren: Über MapGenerator-Inspector Button "▶ Layouts generieren & speichern" für jede neue Difficulty 10–20 Stück.
+  3. phaseMaxSteps im LabyrinthAgent an die finale Phasen-Reihenfolge anpassen. Default ist 11 Einträge — 4 Lava-Sub-Phasen ggf. auf
+  15000 setzen (Fix 1.3-Variante).
+  4. phaseJumpForces[Phase4+] auf z.B. 6.0 für den Lava-Boost (Fix 6.3).
+  5. phaseStepPenalties[Hard] auf z.B. -0.002 (Fix 4.4).
+  6. lavaDeathPenalty im Inspector ggf. auf -0.1 setzen, zurück auf -1 ab Hard.
+
+  UPDATE:
+  Status je Punkt:
+
+  1. CurriculumConfig_Default.asset: umgesetzt
+     Reihenfolge ist TrivialHole → TrivialLavaSurround → TrivialLavaCrossable → TrivialLavaWide → TrivialHazard.
+     enablePhaseMixing = true, useSuccessRateAdvance = true.
+  2. Layouts generiert: umgesetzt
+     Vorhanden sind je 100 Layouts:
+     TrivialLavaSurround, TrivialLavaCrossable, TrivialLavaWide.
+  3. phaseMaxSteps: umgesetzt im Prefab
+     11 Einträge, Phasen 4-7 auf 15000.
+  4. phaseJumpForces[Phase4+]: umgesetzt im Prefab
+     Phasen 4-10 stehen auf 6.
+  5. phaseStepPenalties[Hard]: umgesetzt im Prefab
+     Phase 10 steht auf -0.002.
+  6. lavaDeathPenalty: jetzt sauber per Code umgesetzt
+     Neues phaseLavaDeathPenalties-Array in LabyrinthAgent.cs: Phasen 4-7 -0.1, Hard Phase 10 -1. Damit passiert das Zurückstellen ab Hard automatisch.
+
+
+
+## getätigte Änderungen:
+| Fix     | Datei                                                                         | Änderung                                                                                       | Warum                                                         |
+| ------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| 1.1     | `LabyrinthAgent.cs`                                                           | Edge-Trigger: `wasAboveLava` + `isGrounded` + `lastGroundTag=="Floor"` → +5                    | Lernsignal für tatsächliches Überqueren, nicht farmbar        |
+| 1.2     | `LabyrinthAgent.cs`                                                           | `pausePbrsOverLava`: scale=0 wenn über Lava oder Lava voraus                                   | Verhindert, dass PBRS "bleib stehen" sagt während Lava blockt |
+| 1.3     | `DifficultyLevel.cs`, `ProceduralLayoutGenerator.cs`, `MapGeneratorEditor.cs` | 3 neue Enum-Werte + Generatoren (LavaSurround/Crossable/Wide), `corridorStep` in TrivialResult | Gestaffelter Lava-Einstieg statt direkt 2-Tile-Sprung         |
+| 1.4     | `LabyrinthAgent.cs`                                                           | `lavaDeathPenalty`: -1 → -0.3                                                                  | Explorative Sprünge günstiger, Tod als billiger Reset         |
+| 2.1     | `CurriculumConfig.cs`, `CurriculumTracker.cs`                                 | `enablePhaseMixing`, 70/20/10-Sampling                                                         | Anti-Catastrophic-Forgetting                                  |
+| 2.2     | `CurriculumConfig.cs`, `CurriculumTracker.cs`                                 | `ThresholdType.SuccessRate`, EMA, `minEpisodesBeforeAdvance`                                   | Kein Phase-Skip bei 0% Success                                |
+| 2.3     | `labyrinth_transformer.yaml`, `_export.yaml`                                  | `learning_rate_schedule: linear → constant`                                                    | Weniger Policy-Drift in späten Phasen                         |
+| 3.1     | `LabyrinthAgent.cs`                                                           | Bodensensor 3 → 6 Strahlen (fwd 1/2/3 + half-left/right)                                       | Agent sieht Lava-Breite + Landefläche                         |
+| 3.2+3.3 | `MapGenerator.cs`, `LabyrinthAgent.cs`                                        | BFS-Pfad-Distanz, Lava/Hole=Wand, neue Observation, PBRS auf Pfad-Distanz                      | Umgehung wird nicht fälschlich belohnt                        |
+| 4.1     | `labyrinth_transformer.yaml`, `_export.yaml`                                  | `curiosity.strength: 0.05 → 0.02`                                                              | Curiosity hat in Phase 4 nicht geholfen                       |
+| 4.2     | `LabyrinthAgent.cs`                                                           | `Reward/{Goal,PBRS,Step,Death,Timeout,LavaJump,LavaCross,WallClimb}` Stats                     | Post-Hoc-Analyse welche Komponente dominiert                  |
+| 4.3     | `LabyrinthAgent.cs`                                                           | `pbrsGamma: 1.0 → 0.997`                                                                       | Theoretische PBRS-Korrektheit                                 |
+| 4.4     | `LabyrinthAgent.cs`                                                           | `phaseStepPenalties[]`-Array (Phase-Override)                                                  | Goal-Reward dominanter in langen Phasen                       |
+| 5.1     | `LabyrinthAgent.cs`                                                           | `LavaJumps/{Attempted,Successful,Failed}` getrennt                                             | Diagnose ob Sprünge gelingen oder scheitern                   |
+| 5.2     | `CurriculumTracker.cs`                                                        | `Custom/SuccessRate_P{n}` + `SuccessRateEMA_P{n}` pro Phase                                    | Phasenscharfe Erfolgskurve                                    |
+| 5.3     | `LabyrinthAgent.cs`                                                           | `Custom/TerminalReason` (0=Goal/1=Lava/2=Hole/3=Timeout)                                       | Todesursache als kategoriale Stat                             |
+| 6.1     | `LabyrinthAgent.cs`                                                           | `useVelocityMovement` Flag (default `false`)                                                   | Physik-Bewegung optional, Regression vermieden                |
+| 6.2     | `LabyrinthAgent.cs`                                                           | `airControlFactor` (default 0.5)                                                               | Realistische Luftkontrolle                                    |
+| 6.3     | `LabyrinthAgent.cs`                                                           | `phaseJumpForces[]`-Array                                                                      | Höhere Sprungkraft in Lava-Phasen möglich                     |
+| 20      | `LabyrinthAgent.cs`                                                           | `phaseMaxSteps` 8 → 11 Einträge                                                                | Passt zu neuen Sub-Phasen                                     |
+
+**Übersprungen:** 7.1 (Pre-Run-Skript), 7.2 (Build×Areas — Inspector).

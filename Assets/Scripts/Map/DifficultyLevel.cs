@@ -1,13 +1,17 @@
 public enum DifficultyLevel
 {
-    Trivial       = 0,  // 7×7 offener Raum, Spawn Ecke, Goal random
-    TrivialCorr   = 1,  // SpawnRaum + GoalRaum + 1 direkter Korridor
-    TrivialBranch = 2,  // + 1 Ast-Korridor (kein Raum am Ende)
-    TrivialHole   = 3,  // + Ast-Korridor endet mit 2×2 Hole
-    TrivialHazard = 4,  // + 2×1 Lava im Hauptkorridor + Hole-Ast
-    Easy          = 5,
-    Medium        = 6,
-    Hard          = 7
+    Trivial              = 0,  // 7×7 offener Raum, Spawn Ecke, Goal random
+    TrivialCorr          = 1,  // SpawnRaum + GoalRaum + 1 direkter Korridor
+    TrivialBranch        = 2,  // + 1 Ast-Korridor (kein Raum am Ende)
+    TrivialHole          = 3,  // + Ast-Korridor endet mit 2×2 Hole
+    TrivialHazard        = 4,  // + 2×1 Lava im Hauptkorridor + Hole-Ast (Originalwert beibehalten)
+    Easy                 = 5,
+    Medium               = 6,
+    Hard                 = 7,
+    // ── Sub-Phasen 4a/4b/4c (hinten angehängt für Asset-Rückwärtskompatibilität) ──
+    TrivialLavaSurround  = 8,  // 4a: Lava am Branch-Ende statt Hole (Agent muss Lava sehen, nicht überqueren)
+    TrivialLavaCrossable = 9,  // 4b: 1-Tile-Lava im Hauptkorridor, breiter Anlauf, kein Hole-Ast
+    TrivialLavaWide      = 10, // 4c: 2-Tile-Lava in Längsrichtung, knapper Anlauf, kein Hole-Ast
 }
 
 public struct DifficultySettings
@@ -35,6 +39,9 @@ public struct DifficultySettings
             case DifficultyLevel.TrivialBranch:
             case DifficultyLevel.TrivialHole:
             case DifficultyLevel.TrivialHazard:
+            case DifficultyLevel.TrivialLavaSurround:
+            case DifficultyLevel.TrivialLavaCrossable:
+            case DifficultyLevel.TrivialLavaWide:
                 return new DifficultySettings
                 {
                     GridWidthMin  = 7, GridWidthMax  = 7,

@@ -11,6 +11,16 @@ public class LabyrinthAgent : Agent
 
     [Header("Sprung")]
     public float jumpForce = 4.5f;
+    [Tooltip("Phasenspezifischer Jump-Force-Override. Index = CurrentPhaseIndex. <=0 nutzt jumpForce.")]
+    [SerializeField] private float[] phaseJumpForces = new float[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+    [Header("Air-Control (Fix 6.2)")]
+    [Tooltip("Faktor auf moveSpeed wenn nicht grounded. 1.0 = volle Kontrolle. 0.5 = halbe.")]
+    [SerializeField, Range(0f, 1f)] private float airControlFactor = 0.5f;
+
+    [Header("Physik (Fix 6.1)")]
+    [Tooltip("Wenn true: Velocity-basierte Bewegung statt MovePosition. Experimentell — kann frühere Phasen regressionieren.")]
+    [SerializeField] private bool useVelocityMovement = false;
 
     [Header("Ground Check")]
     public float groundCheckDistance = 0.15f;
@@ -26,7 +36,9 @@ public class LabyrinthAgent : Agent
     [SerializeField] private float goalReward = 30f;
 
     [Header("Reward – Tod")]
-    [SerializeField] private float lavaDeathPenalty = -1f;
+    [SerializeField] private float lavaDeathPenalty = -0.3f;  // Fix 1.4
+    [Tooltip("Phasenspezifischer Lava-Death-Penalty-Override. 0 = nutzt lavaDeathPenalty.")]
+    [SerializeField] private float[] phaseLavaDeathPenalties = new float[] { 0, 0, 0, 0, -0.1f, -0.1f, -0.1f, -0.1f, 0, 0, -1f };
     [SerializeField] private float holeDeathPenalty = -1f;
 
     [Header("Reward – Timeout")]
@@ -35,9 +47,13 @@ public class LabyrinthAgent : Agent
     [Header("Reward – Lava-Sprung")]
     [SerializeField] private float lavaAttemptBaseReward = 0f;
     [SerializeField] private float lavaAboveMinDistance = 0.3f;
+    [Tooltip("Belohnung bei erfolgreicher Landung nach 'über Lava' (Edge-Trigger, Fix 1.1)")]
+    [SerializeField] private float lavaCrossSuccessReward = 5f;
 
     [Header("Reward – Zeit")]
     [SerializeField] private float stepPenalty = -0.005f;
+    [Tooltip("Phasenspezifischer Step-Penalty-Override (Fix 4.4). 0 = nutzt stepPenalty.")]
+    [SerializeField] private float[] phaseStepPenalties = new float[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     [Header("Wall-Climb Guard")]
     [SerializeField] private float wallClimbMaxY = 5.0f;
@@ -46,12 +62,16 @@ public class LabyrinthAgent : Agent
 
     [Header("Reward – Shaping (PBRS)")]
     [SerializeField] private float distanceShapingScale = 0.005f;
-    [SerializeField] private float pbrsGamma = 1.0f;
+    [SerializeField] private float pbrsGamma = 0.997f;  // Fix 4.3
+    [Tooltip("Wenn true: PBRS basiert auf BFS-Pfad-Distanz statt euklidischer Distanz (Fix 3.3).")]
+    [SerializeField] private bool usePathDistanceForPBRS = true;
+    [Tooltip("PBRS pausiert wenn Agent über Lava oder Lava direkt voraus (Fix 1.2).")]
+    [SerializeField] private bool pausePbrsOverLava = true;
 
     [Header("Curriculum – MaxStep pro Phase")]
-    // Index = CurriculumTracker.CurrentPhaseIndex
-    // 0-4 Trivial-Varianten | 5 Easy | 6 Medium | 7 Hard
-    [SerializeField] private int[] phaseMaxSteps = new int[] { 600, 600, 600, 600, 600, 1000, 1500, 2000 };
+    // Index = CurriculumTracker.CurrentPhaseIndex.
+    // Default 11 Einträge (4 Trivial + 3 LavaSub + Hazard + Easy/Medium/Hard) — kann je nach CurriculumConfig-Reihenfolge angepasst werden.
+    [SerializeField] private int[] phaseMaxSteps = new int[] { 600, 600, 600, 600, 600, 600, 600, 600, 1000, 1500, 2000 };
 
     [Tooltip("Wenn > 0, ueberschreibt phaseMaxSteps fuer diese Szene/Instanz. Nur fuer Tests, im Training auf 0 lassen.")]
     [SerializeField] private int testOverrideMaxSteps = 0;
@@ -64,41 +84,81 @@ public class LabyrinthAgent : Agent
 
     private Rigidbody rb;
     private bool isGrounded;
+    private string lastGroundTag = "";
     private Transform goalTransform;
+
+    // PBRS-State
     private float previousDistance = 0f;
+    private float previousPathDistance = 0f;
+
+    // Episoden-Tracking
     private int lastEpisodeStepCount = 0;
     private float lastEpisodeCumulativeReward = 0f;
     private float spawnY = 0f;
     private bool lastEpisodeWasSuccess = false;
-    private int lavaJumpAttempts = 0;
-    private bool wasAboveLava = false;
     private bool episodeEndedByTerminal = false;
+
+    // Lava-Stats (Fix 5.1)
+    private int lavaJumpAttempts    = 0;
+    private int lavaJumpsSuccessful = 0;
+    private int lavaJumpsFailed     = 0;
+    private bool wasAboveLava       = false;
+    private bool pendingLavaLanding = false;
+    private bool sensorSawLavaAhead = false; // Cache aus CollectObservations für PBRS-Pause
+
+    // Reward-Komponenten Logging (Fix 4.2)
+    private float rewGoal, rewPBRS, rewStep, rewDeath, rewTimeout, rewLavaJump, rewLavaCross, rewWallClimb;
+
+    // Terminal Reason (Fix 5.3): 0=Goal, 1=Lava, 2=Hole, 3=Timeout, -1=unknown
+    private int terminalReason = -1;
 
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
-        // warnIfMissing=false: Map ist zu diesem Zeitpunkt noch nicht generiert (Start läuft nach Initialize).
-        // FindGoal() wird erneut in OnEpisodeBegin aufgerufen, wenn die Map bereit ist.
         FindGoal(warnIfMissing: false);
     }
 
     public override void OnEpisodeBegin()
     {
+        // ── Letzte Episode reporten (Fix 4.2, 5.1, 5.3, sowie Custom/SuccessRate für Kompat.) ──
         Academy.Instance.StatsRecorder.Add("Custom/SuccessRate", lastEpisodeWasSuccess ? 1f : 0f);
         Academy.Instance.StatsRecorder.Add("Custom/LavaJumpAttempts", lavaJumpAttempts);
-        Academy.Instance.StatsRecorder.Add("Custom/CurriculumPhase", CurriculumTracker.CurrentPhaseIndex);
-        Debug.Log($"[Episode] Neue Episode. Steps letzte Episode: {lastEpisodeStepCount} | Letzter Cumulative Reward: {lastEpisodeCumulativeReward:F3} | Erfolg: {lastEpisodeWasSuccess} | LavaJumps: {lavaJumpAttempts}");
+        Academy.Instance.StatsRecorder.Add("Custom/LavaJumps/Attempted",  lavaJumpAttempts);
+        Academy.Instance.StatsRecorder.Add("Custom/LavaJumps/Successful", lavaJumpsSuccessful);
+        Academy.Instance.StatsRecorder.Add("Custom/LavaJumps/Failed",     lavaJumpsFailed);
+        Academy.Instance.StatsRecorder.Add("Custom/CurriculumPhase",        CurriculumTracker.CurrentPhaseIndex);
+        Academy.Instance.StatsRecorder.Add("Custom/CurriculumPhaseSampled", CurriculumTracker.LastSampledPhaseIndex);
+        Academy.Instance.StatsRecorder.Add("Custom/TerminalReason",         terminalReason);
+
+        Academy.Instance.StatsRecorder.Add("Reward/Goal",      rewGoal);
+        Academy.Instance.StatsRecorder.Add("Reward/PBRS",      rewPBRS);
+        Academy.Instance.StatsRecorder.Add("Reward/Step",      rewStep);
+        Academy.Instance.StatsRecorder.Add("Reward/Death",     rewDeath);
+        Academy.Instance.StatsRecorder.Add("Reward/Timeout",   rewTimeout);
+        Academy.Instance.StatsRecorder.Add("Reward/LavaJump",  rewLavaJump);
+        Academy.Instance.StatsRecorder.Add("Reward/LavaCross", rewLavaCross);
+        Academy.Instance.StatsRecorder.Add("Reward/WallClimb", rewWallClimb);
+
+        // Curriculum: EMA + Per-Phase-SuccessRate aktualisieren (Fix 2.2 + 5.2)
+        CurriculumTracker.NotifyEpisodeEnd(lastEpisodeWasSuccess);
+
+        Debug.Log($"[Episode] Neu | Steps={lastEpisodeStepCount} | CumReward={lastEpisodeCumulativeReward:F3} | Erfolg={lastEpisodeWasSuccess} | LavaAtt/Succ/Fail={lavaJumpAttempts}/{lavaJumpsSuccessful}/{lavaJumpsFailed} | Term={terminalReason}");
+
+        // State-Reset
         lastEpisodeWasSuccess = false;
-        lavaJumpAttempts = 0;
-        wasAboveLava = false;
+        lavaJumpAttempts      = 0;
+        lavaJumpsSuccessful   = 0;
+        lavaJumpsFailed       = 0;
+        wasAboveLava          = false;
+        pendingLavaLanding    = false;
         episodeEndedByTerminal = false;
+        terminalReason        = -1;
+        rewGoal = rewPBRS = rewStep = rewDeath = rewTimeout = rewLavaJump = rewLavaCross = rewWallClimb = 0f;
 
         if (mapGenerator != null)
         {
             mapGenerator.GenerateRuntimeMap();
             Vector3 spawnPos = mapGenerator.GetSpawnPosition();
-            // 0.6f statt 0.5f: Kapsel-Unterseite (transform.y - 0.5) bei 0.1m, Boden-Top bei 0.05m
-            // → kein PhysX-Overlap, kein Depentrations-Impuls beim Spawn
             transform.position = spawnPos + Vector3.up * 0.6f;
             spawnY = transform.position.y;
             transform.localRotation = Quaternion.identity;
@@ -110,39 +170,46 @@ public class LabyrinthAgent : Agent
             Debug.LogWarning("LabyrinthAgent: Kein MapGenerator zugewiesen!");
         }
 
-        // MaxStep NACH GenerateRuntimeMap setzen: GetNextLayout() kann die Phase advancen,
-        // sonst läuft die erste Episode der neuen Phase mit dem MaxStep der alten Phase.
+        // MaxStep NACH GenerateRuntimeMap setzen
+        int phase = CurriculumTracker.CurrentPhaseIndex;
         if (testOverrideMaxSteps > 0)
         {
             MaxStep = testOverrideMaxSteps;
         }
-        else
+        else if (phaseMaxSteps != null && phase >= 0 && phase < phaseMaxSteps.Length)
         {
-            int phase = CurriculumTracker.CurrentPhaseIndex;
-            if (phaseMaxSteps != null && phase >= 0 && phase < phaseMaxSteps.Length)
-            {
-                MaxStep = phaseMaxSteps[phase];
-            }
+            MaxStep = phaseMaxSteps[phase];
         }
 
         FindGoal();
         previousDistance = goalTransform != null
             ? Vector3.Distance(transform.position, goalTransform.position)
             : 0f;
+        previousPathDistance = mapGenerator != null
+            ? mapGenerator.GetNormalizedPathDistance(transform.position)
+            : 0f;
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // === Boden-Sensor (6 Observations) ===
+        // === Boden-Sensor: 6 Strahlen (Fix 3.1) ===
+        //  0: unter Agent
+        //  1: 1 vor
+        //  2: 2 vor
+        //  3: 3 vor
+        //  4: 1 vor + halb-rechts
+        //  5: 1 vor + halb-links
         Vector3[] checkOffsets = new Vector3[]
         {
             Vector3.zero,
             transform.forward * 1f,
-            transform.forward * 2f
+            transform.forward * 2f,
+            transform.forward * 3f,
+            transform.forward * 1f + transform.right * 0.5f,
+            transform.forward * 1f - transform.right * 0.5f,
         };
 
-        string[] offsetNames = new string[] { "Unter Agent", "1 Zelle voraus", "2 Zellen voraus" };
-
+        bool lavaAhead = false;
         for (int i = 0; i < checkOffsets.Length; i++)
         {
             Vector3 rayOrigin = transform.position + checkOffsets[i] + Vector3.up * groundSensorHeight;
@@ -152,29 +219,20 @@ public class LabyrinthAgent : Agent
             {
                 float typeCode = 0f;
                 if (hit.collider.CompareTag("Floor")) typeCode = 1f;
-                else if (hit.collider.CompareTag("Lava")) typeCode = -1f;
+                else if (hit.collider.CompareTag("Lava")) { typeCode = -1f; if (i >= 1 && i <= 3) lavaAhead = true; }
                 else if (hit.collider.CompareTag("Hole")) typeCode = -0.5f;
                 else if (hit.collider.CompareTag("Bridge")) typeCode = 0.5f;
 
                 sensor.AddObservation(typeCode);
                 sensor.AddObservation(hit.distance / groundSensorRange);
-
-                if (debugSensors)
-                {
-                    Debug.Log($"[BodenSensor] {offsetNames[i]}: Tag={hit.collider.tag} TypeCode={typeCode} Dist={hit.distance / groundSensorRange:F2}");
-                }
             }
             else
             {
                 sensor.AddObservation(-1.5f);
                 sensor.AddObservation(1f);
-
-                if (debugSensors)
-                {
-                    Debug.Log($"[BodenSensor] {offsetNames[i]}: KEIN TREFFER (Abgrund)");
-                }
             }
         }
+        sensorSawLavaAhead = lavaAhead;
 
         // === Eigengeschwindigkeit normalisiert (3 Observations) ===
         Vector3 normalizedVelocity = transform.InverseTransformDirection(rb.velocity) / moveSpeed;
@@ -195,89 +253,141 @@ public class LabyrinthAgent : Agent
             sensor.AddObservation(directionToGoal.x);
             sensor.AddObservation(directionToGoal.y);
             sensor.AddObservation(directionToGoal.z);
-
-            if (debugSensors)
-            {
-                Debug.Log($"[Zielrichtung] Dir=({directionToGoal.x:F2}, {directionToGoal.y:F2}, {directionToGoal.z:F2})");
-            }
         }
         else
         {
             sensor.AddObservation(0f);
             sensor.AddObservation(0f);
             sensor.AddObservation(0f);
-
-            if (debugSensors)
-            {
-                Debug.LogWarning("[Zielrichtung] Kein Goal gefunden!");
-            }
         }
 
-        // === Distanz zum Ziel normalisiert (1 Observation) ===
+        // === Distanz zum Ziel normalisiert (1 Observation, euklidisch) ===
         float distToGoal = goalTransform != null
             ? Vector3.Distance(transform.position, goalTransform.position)
             : 0f;
         sensor.AddObservation(distToGoal / maxObservationDistance);
 
+        // === Pfad-Distanz zum Ziel normalisiert (1 Observation, Fix 3.3) ===
+        float pathDistNorm = mapGenerator != null
+            ? mapGenerator.GetNormalizedPathDistance(transform.position)
+            : 1f;
+        sensor.AddObservation(pathDistNorm);
+
         if (debugSensors)
         {
-            Debug.Log($"[Status] Velocity=({normalizedVelocity.x:F2}, {normalizedVelocity.y:F2}, {normalizedVelocity.z:F2}) isGrounded={isGrounded} DistToGoal={distToGoal:F2}");
+            Debug.Log($"[Sensor] LavaAhead={lavaAhead} Grounded={isGrounded} EuklDist={distToGoal:F2} PathDistN={pathDistNorm:F2}");
         }
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
         CurriculumTracker.NotifyStep();
-        AddReward(stepPenalty);
 
-        // Timeout: schlechteste Strafe, schlechter als Tod
+        // ── Step-Penalty (Fix 4.4: phasenspezifisch falls gesetzt) ──
+        int phaseIdx = CurriculumTracker.CurrentPhaseIndex;
+        float effectiveStepPenalty = (phaseStepPenalties != null
+                                       && phaseIdx >= 0
+                                       && phaseIdx < phaseStepPenalties.Length
+                                       && phaseStepPenalties[phaseIdx] != 0f)
+            ? phaseStepPenalties[phaseIdx]
+            : stepPenalty;
+        AddReward(effectiveStepPenalty);
+        rewStep += effectiveStepPenalty;
+
+        // ── Timeout ──
         if (!episodeEndedByTerminal && MaxStep > 0 && StepCount >= MaxStep - 1)
         {
             AddReward(timeoutPenalty);
-            Debug.Log($"[Timeout] MaxStep={MaxStep} erreicht | Penalty={timeoutPenalty}");
+            rewTimeout += timeoutPenalty;
+            terminalReason = 3;
+            Debug.Log($"[Timeout] MaxStep={MaxStep} | Penalty={timeoutPenalty}");
         }
 
-        // PBRS: F(s,s') = γΦ(s') - Φ(s), Φ(s) = -distance_to_goal
+        // ── PBRS (Fix 1.2: Pause über/vor Lava, Fix 3.3: Pfad-Distanz, Fix 4.3: korrektes Gamma) ──
         if (goalTransform != null)
         {
-            float currentDistance = Vector3.Distance(transform.position, goalTransform.position);
-            AddReward((previousDistance - pbrsGamma * currentDistance) * distanceShapingScale);
-            previousDistance = currentDistance;
+            bool aboveLava = DetectAboveLava();
+            bool pauseShaping = pausePbrsOverLava && (aboveLava || sensorSawLavaAhead);
+            float scale = pauseShaping ? 0f : distanceShapingScale;
+
+            float shapingDelta;
+            if (usePathDistanceForPBRS && mapGenerator != null)
+            {
+                float currentPath = mapGenerator.GetNormalizedPathDistance(transform.position);
+                shapingDelta = (previousPathDistance - pbrsGamma * currentPath) * scale;
+                previousPathDistance = currentPath;
+                // euklidisch trotzdem aktualisieren (Observation-Vergleich)
+                previousDistance = Vector3.Distance(transform.position, goalTransform.position);
+            }
+            else
+            {
+                float currentDistance = Vector3.Distance(transform.position, goalTransform.position);
+                shapingDelta = (previousDistance - pbrsGamma * currentDistance) * scale;
+                previousDistance = currentDistance;
+            }
+            AddReward(shapingDelta);
+            rewPBRS += shapingDelta;
         }
 
+        // ── Wall-Climb Guard ──
         if (transform.position.y > spawnY + wallClimbMaxY)
         {
             AddReward(wallClimbPenalty);
-            Debug.Log($"[WallClimb] Y={transform.position.y:F2} > SpawnY+{wallClimbMaxY} | Penalty={wallClimbPenalty}");
+            rewWallClimb += wallClimbPenalty;
+            Debug.Log($"[WallClimb] Y={transform.position.y:F2} | Penalty={wallClimbPenalty}");
         }
 
-        // Lava-Sprung: Belohnung beim Eintritt in "über Lava"-Zustand (Edge-Trigger)
+        // ── Lava-Sprung-Erkennung (Fix 1.1 Edge-Trigger Landung + Fix 5.1 Stats) ──
         bool currentlyAboveLava = DetectAboveLava();
+        // Aufsteigen über Lava
         if (currentlyAboveLava && !wasAboveLava)
         {
             lavaJumpAttempts++;
+            pendingLavaLanding = true;
             float attemptReward = GetLavaAttemptReward(lavaJumpAttempts);
             if (attemptReward > 0f)
             {
                 AddReward(attemptReward);
-                Debug.Log($"[LavaJump] Versuch={lavaJumpAttempts} | Reward={attemptReward:F4}");
+                rewLavaJump += attemptReward;
+                Debug.Log($"[LavaJump-Attempt] #{lavaJumpAttempts} | Reward={attemptReward:F4}");
             }
+        }
+        // Erfolgreiche Landung auf Floor nach 'über Lava' → +5
+        if (pendingLavaLanding && !currentlyAboveLava && isGrounded && lastGroundTag == "Floor")
+        {
+            AddReward(lavaCrossSuccessReward);
+            rewLavaCross += lavaCrossSuccessReward;
+            lavaJumpsSuccessful++;
+            pendingLavaLanding = false;
+            Debug.Log($"[LavaCross-Success] #{lavaJumpsSuccessful} | Reward={lavaCrossSuccessReward}");
         }
         wasAboveLava = currentlyAboveLava;
 
         lastEpisodeStepCount = StepCount;
         lastEpisodeCumulativeReward = GetCumulativeReward();
 
+        // ── Aktionen ──
         int moveAction = actions.DiscreteActions[0];
         int turnAction = actions.DiscreteActions[1];
         int jumpAction = actions.DiscreteActions[2];
+
+        // Phasenspezifischer Jump-Force-Override (Fix 6.3)
+        float effectiveJumpForce = (phaseJumpForces != null
+                                    && phaseIdx >= 0
+                                    && phaseIdx < phaseJumpForces.Length
+                                    && phaseJumpForces[phaseIdx] > 0f)
+            ? phaseJumpForces[phaseIdx]
+            : jumpForce;
+
+        // Air-Control (Fix 6.2)
+        float effectiveMoveSpeed = isGrounded ? moveSpeed : moveSpeed * airControlFactor;
 
         float turnAmount = 0f;
         switch (turnAction)
         {
             case 0: break;
             case 1: turnAmount = -turnSpeed * Time.fixedDeltaTime; break;
-            case 2: turnAmount = turnSpeed * Time.fixedDeltaTime; break;
+            case 2: turnAmount =  turnSpeed * Time.fixedDeltaTime; break;
         }
 
         Quaternion targetRotation = rb.rotation;
@@ -288,55 +398,61 @@ public class LabyrinthAgent : Agent
         }
 
         Vector3 direction = Vector3.zero;
-
         switch (moveAction)
         {
             case 0: break;
             case 1: direction = targetRotation * Vector3.forward; break;
-            case 2: direction = targetRotation * Vector3.back; break;
+            case 2: direction = targetRotation * Vector3.back;    break;
         }
 
+        // Bewegung (Fix 6.1: optional Velocity)
         if (direction != Vector3.zero)
         {
-            rb.MovePosition(transform.position + direction.normalized * moveSpeed * Time.fixedDeltaTime);
+            Vector3 horiz = direction.normalized * effectiveMoveSpeed;
+            if (useVelocityMovement)
+            {
+                rb.velocity = new Vector3(horiz.x, rb.velocity.y, horiz.z);
+            }
+            else
+            {
+                rb.MovePosition(transform.position + horiz * Time.fixedDeltaTime);
+            }
+        }
+        else if (useVelocityMovement && isGrounded)
+        {
+            // Bei Velocity-Modus & keine Input → horizontal abbremsen (sonst rutscht der Agent)
+            rb.velocity = new Vector3(0f, rb.velocity.y, 0f);
         }
 
         if (jumpAction == 1 && isGrounded)
         {
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+            rb.AddForce(Vector3.up * effectiveJumpForce, ForceMode.Impulse);
             isGrounded = false;
         }
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        var discreteActions = actionsOut.DiscreteActions;
-
-        discreteActions[0] = 0;
-        if (Input.GetKey(KeyCode.W)) discreteActions[0] = 1;
-        else if (Input.GetKey(KeyCode.S)) discreteActions[0] = 2;
-
-        discreteActions[1] = 0;
-        if (Input.GetKey(KeyCode.A)) discreteActions[1] = 1;
-        else if (Input.GetKey(KeyCode.D)) discreteActions[1] = 2;
-
-        discreteActions[2] = 0;
-        if (Input.GetKey(KeyCode.Space)) discreteActions[2] = 1;
+        var d = actionsOut.DiscreteActions;
+        d[0] = 0;
+        if (Input.GetKey(KeyCode.W)) d[0] = 1;
+        else if (Input.GetKey(KeyCode.S)) d[0] = 2;
+        d[1] = 0;
+        if (Input.GetKey(KeyCode.A)) d[1] = 1;
+        else if (Input.GetKey(KeyCode.D)) d[1] = 2;
+        d[2] = 0;
+        if (Input.GetKey(KeyCode.Space)) d[2] = 1;
     }
 
     private void FixedUpdate()
     {
         GroundCheck();
-
         if (rb.velocity.y > maxUpwardVelocity)
             rb.velocity = new Vector3(rb.velocity.x, maxUpwardVelocity, rb.velocity.z);
-
     }
 
     private void GroundCheck()
     {
-        // Ray starts at capsule center (transform.position with center.y=0).
-        // Length = half-height (0.5) + margin → detects floor within groundCheckDistance below capsule bottom.
         Vector3 rayOrigin = transform.position;
         float rayLength = 0.5f + groundCheckDistance;
 
@@ -346,61 +462,60 @@ public class LabyrinthAgent : Agent
             isGrounded = hit.collider.CompareTag("Floor")
                       || hit.collider.CompareTag("Bridge")
                       || hit.collider.CompareTag("Platform");
+            lastGroundTag = hit.collider.tag;
         }
         else
         {
             isGrounded = false;
+            lastGroundTag = "";
         }
     }
 
     private void FindGoal(bool warnIfMissing = true)
     {
-        if (mapGenerator != null)
-        {
-            goalTransform = mapGenerator.GetGoalTransform();
-        }
-        else
-        {
-            goalTransform = null;
-        }
-
+        goalTransform = mapGenerator != null ? mapGenerator.GetGoalTransform() : null;
         if (goalTransform == null && warnIfMissing)
-            Debug.LogWarning("LabyrinthAgent: Kein Goal-Transform gefunden! Ist MapGenerator zugewiesen und hat die Map ein Goal-Prefab?");
+            Debug.LogWarning("LabyrinthAgent: Kein Goal-Transform gefunden!");
     }
 
-    // === Architekturentscheidung: Zentrale Reward-Vergabe am Agent ===
-    // Alle Reward-Werte bei Tod sind als serialisierte Felder am LabyrinthAgent definiert
-    // (lavaDeathPenalty, holeDeathPenalty). Externe Trigger-Objekte (Lava, KillZone) rufen
-    // keine Rewards direkt auf, sondern lösen nur OnTriggerEnter aus. Der Agent vergibt
-    // den Reward intern. Das entspricht dem ML-Agents-Paradigma (nur die Agent-Klasse
-    // darf AddReward/EndEpisode aufrufen) und erleichtert die Konfiguration in Milestone 5.
-    //
-    // Todesauslöser:
-    // 1. Lava: IsTrigger=true am Lava-Prefab → Agent läuft in Trigger → lavaDeathPenalty
-    // 2. Hole: Agent fällt durch HoleSurface-Layer → trifft KillZone-Box → holeDeathPenalty
-    //    (Lava und Hole haben bewusst separate Felder für spätere Differenzierung)
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Goal"))
         {
             episodeEndedByTerminal = true;
             lastEpisodeWasSuccess = true;
+            terminalReason = 0;
             AddReward(goalReward);
-            Debug.Log($"[Ziel] Ziel erreicht | Reward={goalReward} | LavaJumps={lavaJumpAttempts}");
+            rewGoal += goalReward;
+            Debug.Log($"[Ziel] Reached | Reward={goalReward} | LavaAtt/Succ/Fail={lavaJumpAttempts}/{lavaJumpsSuccessful}/{lavaJumpsFailed}");
             EndEpisode();
         }
         else if (other.CompareTag("Lava"))
         {
             episodeEndedByTerminal = true;
-            AddReward(lavaDeathPenalty);
-            Debug.Log($"[Tod] Todesursache=Lava | Reward={lavaDeathPenalty} | LavaJumps={lavaJumpAttempts}");
+            terminalReason = 1;
+            // Failed lava jump zählen (Fix 5.1)
+            if (pendingLavaLanding || wasAboveLava) lavaJumpsFailed++;
+            pendingLavaLanding = false;
+            int phaseIdx = CurriculumTracker.CurrentPhaseIndex;
+            float effectiveLavaDeathPenalty = (phaseLavaDeathPenalties != null
+                                               && phaseIdx >= 0
+                                               && phaseIdx < phaseLavaDeathPenalties.Length
+                                               && phaseLavaDeathPenalties[phaseIdx] != 0f)
+                ? phaseLavaDeathPenalties[phaseIdx]
+                : lavaDeathPenalty;
+            AddReward(effectiveLavaDeathPenalty);
+            rewDeath += effectiveLavaDeathPenalty;
+            Debug.Log($"[Tod] Lava | Penalty={effectiveLavaDeathPenalty}");
             EndEpisode();
         }
         else if (other.CompareTag("KillZone"))
         {
             episodeEndedByTerminal = true;
+            terminalReason = 2;
             AddReward(holeDeathPenalty);
-            Debug.Log($"[Tod] Todesursache=Hole | Reward={holeDeathPenalty}");
+            rewDeath += holeDeathPenalty;
+            Debug.Log($"[Tod] Hole | Penalty={holeDeathPenalty}");
             EndEpisode();
         }
     }
@@ -424,26 +539,25 @@ public class LabyrinthAgent : Agent
 
     private void OnDrawGizmosSelected()
     {
-        // Ground Check Gizmo
         Vector3 rayOrigin = transform.position;
         float rayLength = 0.5f + groundCheckDistance;
-
         Gizmos.color = isGrounded ? Color.green : Color.red;
         Gizmos.DrawLine(rayOrigin, rayOrigin + Vector3.down * rayLength);
 
-        // Boden-Sensor Gizmos
         Vector3[] checkOffsets = new Vector3[]
         {
             Vector3.zero,
             transform.forward * 1f,
-            transform.forward * 2f
+            transform.forward * 2f,
+            transform.forward * 3f,
+            transform.forward * 1f + transform.right * 0.5f,
+            transform.forward * 1f - transform.right * 0.5f,
         };
 
         foreach (Vector3 offset in checkOffsets)
         {
             Vector3 origin = transform.position + offset + Vector3.up * groundSensorHeight;
             RaycastHit hit;
-
             if (Physics.Raycast(origin, Vector3.down, out hit, groundSensorRange))
             {
                 bool safe = hit.collider.CompareTag("Floor") || hit.collider.CompareTag("Bridge");
@@ -458,7 +572,6 @@ public class LabyrinthAgent : Agent
             }
         }
 
-        // Zielrichtung Gizmo
         if (goalTransform != null)
         {
             Gizmos.color = Color.yellow;

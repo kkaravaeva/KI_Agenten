@@ -8,11 +8,14 @@ public static class ProceduralLayoutGenerator
     {
         switch (difficulty)
         {
-            case DifficultyLevel.Trivial:       return GenerateTrivialLayout(seed);
-            case DifficultyLevel.TrivialCorr:   return GenerateTrivialCorrLayout(seed);
-            case DifficultyLevel.TrivialBranch: return GenerateTrivialBranchLayout(seed);
-            case DifficultyLevel.TrivialHole:   return GenerateTrivialHoleLayout(seed);
-            case DifficultyLevel.TrivialHazard: return GenerateTrivialHazardLayout(seed);
+            case DifficultyLevel.Trivial:              return GenerateTrivialLayout(seed);
+            case DifficultyLevel.TrivialCorr:          return GenerateTrivialCorrLayout(seed);
+            case DifficultyLevel.TrivialBranch:        return GenerateTrivialBranchLayout(seed);
+            case DifficultyLevel.TrivialHole:          return GenerateTrivialHoleLayout(seed);
+            case DifficultyLevel.TrivialHazard:        return GenerateTrivialHazardLayout(seed);
+            case DifficultyLevel.TrivialLavaSurround:  return GenerateTrivialLavaSurroundLayout(seed);
+            case DifficultyLevel.TrivialLavaCrossable: return GenerateTrivialLavaCrossableLayout(seed);
+            case DifficultyLevel.TrivialLavaWide:      return GenerateTrivialLavaWideLayout(seed);
         }
 
         DifficultySettings settings = DifficultySettings.For(difficulty);
@@ -97,6 +100,7 @@ public static class ProceduralLayoutGenerator
         public Vector2Int branchTip;  // oben-links der 2×2-Hole-Fläche; (-1,-1) = kein Ast
         public Vector2Int lavaCell1;  // Lava-Tile 1 quer im Hauptkorridor
         public Vector2Int lavaCell2;  // Lava-Tile 2 (== lavaCell1 bei 1-breitem Korridor)
+        public Vector2Int corridorStep; // Längs-Schritt entlang des Korridors (1,0) oder (0,1)
     }
 
     private static TrivialResult BuildTrivialBase(int seed, bool withBranch)
@@ -156,6 +160,7 @@ public static class ProceduralLayoutGenerator
                 int midX = cx0 + seg1Len / 2 - 1;
                 r.lavaCell1 = new Vector2Int(midX, corrY);
                 r.lavaCell2 = corrWidth >= 2 ? new Vector2Int(midX, corrY + 1) : r.lavaCell1;
+                r.corridorStep = new Vector2Int(1, 0);
 
                 if (withBranch)
                 {
@@ -209,6 +214,7 @@ public static class ProceduralLayoutGenerator
                 int midY = cy0 + seg1Len / 2 - 1;
                 r.lavaCell1 = new Vector2Int(corrX, midY);
                 r.lavaCell2 = corrWidth >= 2 ? new Vector2Int(corrX + 1, midY) : r.lavaCell1;
+                r.corridorStep = new Vector2Int(0, 1);
 
                 if (withBranch)
                 {
@@ -269,6 +275,7 @@ public static class ProceduralLayoutGenerator
                 int midX2 = cx0 + seg1Len / 2 - 1;
                 r.lavaCell1 = new Vector2Int(midX2, corrY);
                 r.lavaCell2 = corrWidth >= 2 ? new Vector2Int(midX2, corrY + 1) : r.lavaCell1;
+                r.corridorStep = new Vector2Int(1, 0);
 
                 if (withBranch)
                 {
@@ -329,6 +336,7 @@ public static class ProceduralLayoutGenerator
                 int midY2 = cy02 + seg1Len / 2 - 1;
                 r.lavaCell1 = new Vector2Int(corrX2, midY2);
                 r.lavaCell2 = corrWidth >= 2 ? new Vector2Int(corrX2 + 1, midY2) : r.lavaCell1;
+                r.corridorStep = new Vector2Int(0, 1);
 
                 if (withBranch)
                 {
@@ -402,6 +410,68 @@ public static class ProceduralLayoutGenerator
         r.grid.SetCell(r.lavaCell1.x, r.lavaCell1.y, CellType.Lava);
         r.grid.SetCell(r.lavaCell2.x, r.lavaCell2.y, CellType.Lava);
         return r.grid;
+    }
+
+    // ── 4a TrivialLavaSurround: Lava am Branch-Ende (statt Hole), kein Lava-Querschnitt im Korridor ──
+    // Lernziel: Agent sieht Lava als visuelle Bedrohung in Sackgassen, muss sie aber nicht überqueren.
+    private static MapData GenerateTrivialLavaSurroundLayout(int seed)
+    {
+        TrivialResult r = BuildTrivialBase(seed, withBranch: true);
+        r.grid.name = $"TrivialLavaSurround_{seed % 200}";
+        PlaceWalls(r.grid);
+        if (r.branchTip.x >= 0)
+        {
+            var t = r.branchTip;
+            r.grid.SetCell(t.x,     t.y,     CellType.Lava);
+            r.grid.SetCell(t.x + 1, t.y,     CellType.Lava);
+            r.grid.SetCell(t.x,     t.y + 1, CellType.Lava);
+            r.grid.SetCell(t.x + 1, t.y + 1, CellType.Lava);
+        }
+        return r.grid;
+    }
+
+    // ── 4b TrivialLavaCrossable: 1-Tile-Lava (Längsrichtung), breiter Anlauf, KEIN Branch-Hole ──
+    // Lernziel: erstes erzwungenes Lava-Überspringen mit großzügigem Anlauf.
+    private static MapData GenerateTrivialLavaCrossableLayout(int seed)
+    {
+        TrivialResult r = BuildTrivialBase(seed, withBranch: false);
+        r.grid.name = $"TrivialLavaCrossable_{seed % 200}";
+        PlaceWalls(r.grid);
+        // Nur Quer-Strip (1 Längs-Tile): lavaCell1 + lavaCell2 (= breit oder identisch bei corrWidth=1)
+        r.grid.SetCell(r.lavaCell1.x, r.lavaCell1.y, CellType.Lava);
+        if (r.lavaCell2 != r.lavaCell1)
+            r.grid.SetCell(r.lavaCell2.x, r.lavaCell2.y, CellType.Lava);
+        return r.grid;
+    }
+
+    // ── 4c TrivialLavaWide: 2-Tile-Lava in Längsrichtung, knapper Anlauf, KEIN Branch-Hole ──
+    // Lernziel: längere Lava-Strecke verlangt höhere Sprungkraft / besseres Timing.
+    private static MapData GenerateTrivialLavaWideLayout(int seed)
+    {
+        TrivialResult r = BuildTrivialBase(seed, withBranch: false);
+        r.grid.name = $"TrivialLavaWide_{seed % 200}";
+        PlaceWalls(r.grid);
+        // 1. Quer-Strip
+        r.grid.SetCell(r.lavaCell1.x, r.lavaCell1.y, CellType.Lava);
+        if (r.lavaCell2 != r.lavaCell1)
+            r.grid.SetCell(r.lavaCell2.x, r.lavaCell2.y, CellType.Lava);
+
+        // 2. Längs-Erweiterung um 1 Tile: lavaCell1+step und lavaCell2+step (nur wenn dort Floor liegt)
+        Vector2Int step = r.corridorStep;
+        if (step != Vector2Int.zero)
+        {
+            TrySetLavaIfFloor(r.grid, r.lavaCell1 + step);
+            if (r.lavaCell2 != r.lavaCell1)
+                TrySetLavaIfFloor(r.grid, r.lavaCell2 + step);
+        }
+        return r.grid;
+    }
+
+    private static void TrySetLavaIfFloor(MapData grid, Vector2Int cell)
+    {
+        if (cell.x < 0 || cell.x >= grid.width || cell.y < 0 || cell.y >= grid.height) return;
+        if (grid.GetCell(cell.x, cell.y) == CellType.Floor)
+            grid.SetCell(cell.x, cell.y, CellType.Lava);
     }
 
     // ── Grid-Hilfsmethoden ────────────────────────────────────────────────────

@@ -214,29 +214,76 @@ MonoBehaviour:
   moveSpeed: 2
   turnSpeed: 180
   jumpForce: 3.5
+  phaseJumpForces:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 6
+  - 6
+  - 6
+  - 6
+  - 6
+  - 6
+  - 6
+  airControlFactor: 0.5
+  useVelocityMovement: 0
   groundCheckDistance: 0.15
   groundSensorRange: 2
   groundSensorHeight: 0.5
   mapGenerator: {fileID: 0}
   goalReward: 30
-  lavaDeathPenalty: -1
+  lavaDeathPenalty: -0.1
+  phaseLavaDeathPenalties:
+  - 0
+  - 0
+  - 0
+  - 0
+  - -0.1
+  - -0.1
+  - -0.1
+  - -0.1
+  - 0
+  - 0
+  - -1
   holeDeathPenalty: -1
   timeoutPenalty: -5
   lavaAttemptBaseReward: 0
+  lavaAboveMinDistance: 0.3
+  lavaCrossSuccessReward: 5
   stepPenalty: -0.001
+  phaseStepPenalties:
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - -0.002
   wallClimbMaxY: 3
   wallClimbPenalty: -1
+  maxUpwardVelocity: 3.5
   distanceShapingScale: 0.005
   pbrsGamma: 1
+  usePathDistanceForPBRS: 1
+  pausePbrsOverLava: 1
   phaseMaxSteps:
   - 600
   - 600
   - 600
   - 600
-  - 600
+  - 15000
+  - 15000
+  - 15000
+  - 15000
   - 1000
   - 1500
   - 2000
+  testOverrideMaxSteps: 0
   maxObservationDistance: 20
   debugSensors: 1
 --- !u!114 &4916842271875814223

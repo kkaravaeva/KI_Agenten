@@ -23,16 +23,19 @@ public class MapGeneratorEditor : Editor
     [System.Flags]
     private enum DifficultyMask
     {
-        None          = 0,
-        Trivial       = 1 << 0,
-        TrivialCorr   = 1 << 1,
-        TrivialBranch = 1 << 2,
-        TrivialHole   = 1 << 3,
-        TrivialHazard = 1 << 4,
-        Easy          = 1 << 5,
-        Medium        = 1 << 6,
-        Hard          = 1 << 7,
-        All           = ~0
+        None                 = 0,
+        Trivial              = 1 << 0,
+        TrivialCorr          = 1 << 1,
+        TrivialBranch        = 1 << 2,
+        TrivialHole          = 1 << 3,
+        TrivialHazard        = 1 << 4,
+        Easy                 = 1 << 5,
+        Medium               = 1 << 6,
+        Hard                 = 1 << 7,
+        TrivialLavaSurround  = 1 << 8,
+        TrivialLavaCrossable = 1 << 9,
+        TrivialLavaWide      = 1 << 10,
+        All                  = ~0
     }
 
     public override void OnInspectorGUI()
@@ -285,14 +288,17 @@ public class MapGeneratorEditor : Editor
     {
         switch (diff)
         {
-            case DifficultyLevel.Trivial:       return DifficultyMask.Trivial;
-            case DifficultyLevel.TrivialCorr:   return DifficultyMask.TrivialCorr;
-            case DifficultyLevel.TrivialBranch: return DifficultyMask.TrivialBranch;
-            case DifficultyLevel.TrivialHole:   return DifficultyMask.TrivialHole;
-            case DifficultyLevel.TrivialHazard: return DifficultyMask.TrivialHazard;
-            case DifficultyLevel.Easy:          return DifficultyMask.Easy;
-            case DifficultyLevel.Medium:        return DifficultyMask.Medium;
-            default:                            return DifficultyMask.Hard;
+            case DifficultyLevel.Trivial:              return DifficultyMask.Trivial;
+            case DifficultyLevel.TrivialCorr:          return DifficultyMask.TrivialCorr;
+            case DifficultyLevel.TrivialBranch:        return DifficultyMask.TrivialBranch;
+            case DifficultyLevel.TrivialHole:          return DifficultyMask.TrivialHole;
+            case DifficultyLevel.TrivialHazard:        return DifficultyMask.TrivialHazard;
+            case DifficultyLevel.TrivialLavaSurround:  return DifficultyMask.TrivialLavaSurround;
+            case DifficultyLevel.TrivialLavaCrossable: return DifficultyMask.TrivialLavaCrossable;
+            case DifficultyLevel.TrivialLavaWide:      return DifficultyMask.TrivialLavaWide;
+            case DifficultyLevel.Easy:                 return DifficultyMask.Easy;
+            case DifficultyLevel.Medium:               return DifficultyMask.Medium;
+            default:                                   return DifficultyMask.Hard;
         }
     }
 
@@ -326,16 +332,22 @@ public class MapGeneratorEditor : Editor
     private static int DifficultyOrder(string name)
     {
         if (name == null) return int.MaxValue;
-        // Reihenfolge entspricht DifficultyLevel-Enum (0–7)
-        if (name.Contains("_Trivial_"))       return 0;
-        if (name.Contains("_TrivialCorr_"))   return 1;
-        if (name.Contains("_TrivialBranch_")) return 2;
-        if (name.Contains("_TrivialHole_"))   return 3;
-        if (name.Contains("_TrivialHazard_")) return 4;
-        if (name.Contains("_Easy_"))          return 5;
-        if (name.Contains("_Medium_"))        return 6;
-        if (name.Contains("_Hard_"))          return 7;
-        return 8;
+        // Logische Reihenfolge (Trivial → Lava-Sub-Phasen → Hazard → Easy/Medium/Hard).
+        // Achtung: die TrivialLava*-Strings müssen vor TrivialHazard geprüft werden,
+        // sonst würde "TrivialLavaSurround" durch keinen Test gefangen, da es kein
+        // Substring von "_Hazard_" ist — aber Reihenfolge spielt für Korrektheit eine Rolle, wenn ein Name mehrere Suffixe enthält.
+        if (name.Contains("_Trivial_"))              return 0;
+        if (name.Contains("_TrivialCorr_"))          return 1;
+        if (name.Contains("_TrivialBranch_"))        return 2;
+        if (name.Contains("_TrivialHole_"))          return 3;
+        if (name.Contains("_TrivialLavaSurround_"))  return 4;
+        if (name.Contains("_TrivialLavaCrossable_")) return 5;
+        if (name.Contains("_TrivialLavaWide_"))      return 6;
+        if (name.Contains("_TrivialHazard_"))        return 7;
+        if (name.Contains("_Easy_"))                 return 8;
+        if (name.Contains("_Medium_"))               return 9;
+        if (name.Contains("_Hard_"))                 return 10;
+        return 11;
     }
 
     private static int CompareDifficultyThenName(string a, string b)

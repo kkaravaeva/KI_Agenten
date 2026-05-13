@@ -95,6 +95,12 @@ public class MapGenerator : MonoBehaviour
     private Vector2Int currentGoalCell = new Vector2Int(-1, -1);
     private Vector3 currentGoalWorldPosition = Vector3.zero;
 
+    // BFS-Pfad-Distanz von jeder begehbaren Zelle zur Goal-Zelle.
+    // Lava und Hole als Wand behandeln → realistische "Wenn ich nicht springen kann"-Distanz.
+    // -1 = nicht erreichbar. Wird in GenerateMap einmal berechnet und gecacht.
+    private int[,] pathDistanceField;
+    private int maxPathDistance = 1;
+
     // ── Initialisierung ───────────────────────────────────────────────────────
 
     private void Awake()
@@ -235,6 +241,7 @@ public class MapGenerator : MonoBehaviour
 
         SpawnMarkers();
         RepositionKillZone();
+        ComputePathDistanceField();
         FrameCameraToCurrentMap();
     }
 
@@ -407,6 +414,87 @@ public class MapGenerator : MonoBehaviour
         killZoneCollider.size   = new Vector3(mapW, 1f, mapH);
         killZoneCollider.center = Vector3.zero;
         killZone.SetActive(true);
+    }
+
+    // ── Pfad-Distanz (BFS) ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Liefert die normalisierte Pfad-Distanz (0..1) von der gegebenen Weltposition zur Goal-Zelle.
+    /// Lava/Hole werden als Wand behandelt. 1 = nicht erreichbar / sehr weit.
+    /// </summary>
+    public float GetNormalizedPathDistance(Vector3 worldPos)
+    {
+        int d = GetPathDistanceCells(worldPos);
+        if (d < 0 || maxPathDistance <= 0) return 1f;
+        return Mathf.Clamp01((float)d / (float)maxPathDistance);
+    }
+
+    /// <summary>
+    /// Roh-Distanz in Zellen. -1 = nicht erreichbar oder kein Pfad-Feld berechnet.
+    /// </summary>
+    public int GetPathDistanceCells(Vector3 worldPos)
+    {
+        if (pathDistanceField == null || currentMapData == null) return -1;
+        int cx = Mathf.RoundToInt((worldPos.x - mapRoot.position.x) / cellSize);
+        int cy = Mathf.RoundToInt((worldPos.z - mapRoot.position.z) / cellSize);
+        if (cx < 0 || cx >= currentMapData.width || cy < 0 || cy >= currentMapData.height) return -1;
+        return pathDistanceField[cx, cy];
+    }
+
+    public int MaxPathDistance => maxPathDistance;
+
+    private void ComputePathDistanceField()
+    {
+        if (currentMapData == null) { pathDistanceField = null; return; }
+
+        int W = currentMapData.width, H = currentMapData.height;
+        pathDistanceField = new int[W, H];
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+                pathDistanceField[x, y] = -1;
+
+        if (currentGoalCell.x < 0) { maxPathDistance = 1; return; }
+
+        // BFS von Goal aus
+        var queue = new System.Collections.Generic.Queue<Vector2Int>();
+        pathDistanceField[currentGoalCell.x, currentGoalCell.y] = 0;
+        queue.Enqueue(currentGoalCell);
+
+        int maxD = 0;
+        Vector2Int[] dirs = {
+            new Vector2Int(1, 0),  new Vector2Int(-1, 0),
+            new Vector2Int(0, 1),  new Vector2Int(0, -1),
+        };
+
+        while (queue.Count > 0)
+        {
+            Vector2Int c = queue.Dequeue();
+            int cd = pathDistanceField[c.x, c.y];
+            for (int i = 0; i < 4; i++)
+            {
+                int nx = c.x + dirs[i].x;
+                int ny = c.y + dirs[i].y;
+                if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+                if (pathDistanceField[nx, ny] >= 0) continue;
+                if (!IsPathable(currentMapData.GetCell(nx, ny))) continue;
+                pathDistanceField[nx, ny] = cd + 1;
+                if (cd + 1 > maxD) maxD = cd + 1;
+                queue.Enqueue(new Vector2Int(nx, ny));
+            }
+        }
+
+        maxPathDistance = Mathf.Max(1, maxD);
+    }
+
+    private static bool IsPathable(CellType t)
+    {
+        // Lava und Hole sind nicht überquerbar im Sinne der A*-Distanz.
+        // Empty und Wall blockieren ebenfalls. Platform ist begehbar.
+        return t == CellType.Floor
+            || t == CellType.SpawnPoint
+            || t == CellType.Goal
+            || t == CellType.Obstacle
+            || t == CellType.Platform;
     }
 
     // ── Spawn / Goal Selektion ────────────────────────────────────────────────
