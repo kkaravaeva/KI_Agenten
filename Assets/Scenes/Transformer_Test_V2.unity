@@ -2762,6 +2762,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TrainingArea
       objectReference: {fileID: 0}
+    - target: {fileID: 7457682179126208036, guid: 3c8701e500f51804482885ab44a25468, type: 3}
+      propertyPath: phaseJumpForces.Array.size
+      value: 6
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3c8701e500f51804482885ab44a25468, type: 3}
 --- !u!1001 &1141387023

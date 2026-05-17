@@ -1042,7 +1042,7 @@ Erstmal aber mit 0.05 probieren — die ist nur problematisch im Verbund mit goa
 | **Hyperparameter**   | lr=1e-4 (linear schedule), batch=1024, buffer=81920, beta=1e-3, eps=0.2, 3 epochs                      |
 | **Parallelisierung** | 6 headless Unity-Builds × 16 Training-Areas = **96 parallele Agents**                                  |
 | **Curriculum**       | 8 Phasen: 5× Trivial → Easy → Medium → Hard. MaxStep pro Phase: 600/600/600/600/600/1000/1500/2000     |
-| **Hardware**         | Ryzen 5 5625U + RTX 3050                                                                               |
+| **Hardware**         | Ryzen 5 5625U + RTX 30                                                                            |
 
 ### 2. Trainings-Zeitlinie
 
@@ -1843,3 +1843,187 @@ manuell im Inspector tun musst
 | 20      | `LabyrinthAgent.cs`                                                           | `phaseMaxSteps` 8 → 11 Einträge                                                                | Passt zu neuen Sub-Phasen                                     |
 
 **Übersprungen:** 7.1 (Pre-Run-Skript), 7.2 (Build×Areas — Inspector).
+
+
+### Ich habe genug Daten und Code-Stellen verifiziert. Hier ist die volle Analyse.
+
+---
+
+### V15 Post-Mortem: Was lief schief
+
+#### Phasen-Timeline V15 (faktisch)
+
+| Phase | Phase Name              | Erreicht bei Step | Dauer                          | Status             |
+| ----- | ----------------------- | ----------------- | ------------------------------ | ------------------ |
+| 0     | TrivialBase             | 0                 | 760k                           | ✓ gelöst           |
+| 1     | TrivialCorr             | 760k              | 2.18M                          | ✓ gelöst           |
+| 2     | TrivialBranch           | 2.94M             | 1.08M                          | ✓ gelöst           |
+| 3     | TrivialHole             | 4.02M             | 780k                           | ✓ gelöst           |
+| 4     | **LavaSurround** (neu)  | 4.80M             | 1.24M                          | ✓ gelöst (drumrum) |
+| 5     | **LavaCrossable** (neu) | 6.04M             | **stagniert seit 2.46M Steps** | 🔴 hängt           |
+
+Vs. V14 wo Phase 4 (TrivialHazard, sofort 2-Tile Lava) nach 5000 Episoden bei 0.2% durchgewunken wurde — V15 hängt **korrekterweise** in Phase 5, weil SuccessRate-Advance (Fix 2.2) den Skip verhindert. Aber: Stagnation ist die gleiche, nur jetzt klar lokalisiert.
+
+#### Reward-Trajektorie (Stützpunkte aus TensorBoard)
+
+| Step | Phase           | Reward   | EpLen    | Entropy  | Goal | Step  | PBRS | LavaAtt | Curiosity |
+| ---- | --------------- | -------- | -------- | -------- | ---- | ----- | ---- | ------- | --------- |
+| 0.5M | P0              | +19.6    | 76       | 2.68     | 22.5 | -0.4  | 0.00 | 0       | 0.11      |
+| 3.0M | P2              | +9.6     | 87       | 1.61     | 14.8 | -0.4  | 0.00 | 0       | 0.07      |
+| 5.0M | **P4 LavaSur**  | +11.7    | 74       | **0.88** | 12.1 | -0.4  | 0.00 | 0       | 0.05      |
+| 6.0M | **P5 Übergang** | +9.9     | **237**  | 1.84↑    | 11.4 | -1.2  | 0.00 | **0**   | 0.14↑     |
+| 7.0M | P5 LavaCross    | +2.2     | 911      | 1.30     | 8.1  | -4.4  | 0.00 | **0**   | 0.57↑     |
+| 8.5M | P5 LavaCross    | **-8.0** | **1993** | 0.98     | 6.0  | -10.0 | 0.00 | **0**   | **1.51**  |
+
+#### Drei kausale Hauptbefunde
+
+### 🔴 Befund 1: **PBRS ist über das gesamte Training tot** (Fix 3.2+3.3 hat einen Designfehler)
+
+`Reward/PBRS = 0.0008` in Phase 0, 0.003 in Phase 3, **0.000** in Phase 5. Selbst in den Navigations-Phasen, wo es funktionieren sollte, ist es essentiell null.
+
+Code-Trace (`MapGenerator.cs:425-430`):
+
+```csharp
+public float GetNormalizedPathDistance(Vector3 worldPos) {
+    int d = GetPathDistanceCells(worldPos);
+    if (d < 0 || maxPathDistance <= 0) return 1f;   // ← Fallback: Maximum
+    return Mathf.Clamp01((float)d / (float)maxPathDistance);
+}
+```
+
+Und (`MapGenerator.cs:478-479`):
+
+```csharp
+if (!IsPathable(currentMapData.GetCell(nx, ny))) continue;
+```
+
+Lava/Hole zählen als Wand.
+
+**Konsequenz in LavaCrossable:** Wenn die einzige Verbindung Spawn↔Goal durch Lava geht, ist die BFS-Distanz vom Spawn aus **−1 (unerreichbar)** → normalisiert immer `1f` → `shapingDelta = (1 − 0.997·1) · scale = 0.003·scale` konstant unabhängig von der Position → **kein Gradient, kein Annäherungssignal**.
+
+In V14 lieferte die euklidische Distanz wenigstens ein Signal „lauf in Richtung Goal“. In V15 ist dieses Signal weg, **und der Agent kann sich nur noch an Curiosity orientieren** — und genau das beobachten wir (Curiosity Reward 0.05 → 1.51).
+
+Vergleich:
+
+* **V14**: PBRS belohnte Lava-Umgehung (zu viel Signal, falsche Richtung)
+* **V15**: PBRS gibt NICHTS (zu wenig Signal, keine Richtung)
+
+Beides ist falsch — V14 hatte zumindest einen funktionierenden Lernkanal.
+
+### 🔴 Befund 2: **Sprung-Action ist vor Phase 5 strukturell tot** (Entropy-Collapse vor Lava)
+
+`LavaJumps/Attempted = 0` über alle 8.5M Steps. Der Agent versucht in Phase 5 (LavaCrossable mit 1-Tile Lava + breitem Anlauf, physikalisch leicht lösbar) keinen einzigen Sprung.
+
+Ursache-Kette:
+
+1. In Phasen 0–3 (4.8M Steps = 56% der Trainingszeit) wird die Sprung-Action nie benötigt → Entropy fällt auf **0.88** bei Step 5M
+2. Phase 4 LavaSurround belohnt **Drumrum-Laufen** ohne Sprung → reinforciert „nicht springen“ weitere 1.24M Steps
+3. In Phase 5 angekommen: Sprung-Action-Wahrscheinlichkeit ist nahe 0
+4. Fix 1.4 (Death-Penalty -0.3) und Fix 1.1 (Cross-Reward +5) **können nicht greifen**, weil der Agent die Action nicht sampelt
+5. Fix 6.3 (`phaseJumpForces=6`) ist irrelevant — kein Sprung-Aufruf, keine Wirkung
+6. Phase-Mixing (Fix 2.1) zieht 30% aus Phasen 0–4, in denen Springen **bestraft** würde → verstärkt das Problem statt es zu mildern
+
+Das ist **kein Catastrophic Forgetting** im klassischen Sinne (der Agent vergisst nichts) — die Sprung-Action wurde **nie gelernt**, weil sie in 56% der Trainingsmasse strafbar war.
+
+**Entropy-Trend zeigt PPO-Reaktion:** Bei Step 5.0M → 6.0M springt Entropy von 0.88 → 1.84. PPO merkt die Krise und exploriert wieder. Aber die zusätzliche Entropy verteilt sich auf **Bewegungsaktionen**, nicht auf den Sprung-Branch — die Sprung-Branch-Logit ist offenbar so weit ins Negative gedriftet, dass selbst hohes β sie nicht zurückholt.
+
+### 🔴 Befund 3: **`phaseMaxSteps[5] = 15000` ist viel zu hoch und verstärkt die Step-Penalty-Schleife**
+
+In V14 war Phase 4 MaxStep = 600. In V15 ist Phase 5 = **15000**.
+
+Folge:
+
+* Episode Length steigt von 74 → 237 → 911 → **1993**
+* `Reward/Step = -10` bei Step 8.5M (= 2000 × -0.005) ist die **dominante** Reward-Komponente
+* Goal-Reward 6.0 (selten getroffen via P0-Mixing) wird komplett überstrahlt
+* Mean Reward -8.0 = -10 (Step) + 6 (Goal × Mixing-Rate) − 4 (Timeout) ungefähr
+
+**Der Agent hat keinen Ausweg:** weder PBRS-Gradient noch Sprung-Action verfügbar, dafür 15k Steps pro Episode für Step-Penalty.
+
+---
+
+### Sekundäre Beiträge
+
+| #   | Fix                                 | Bewertung      | Begründung                                              |
+| --- | ----------------------------------- | -------------- | ------------------------------------------------------- |
+| 1.2 | `pausePbrsOverLava`                 | neutral        | Wirkt nicht weil PBRS sowieso 0                         |
+| 2.1 | Phase-Mixing 70/20/10               | 🟡 schädlich   | Mischt Phasen ohne Lava → reinforciert „kein Sprung“    |
+| 2.2 | SuccessRate-Advance                 | ✓ funktioniert | Hat Phase-5-Skip verhindert — Problem jetzt lokalisiert |
+| 2.3 | Constant LR                         | 🟡 fragwürdig  | Konstanter Update-Druck bei 1e-4 trotz Entropy-Collapse |
+| 4.1 | Curiosity 0.05→0.02                 | neutral        | Wird trotzdem dominant weil andere Rewards weg          |
+| 4.4 | phaseStepPenalties (nur P10=-0.002) | wirkungslos    | Hilft nicht in P5 wo die Krise ist                      |
+| 6.3 | phaseJumpForces=6                   | wirkungslos    | Sprung-Action wird nie gesampelt                        |
+
+---
+
+### Vergleich V14 → V15 (Was wurde wirklich besser/schlechter?)
+
+| Metrik              | V14 @ 8.5M            | V15 @ 8.5M          | Bewertung                   |
+| ------------------- | --------------------- | ------------------- | --------------------------- |
+| Phase               | ~4 (Hazard)           | 5 (LavaCross)       | V15 weiter durch Sub-Phasen |
+| EpLen               | ~245 (P4)             | 1993                | V15 25× länger pro Episode  |
+| Mean Reward         | ~-1.5                 | -8.0                | V15 deutlich schlechter     |
+| LavaJumps versucht? | 11k+ (99% Tod)        | **0**               | V14 hat wenigstens versucht |
+| PBRS funktional?    | ja (falsch gerichtet) | nein (tot)          | V15 strukturell schlechter  |
+| Curriculum-Skip?    | ja, P4 mit 0.2%       | nein, P5 hängt fest | V15 ehrlicher               |
+| Diagnose-Stats?     | minimal               | sehr gut            | V15 Fortschritt             |
+
+**Die harte Zusammenfassung:** V15 hat den Curriculum-Cliff sauber isoliert, aber die Lernsignale sind schwächer geworden. V14 hatte falsche Exploration. V15 hat gar keine.
+
+---
+
+### Empfehlungen für V16
+
+In aufsteigender Eingriffsstärke:
+
+#### 1. **PBRS-Fallback** (**must-have**)
+
+Wenn `pathDistanceField[pos] = -1`, fallback auf euklidische Distanz:
+
+```csharp
+if (d < 0)
+    return Mathf.Clamp01(EuclideanDistanceNormalized(worldPos));
+```
+
+Damit bekommt LavaCrossable wieder einen Richtungsgradienten.
+
+#### 2. **Sprung-Action explizit trainieren**
+
+Vor Phase 5 braucht Springen eigenes Lernen:
+
+* kleiner Reward (`+0.001`) pro Sprung
+* Action-Entropy-Bonus nur für Jump-Branch
+* oder Pre-Phase mit Mini-Hindernissen
+
+#### 3. **`phaseMaxSteps[5..7]` von 15000 → 2000–3000**
+
+Mehr Episoden, weniger Step-Penalty-Dominanz.
+
+#### 4. **Phase-Mixing lava-spezifisch machen**
+
+Nicht zurück auf P0–P3 mischen:
+
+* 70% aktuelle Phase
+* 30% andere **Lava-Phasen**
+
+Mixing soll Lava-Kompetenz erhalten, nicht Navigation.
+
+#### 5. **β in Lava-Phasen erhöhen**
+
+`1e-3 → 5e-3`
+
+Hält Entropy länger oben und gibt dem Jump-Branch Re-Explorationschance.
+
+---
+
+### Quick-Win-Test
+
+Nur:
+
+* Fix 1 (PBRS-Fallback)
+* Fix 3 (MaxSteps runter)
+
+500k Test-Run.
+
+Wenn danach erste Lava-Sprünge auftauchen, war der fehlende Gradient die Root Cause. Wenn nicht, ist die tote Sprung-Action das Primärproblem.
+
