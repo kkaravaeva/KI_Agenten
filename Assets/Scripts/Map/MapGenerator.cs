@@ -160,8 +160,16 @@ public class MapGenerator : MonoBehaviour
             { CellType.Lava,      lavaPrefab     },
             { CellType.Hole,      holePrefab     },
             { CellType.Platform,  platformPrefab },
+            // V16: Gap rendert als abgesenktes Floor-Tile (Y=-0.5). Nicht tödlich,
+            // aber Agent kann hindurchklettern nur langsam — Sprung ist schneller.
+            { CellType.Gap,       floorPrefab    },
         };
     }
+
+    // V16: Y-Offset für Gap-Zellen (abgesenktes Floor). Tief genug, dass sich Springen lohnt
+    // (Step-Penalty der Klimm-Sequenz > Sprung), flach genug zum physisch Erklimmen
+    // (Capsule-Radius 0.25 → 0.3 Step ist marginal mountable über MovePosition).
+    private const float GapYOffset = -0.3f;
 
     // Persistentes KillZone-Objekt — wird pro Episode nur repositioniert, nie neu erstellt.
     private void EnsureKillZone()
@@ -230,9 +238,11 @@ public class MapGenerator : MonoBehaviour
                 CellType type = mapData.GetCell(x, y);
                 if (type == CellType.Empty) continue;
 
-                float yOffset = type == CellType.Platform
-                    ? (mapData.cellHeightOffsets.TryGetValue(new Vector2Int(x, y), out float h) ? h : 0.75f)
-                    : 0f;
+                float yOffset = 0f;
+                if (type == CellType.Platform)
+                    yOffset = mapData.cellHeightOffsets.TryGetValue(new Vector2Int(x, y), out float h) ? h : 0.75f;
+                else if (type == CellType.Gap)
+                    yOffset = GapYOffset;
 
                 Vector3 pos = mapRoot.position + new Vector3(x * cellSize, yOffset, y * cellSize);
                 tilePool.Get(type, pos, mapRoot, $"{type}_{x}_{y}");
@@ -443,6 +453,10 @@ public class MapGenerator : MonoBehaviour
 
     public int MaxPathDistance => maxPathDistance;
 
+    // V16 Fix A: Jump-aware-BFS / SPFA.
+    // Floor-Übergänge kosten 1, Sprung über 1-Tile-Lava (oder Gap) kostet 3.
+    // Damit existiert auch in TrivialLavaCrossable-Layouts ein PBRS-Gradient
+    // vom Spawn zum Goal — vorher: Lava als Wand → BFS terminiert davor.
     private void ComputePathDistanceField()
     {
         if (currentMapData == null) { pathDistanceField = null; return; }
@@ -455,12 +469,12 @@ public class MapGenerator : MonoBehaviour
 
         if (currentGoalCell.x < 0) { maxPathDistance = 1; return; }
 
-        // BFS von Goal aus
+        // SPFA (BFS mit Re-Enqueue bei Distanz-Verbesserung) — funktioniert für
+        // {1, 3}-Kosten ohne Prioritätswarteschlange, da Grids klein sind.
         var queue = new System.Collections.Generic.Queue<Vector2Int>();
         pathDistanceField[currentGoalCell.x, currentGoalCell.y] = 0;
         queue.Enqueue(currentGoalCell);
 
-        int maxD = 0;
         Vector2Int[] dirs = {
             new Vector2Int(1, 0),  new Vector2Int(-1, 0),
             new Vector2Int(0, 1),  new Vector2Int(0, -1),
@@ -470,31 +484,76 @@ public class MapGenerator : MonoBehaviour
         {
             Vector2Int c = queue.Dequeue();
             int cd = pathDistanceField[c.x, c.y];
+
             for (int i = 0; i < 4; i++)
             {
-                int nx = c.x + dirs[i].x;
-                int ny = c.y + dirs[i].y;
+                int dx = dirs[i].x;
+                int dy = dirs[i].y;
+                int nx = c.x + dx;
+                int ny = c.y + dy;
                 if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
-                if (pathDistanceField[nx, ny] >= 0) continue;
-                if (!IsPathable(currentMapData.GetCell(nx, ny))) continue;
-                pathDistanceField[nx, ny] = cd + 1;
-                if (cd + 1 > maxD) maxD = cd + 1;
-                queue.Enqueue(new Vector2Int(nx, ny));
+
+                CellType nextCell = currentMapData.GetCell(nx, ny);
+
+                // (a) Normaler Floor-Übergang — Cost 1
+                if (IsPathable(nextCell))
+                {
+                    int nd = cd + 1;
+                    if (pathDistanceField[nx, ny] < 0 || pathDistanceField[nx, ny] > nd)
+                    {
+                        pathDistanceField[nx, ny] = nd;
+                        queue.Enqueue(new Vector2Int(nx, ny));
+                    }
+                    continue;
+                }
+
+                // (b) Sprung über 1-Tile-Lava oder Gap — Cost 3
+                //     Landefeld (nx+dx, ny+dy) muss Floor-artig sein.
+                //     2-Tile-Lava bleibt blockiert (Landefeld wäre wieder Lava).
+                if (IsCrossableObstacle(nextCell))
+                {
+                    int lx = nx + dx;
+                    int ly = ny + dy;
+                    if (lx < 0 || lx >= W || ly < 0 || ly >= H) continue;
+                    if (!IsPathable(currentMapData.GetCell(lx, ly))) continue;
+
+                    int nd = cd + 3;
+                    if (pathDistanceField[lx, ly] < 0 || pathDistanceField[lx, ly] > nd)
+                    {
+                        pathDistanceField[lx, ly] = nd;
+                        queue.Enqueue(new Vector2Int(lx, ly));
+                    }
+                }
             }
         }
 
+        // maxPathDistance am Ende über alle Zellen bestimmen (SPFA kann Distanzen
+        // nachträglich reduzieren — laufendes max wäre überschätzt).
+        int maxD = 0;
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+                if (pathDistanceField[x, y] > maxD) maxD = pathDistanceField[x, y];
         maxPathDistance = Mathf.Max(1, maxD);
     }
 
     private static bool IsPathable(CellType t)
     {
-        // Lava und Hole sind nicht überquerbar im Sinne der A*-Distanz.
-        // Empty und Wall blockieren ebenfalls. Platform ist begehbar.
+        // Floor-artige Zellen, auf denen der Agent stehen kann.
+        // Lava/Hole/Gap sind hier nicht enthalten — sie werden separat behandelt
+        // (Lava/Gap via IsCrossableObstacle als 1-Tile-Sprung, Hole bleibt Wand).
         return t == CellType.Floor
             || t == CellType.SpawnPoint
             || t == CellType.Goal
             || t == CellType.Obstacle
             || t == CellType.Platform;
+    }
+
+    // V16 Fix A: Lava/Gap sind via Sprung überquerbar (Edge-Cost 3).
+    // Die Bewertung „nur 1-Tile-tief" ergibt sich implizit: das Landefeld in
+    // Sprungrichtung muss Floor-artig sein — bei 2-Tile-Lava wäre es wieder Lava.
+    private static bool IsCrossableObstacle(CellType t)
+    {
+        return t == CellType.Lava || t == CellType.Gap;
     }
 
     // ── Spawn / Goal Selektion ────────────────────────────────────────────────

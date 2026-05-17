@@ -12,6 +12,8 @@ public enum DifficultyLevel
     TrivialLavaSurround  = 8,  // 4a: Lava am Branch-Ende statt Hole (Agent muss Lava sehen, nicht überqueren)
     TrivialLavaCrossable = 9,  // 4b: 1-Tile-Lava im Hauptkorridor, breiter Anlauf, kein Hole-Ast
     TrivialLavaWide      = 10, // 4c: 2-Tile-Lava in Längsrichtung, knapper Anlauf, kein Hole-Ast
+    // ── V16 Fix F: Sprung-Warmup vor LavaSurround. 1-Tile-Gap (kein Tod) im Hauptkorridor. ──
+    TrivialJumpWarmup    = 11,
 }
 
 public struct DifficultySettings
@@ -42,6 +44,7 @@ public struct DifficultySettings
             case DifficultyLevel.TrivialLavaSurround:
             case DifficultyLevel.TrivialLavaCrossable:
             case DifficultyLevel.TrivialLavaWide:
+            case DifficultyLevel.TrivialJumpWarmup:
                 return new DifficultySettings
                 {
                     GridWidthMin  = 7, GridWidthMax  = 7,

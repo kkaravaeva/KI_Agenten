@@ -16,6 +16,7 @@ public static class ProceduralLayoutGenerator
             case DifficultyLevel.TrivialLavaSurround:  return GenerateTrivialLavaSurroundLayout(seed);
             case DifficultyLevel.TrivialLavaCrossable: return GenerateTrivialLavaCrossableLayout(seed);
             case DifficultyLevel.TrivialLavaWide:      return GenerateTrivialLavaWideLayout(seed);
+            case DifficultyLevel.TrivialJumpWarmup:    return GenerateTrivialJumpWarmupLayout(seed);
         }
 
         DifficultySettings settings = DifficultySettings.For(difficulty);
@@ -442,6 +443,32 @@ public static class ProceduralLayoutGenerator
         if (r.lavaCell2 != r.lavaCell1)
             r.grid.SetCell(r.lavaCell2.x, r.lavaCell2.y, CellType.Lava);
         return r.grid;
+    }
+
+    // ── V16 Fix F: TrivialJumpWarmup ─────────────────────────────────────────
+    // 1-Tile-breite Gap (kein Tod) im Hauptkorridor, KEIN Branch.
+    // Lernziel: Sprung-Action mit Move=1 koppeln. Detour ist physisch unmöglich
+    // (Korridor durch Wände flankiert) → der Agent muss springen ODER langsam durchklettern.
+    private static MapData GenerateTrivialJumpWarmupLayout(int seed)
+    {
+        TrivialResult r = BuildTrivialBase(seed, withBranch: false);
+        r.grid.name = $"TrivialJumpWarmup_{seed % 200}";
+        PlaceWalls(r.grid);
+
+        // Gap-Tiles statt Lava setzen (Edge-Cost 3 in BFS, kein Tod-Trigger).
+        // 1-Tile-Quer-Strip — analog TrivialLavaCrossable, aber mit CellType.Gap.
+        TrySetGapIfFloor(r.grid, r.lavaCell1);
+        if (r.lavaCell2 != r.lavaCell1)
+            TrySetGapIfFloor(r.grid, r.lavaCell2);
+
+        return r.grid;
+    }
+
+    private static void TrySetGapIfFloor(MapData grid, Vector2Int cell)
+    {
+        if (cell.x < 0 || cell.x >= grid.width || cell.y < 0 || cell.y >= grid.height) return;
+        if (grid.GetCell(cell.x, cell.y) == CellType.Floor)
+            grid.SetCell(cell.x, cell.y, CellType.Gap);
     }
 
     // ── 4c TrivialLavaWide: 2-Tile-Lava in Längsrichtung, knapper Anlauf, KEIN Branch-Hole ──

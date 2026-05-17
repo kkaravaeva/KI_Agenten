@@ -106,7 +106,7 @@ public static class CurriculumTracker
 
     /// <summary>
     /// Liefert die Phase, aus der das nächste Layout gezogen wird. Bei Mixing:
-    /// mixingCurrentWeight aktuelle Phase, mixingPreviousWeight Vorgänger, Rest random aus 0..currentPhase.
+    /// mixingCurrentWeight aktuelle Phase, mixingPreviousWeight Vorgänger, Rest random aus mixingPool (V16 Fix G).
     /// </summary>
     private static int SamplePhaseForMixing()
     {
@@ -120,9 +120,48 @@ public static class CurriculumTracker
 
         double draw = rng.NextDouble();
         if (draw < wCurrent) return currentPhaseIndex;
-        if (draw < wCurrent + wPrevious) return Mathf.Max(0, currentPhaseIndex - 1);
-        if (wRest > 0f && currentPhaseIndex > 0)
-            return rng.Next(0, currentPhaseIndex); // 0..currentPhase-1
+
+        // V16 Fix G: Wenn mixingPool gesetzt ist, ziehe nur aus diesen Indices.
+        // Sonst (V15-Default): Vorgänger / alle vorigen Phasen.
+        int[] pool = config.phases[currentPhaseIndex].mixingPool;
+        bool hasPool = pool != null && pool.Length > 0;
+
+        if (draw < wCurrent + wPrevious)
+        {
+            if (hasPool)
+            {
+                // Vorgänger im Pool = größter Pool-Index < currentPhase.
+                int prevInPool = -1;
+                for (int i = 0; i < pool.Length; i++)
+                    if (pool[i] < currentPhaseIndex && pool[i] > prevInPool) prevInPool = pool[i];
+                if (prevInPool >= 0) return prevInPool;
+            }
+            return Mathf.Max(0, currentPhaseIndex - 1);
+        }
+
+        if (wRest > 0f)
+        {
+            if (hasPool)
+            {
+                // Random aus mixingPool, ausgenommen currentPhaseIndex selbst
+                // (wurde bereits über wCurrent abgedeckt).
+                int n = pool.Length;
+                if (n > 0)
+                {
+                    // 1. Versuche bis zu 4× ein != currentPhase zu ziehen, sonst fallback.
+                    for (int tries = 0; tries < 4; tries++)
+                    {
+                        int idx = pool[rng.Next(n)];
+                        if (idx != currentPhaseIndex && idx >= 0 && idx < config.phases.Length)
+                            return idx;
+                    }
+                }
+            }
+            else if (currentPhaseIndex > 0)
+            {
+                return rng.Next(0, currentPhaseIndex); // 0..currentPhase-1
+            }
+        }
         return currentPhaseIndex;
     }
 
@@ -146,8 +185,14 @@ public static class CurriculumTracker
         episodesPerPhase[phase]++;
         if (success) successesPerPhase[phase]++;
 
-        float alpha = config.successRateEMAAlpha;
-        successRateEMA[phase] = (1f - alpha) * successRateEMA[phase] + alpha * (success ? 1f : 0f);
+        // V16 Fix L: EMA nur für die aktuell aktive Phase aktualisieren.
+        // Mixing-Episodes verzerren sonst die Advance-Entscheidung, weil
+        // CheckPhaseAdvance gegen successRateEMA[currentPhaseIndex] vergleicht.
+        if (phase == currentPhaseIndex)
+        {
+            float alpha = config.successRateEMAAlpha;
+            successRateEMA[phase] = (1f - alpha) * successRateEMA[phase] + alpha * (success ? 1f : 0f);
+        }
 
         // ML-Agents Stats: SuccessRate pro Phase (Fix 5.2)
         if (Academy.IsInitialized)

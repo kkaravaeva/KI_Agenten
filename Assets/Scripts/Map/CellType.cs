@@ -8,5 +8,6 @@ public enum CellType
     SpawnPoint,
     Lava,       // Betretbar (Tod), bis Tiefe 1 überspringbar
     Hole,       // Nicht betretbar, nicht überspringbar (mind. 2x2 groß)
-    Platform    // Schwebendes Bodenfeld über Lava (0.75 Units höher)
+    Platform,   // Schwebendes Bodenfeld über Lava (0.75 Units höher)
+    Gap         // V16: 1-Tile-Lücke ohne Tod-Trigger (für JumpWarmup-Phase). Visuell wie Lava-Strip, aber sicher.
 }

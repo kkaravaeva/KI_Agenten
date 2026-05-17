@@ -12,6 +12,13 @@ public struct CurriculumPhase
     public MapData[] layouts;
     public ThresholdType thresholdType;
     [Min(1)] public int threshold;
+
+    // V16 Fix G: Erlaubte Mixing-Phasen (Indices in CurriculumConfig.phases).
+    // Leer/null → Default = alle Phasen < currentPhase (V15-Verhalten).
+    // Phasenspezifisches Mixing schützt Lava-Skill: P5–P8 mischen nicht mehr
+    // mit P0–P3 (Navigation ohne Sprung), sondern nur mit JumpWarmup + Lava.
+    [Tooltip("Erlaubte Phasen-Indices für Mixing. Muss currentPhase selbst enthalten. Leer = alle vorigen Phasen.")]
+    public int[] mixingPool;
 }
 
 [CreateAssetMenu(fileName = "CurriculumConfig", menuName = "Training/Curriculum Config")]

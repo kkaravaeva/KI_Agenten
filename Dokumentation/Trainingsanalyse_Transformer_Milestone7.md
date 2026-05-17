@@ -2027,3 +2027,555 @@ Nur:
 
 Wenn danach erste Lava-Sprünge auftauchen, war der fehlende Gradient die Root Cause. Wenn nicht, ist die tote Sprung-Action das Primärproblem.
 
+# V16-Plan — Lava-Skill-Lösung & Curriculum-Restrukturierung
+
+**Datum:** 2026-05-17
+**Stand:** V15 stagniert in Phase 5 (TrivialLavaCrossable) seit 2.46M Steps. `LavaJumps/Attempted = 0` über 8.5M Steps. Mean Reward driftet auf −8.0.
+**Ziel V16:** Funktionierender PBRS-Gradient bei Lava-Layouts + lebendiger Sprung-Action-Branch + sinnvolles Episode-Budget.
+
+---
+
+## Übersicht — Was sich gegenüber V15 ändert
+
+| Bereich                     | V15 (Ist)                                              | V16 (Soll)                                                                            | Erwartete Wirkung                                      |
+| --------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| BFS / Pfaddistanz           | `IsPathable` ignoriert Lava, BFS-Distanz `−1` → norm `1f`  | Jump-aware-BFS: 1-Tile-Lava als Kante mit Sprung-Cost 3                               | PBRS-Gradient existiert auch in LavaCrossable          |
+| PBRS-Skalierung             | `distanceShapingScale=0.005`, `pbrsGamma=1` (Prefab)   | `distanceShapingScale=0.05`, `pbrsGamma=0.997` (Code+Prefab konsistent)               | PBRS-Episode-Summe ≈ 0.05 (10× größer, Step-Penalty-Größenordnung) |
+| PBRS-Pause                  | `pausePbrsOverLava=true` (auch beim Annähern)          | Pause nur **über** Lava (`aboveLava`), nicht beim Anflug (`sensorSawLavaAhead`)        | Sprung-Annäherung bekommt eigenen Gradienten           |
+| Sprung-Physik               | airControl=0.5 → Reichweite ≈ 0.71 unit (Lava=1.0 unit) | airControl=1.0 oder erhöhte `jumpForce`/`maxUpwardVelocity` (siehe Berechnung Abschnitt 4) | Sprung schafft 1-Tile-Lava physikalisch zuverlässig    |
+| MaxStep P4–P7               | 15000                                                  | 1500                                                                                  | 10× mehr Episoden, kein Random-Walk-Timeout            |
+| Step-Penalty                | `−0.001` (Prefab), `phaseStepPenalties` nur P10        | `−0.002` für P0–P3, `−0.001` für P4–P7 (Lava-Phasen)                                  | Sprung-Steps werden weniger bestraft                   |
+| Timeout-Penalty             | `−5`                                                   | `−10`                                                                                 | „Auf-Timeout-Warten" wird unattraktiver als Lava-Versuch |
+| Phase-Mixing                | 70/20/10 mit P0–P4 als Pool                            | Lava-spezifisches Mixing in P4–P7 (siehe Abschnitt 5)                                 | Mixing erhält Lava-Kompetenz, nicht Drumrum-Laufen     |
+| Curriculum                  | Lineare P0→P10, Lava als Sub-Phasen 4–7                | Inkl. Jump-Warmup-Phase **vor** LavaSurround (siehe Abschnitt 5)                      | Sprung-Logit kollabiert nicht in den Trivial-Phasen    |
+| Beta-Schedule               | `beta=1e-3` konstant                                   | Beta-Spike auf `5e-3` bei Übergang in JumpWarmup + P5                                 | Sprung-Branch wird re-exploriert                       |
+| EMA-Update                  | Schreibt auf `lastSampledPhaseIndex`                   | Schreibt zusätzlich auf `currentPhaseIndex` (siehe Abschnitt 6.2)                     | EMA ist eine reine Phasen-Metrik, kein Mixing-Durchschnitt |
+
+**Ausgelassen in V16 (auf V17 vertagt):** Action-Branch-Erweiterung von 2 auf 3 Outputs (Fix K), Behavioral Cloning Pretrain (Fix L). Siehe Abschnitt 9.
+
+---
+
+## 1. Befunde aus V15 (Recap mit Code-Belegen)
+
+### 1.1 PBRS strukturell tot — drei zusammenwirkende Bugs
+
+**Bug A: `MapGenerator`-BFS widerspricht `SemanticPathfinder`.**
+
+`MapGenerator.cs:489` (für PBRS-Distanzfeld):
+
+```csharp
+private static bool IsPathable(CellType t)
+{
+    return t == CellType.Floor || t == CellType.SpawnPoint
+        || t == CellType.Goal  || t == CellType.Obstacle
+        || t == CellType.Platform;
+}
+```
+
+`SemanticPathfinder.cs:96` (für Layout-Validierung):
+
+```csharp
+if (cluster.depth == 1)   return true;    // 1 Tile: Agent kann überspringen
+if (cluster.hasPlatform)  return true;
+```
+
+→ Das Projekt widerspricht sich selbst. Layouts werden mit der Annahme generiert, dass 1-Tile-Lava überspringbar ist; das PBRS-Distanzfeld behandelt sie als Wand. In P5 (LavaCrossable) ist Lava die einzige Verbindung Spawn↔Goal → BFS findet vom Spawn aus keinen Weg → `pathDistanceField = −1` → `GetNormalizedPathDistance = 1f` für die gesamte Spawn-Seite.
+
+**Bug B: `pbrsGamma` im Prefab ≠ Code-Default.**
+
+`Agent.prefab:271` setzt `pbrsGamma: 1`, Code-Default (`LabyrinthAgent.cs:65`) ist `0.997`. Bei konstantem `currentPath=1f` ist `shapingDelta = (1 − 1·1)·scale = 0` (statt der im V15-Briefing zitierten `0.003·scale`). Inspector-Inkonsistenz.
+
+**Bug C: `distanceShapingScale` zu klein.**
+
+`distanceShapingScale=0.005` mit normalisierter Pfaddistanz ∈ [0,1]: maximal teleskopierter PBRS-Episode-Reward ≈ `1.0 · 0.005 = 0.005`. Step-Penalty bei nur 200 Steps = `−0.2`. PBRS ist 40× schwächer als Step-Penalty einer **kurzen** Episode.
+
+**Bug D: `pausePbrsOverLava=true` löscht den kritischen Gradienten.**
+
+In `LabyrinthAgent.cs:310-311` wird `scale=0` gesetzt, sobald `sensorSawLavaAhead=true` ist. Das deaktiviert PBRS genau in dem Moment, in dem der Agent die Sprung-Action lernen müsste.
+
+### 1.2 Sprung-Branch deterministisch kollabiert + physikalisch unzureichend
+
+**Branch-Größe:** `Agent.prefab:171` → BranchSizes `[3, 3, 2]`. Branch 2 (Jump) ist binary. Bei einer Bernoulli-Verteilung mit Logit `l<−5` ist P(jump) <0.7% — und PPO holt das mit `β=1e-3` nicht zurück.
+
+**Implizite Bestrafung in P0–P3:**
+- `Rigidbody.drag=1` (`Agent.prefab:147`) dämpft Sprünge
+- `airControlFactor=0.5` halbiert `effectiveMoveSpeed` in Air → mehr Step-Penalty pro Bewegung
+- Über ~5M Steps ohne Sprung-Belohnung driftet die Sprung-Logit ins Negative
+
+**Physik-Reichweite:**
+- `phaseJumpForces[5]=6`, `Mass=1`, `maxUpwardVelocity=3.5`:
+- Sprung-Apex ≈ `3.5²/(2·9.81) = 0.625 m`
+- Air-Time ≈ `2·3.5/9.81 ≈ 0.71 s`
+- Horizontale Reichweite mit `moveSpeed·airControlFactor = 2·0.5 = 1.0 unit/s` → **≈ 0.71 unit**
+- 1-Tile-Lava-Cross benötigt **≥ 1.0 unit** horizontal → **Agent schafft 1-Tile-Lava physikalisch knapp NICHT**
+
+### 1.3 `phaseMaxSteps[4..7]=15000` zu hoch
+
+`Agent.prefab:274-285`: P4–P7 haben MaxStep=15000 (25× P0–P3). Mit `stepPenalty=−0.001` und Timeout-Penalty `−5` ist eine 15000-Step-Episode `max −15 − 5 = −20`. Episode Length 1993 (Step 8.5M) zeigt Random-Walk-Verhalten bis Timeout.
+
+### 1.4 Strukturelle Probleme (vom User in V15 nicht benannt)
+
+- **Z1 — Phase-Mixing widerspricht Sprung-Lernen.** `CurriculumConfig_Default.asset:1467` setzt `enablePhaseMixing=1`, 70/20/10 → 30% der P5-Episodes stammen aus P0–P4 (kein Lava-Cross möglich). Reinforced „nicht springen".
+- **Z2 — `CurriculumTracker.NotifyEpisodeEnd` schreibt EMA auf `lastSampledPhaseIndex`** (Zeile 143), aber `CheckPhaseAdvance` liest `successRateEMA[currentPhaseIndex]` (Zeile 173-174). Bei aktiver Phase 5 mit Mixing sieht `EMA[5]` nur 70% der Episodes → Rauschen erhöht.
+- **Z3 — Goal/Tod-Reward-Asymmetrie.** Goal=+30, Lava-Tod=−0.1, Timeout=−5. Bei `Reward(Timeout) = −5 − 2 = −7` vs `Reward(Lava) = −0.1 − Steps = −2.1` ist Lava-Versuch **rational günstiger** als auf Timeout warten. Dass der Agent es nicht versucht, bestätigt: Sprung-Logit ist deterministisch kollabiert, keine rationale Risiko-Aversion.
+
+---
+
+## 2. V16 Priorität P0 — Pflicht-Fixes (zusammen, nicht einzeln)
+
+### Fix A: Jump-aware-BFS in `MapGenerator.ComputePathDistanceField`
+
+**Datei:** `Assets/Scripts/Map/MapGenerator.cs`
+
+Neuer Algorithmus: Dijkstra mit Lava-Tile-Kosten = 3 (Sprung kostet so viel wie 3 Schritte), Floor-Kosten = 1. Implementierung als priority queue (oder Bucket-Queue mit max-Distanz=3, weil nur zwei Kosten-Werte vorkommen → 0-1-3-BFS reicht).
+
+Konkrete Änderung (Pseudocode-Diff):
+
+```csharp
+// ALT: BFS, Lava als Wand
+if (!IsPathable(currentMapData.GetCell(nx, ny))) continue;
+pathDistanceField[nx, ny] = cd + 1;
+
+// NEU: Dijkstra (oder Bucket-Queue für {1, 3} Kosten)
+CellType nextCell = currentMapData.GetCell(nx, ny);
+int edgeCost;
+if (IsFloorLike(nextCell)) edgeCost = 1;
+else if (IsCrossableLava(nextCell, nx, ny)) edgeCost = 3;  // 1-Tile-Lava
+else continue;
+
+int newDist = cd + edgeCost;
+if (pathDistanceField[nx, ny] >= 0 && pathDistanceField[nx, ny] <= newDist) continue;
+pathDistanceField[nx, ny] = newDist;
+```
+
+`IsCrossableLava` prüft: Cell ist Lava UND Tile ist Teil eines 1-Tile-tiefen Lava-Clusters (analog `SemanticPathfinder.IsLavaPassable`). Für TrivialLavaCrossable trivial: Lava ist immer 1-Tile in Längsrichtung. Für TrivialLavaWide (2-Tile) muss die Logik prüfen, dass mind. ein Lava-Nachbar in Sprungrichtung Floor ist → erstmal nur 1-Tile-Lava als passierbar, 2-Tile-Lava bleibt blockiert (P6 wird dadurch härter, das ist OK).
+
+**Hinweis:** Mit Edge-Cost=3 statt 1 muss `maxPathDistance` neu interpretiert werden — es wird größer. Die Normalisierung `d/maxPathDistance` bleibt aber valide.
+
+### Fix B: PBRS-Skalierung + Gamma-Konsistenz
+
+**Datei:** `Assets/Prefabs/Agent/Agent.prefab`
+
+```yaml
+distanceShapingScale: 0.05    # alt: 0.005 (10× größer)
+pbrsGamma: 0.997              # alt: 1.0 (Konsistenz zu RL-Gamma)
+```
+
+**Datei:** `Assets/Scripts/Agent/LabyrinthAgent.cs:64-65` (Code-Default-Wert bleibt 0.997, ist schon richtig)
+
+Erwartete max. PBRS-Episode-Summe: `1.0 · 0.05 ≈ 0.05`. In Größenordnung der Step-Penalty bei kurzen Episoden (50 Steps × 0.001 = 0.05). Bei längeren Episoden bleibt Step-Penalty dominant, was OK ist (Anreiz schnell zu sein).
+
+### Fix C: PBRS-Pause nur über Lava, nicht beim Annähern
+
+**Datei:** `Assets/Scripts/Agent/LabyrinthAgent.cs:309-311`
+
+```csharp
+// ALT:
+bool aboveLava = DetectAboveLava();
+bool pauseShaping = pausePbrsOverLava && (aboveLava || sensorSawLavaAhead);
+
+// NEU:
+bool aboveLava = DetectAboveLava();
+bool pauseShaping = pausePbrsOverLava && aboveLava;  // nur über Lava, nicht beim Annähern
+```
+
+Begründung: Beim Annähern an Lava ist der Gradient „näher kommen" das Signal, das die Sprung-Action lernen muss. Pause-Logik blockiert exakt dieses Signal.
+
+### Fix D: Sprung-Physik korrigieren
+
+**Datei:** `Assets/Prefabs/Agent/Agent.prefab`
+
+Zwei Optionen, beide testen:
+
+**Option D1 (minimal-invasiv):** `airControlFactor: 1.0` (alt: 0.5). Horizontale Reichweite verdoppelt sich auf ≈ 1.42 unit → 1-Tile-Lava mit Marge schaffbar.
+
+**Option D2 (stärker):** `maxUpwardVelocity: 5.0` (alt: 3.5) + `phaseJumpForces[4..7]: 5` (alt: 6). Höhere Sprünge, längere Air-Time (≈ 1.0 s), bei airControl=0.5 immer noch ≈ 1.0 unit Reichweite → grenzwertig. Plus: Wall-Climb-Risiko steigt (Cap `wallClimbMaxY=3` greift evtl. häufiger).
+
+**Empfehlung:** D1 zuerst (kleinerer Risk Surface, weniger Regression in Trivial-Phasen wo airControl=0.5 vermutlich keine Rolle spielt). Wenn D1 nicht reicht, D2 ergänzen.
+
+### Fix E: `phaseMaxSteps` auf 1500
+
+**Datei:** `Assets/Prefabs/Agent/Agent.prefab:274-285`
+
+```yaml
+phaseMaxSteps:
+  - 600    # P0 Trivial
+  - 600    # P1 TrivialCorr
+  - 600    # P2 TrivialBranch
+  - 600    # P3 TrivialHole
+  - 800    # P4 JumpWarmup        ← NEU (siehe Abschnitt 5)
+  - 1500   # P5 TrivialLavaSurround
+  - 1500   # P6 TrivialLavaCrossable
+  - 1500   # P7 TrivialLavaWide
+  - 1500   # P8 TrivialHazard
+  - 1500   # P9 Easy
+  - 2000   # P10 Medium
+  - 2500   # P11 Hard
+```
+
+**Hinweis:** Wenn neue JumpWarmup-Phase eingefügt wird (siehe Abschnitt 5), schiebt sich die Indizierung um 1 nach hinten. Array hat dann 12 Einträge. Alle `phase*`-Arrays im Prefab müssen entsprechend angepasst werden — siehe Abschnitt 8 (Konsistenz-Check).
+
+---
+
+## 3. V16 Priorität P1 — Sprung-Action wiederbeleben
+
+### Fix F: Neue Phase JumpWarmup zwischen P3 (TrivialHole) und P4 (LavaSurround)
+
+**Datei:** `Assets/Scripts/Map/DifficultyLevel.cs`
+
+Neuer Enum-Wert: `TrivialJumpWarmup = 11` (nach `TrivialLavaWide=10` anhängen für Asset-Rückwärtskompatibilität).
+
+**Datei:** `Assets/Scripts/Map/ProceduralLayoutGenerator.cs`
+
+Neue Methode `GenerateTrivialJumpWarmupLayout(int seed)`:
+- 7×7 Grid, Spawn in Ecke, Goal in gegenüberliegender Ecke
+- 1×1 Hole (KEIN Tod-Trigger, einfach kein Floor — Agent kann nicht durchlaufen, muss springen) **direkt im Pfad**
+- Reichweite: Agent springt mit airControl=1.0 ≈ 1.4 unit → Hole 1 Tile breit ist passabel
+- Lernziel: Agent lernt „Sprung-Action mit Move=1 kombiniert überquert Lücken"
+
+⚠️ **Designentscheidung:** Hole bisher in `MapGenerator` als Tod-Trigger via KillZone (Y=−20) → fällt durch und stirbt. Für JumpWarmup brauchen wir ein **mildes** Hindernis: entweder neue CellType `Gap` (nur visuell, kein Tod) oder Hole als „nicht-tödlich" für diese eine Phase. Sauberer: neuer CellType `Gap`. Aufwand ca. 1h.
+
+**Alternative ohne neuen CellType:** Hole mit dünner Bridge-Platform 0.75 unit hoch dazwischen, sodass Agent **mit oder ohne Sprung** drüber kommt, aber Sprung 5× schneller. Wegen `stepPenalty` würde der Agent Sprung lernen. Weniger sauber, aber sofort umsetzbar.
+
+**CurriculumConfig_Default.asset:** Neue Phase einfügen:
+```yaml
+- difficulty: 11           # TrivialJumpWarmup
+  layouts: [...]           # 50–100 JumpWarmup-Layouts generieren
+  thresholdType: 0         # Episodes (mit useSuccessRateAdvance=1 wird das eh durch SR überschrieben)
+  threshold: 3000
+```
+
+Reihenfolge nach Insert: P0=Trivial, P1=TrivialCorr, P2=TrivialBranch, P3=TrivialHole, **P4=TrivialJumpWarmup (NEU)**, P5=TrivialLavaSurround, P6=TrivialLavaCrossable, P7=TrivialLavaWide, P8=TrivialHazard, P9=Easy, P10=Medium, P11=Hard.
+
+### Fix G: Lava-spezifisches Phase-Mixing für P4–P8
+
+**Datei:** `Assets/Scripts/Map/CurriculumConfig.cs` + `CurriculumTracker.cs`
+
+Aktuell mischt `SamplePhaseForMixing` blind aus `[0, currentPhase)`. Erweiterung: pro Phase ein optionales `mixingPool` (Liste der erlaubten Mixing-Phasen-Indices). Wenn null/leer → Default-Verhalten.
+
+Für P5 (TrivialLavaSurround): mixingPool = `[4, 5]` (nur JumpWarmup + aktuelle)
+Für P6 (LavaCrossable): mixingPool = `[4, 5, 6]`
+Für P7 (LavaWide): mixingPool = `[4, 5, 6, 7]`
+Für P8 (Hazard): mixingPool = `[4, 5, 6, 7, 8]`
+
+**CurriculumPhase struct:**
+
+```csharp
+[Serializable]
+public struct CurriculumPhase
+{
+    public DifficultyLevel difficulty;
+    public MapData[] layouts;
+    public ThresholdType thresholdType;
+    [Min(1)] public int threshold;
+    public int[] mixingPool;   // NEU: erlaubte Phasen-Indices für Mixing. Leer = alle vorigen.
+}
+```
+
+**Effekt:** P5–P8 mischen nicht mehr zurück auf P0–P3 (Navigation ohne Sprung) → Sprung-Logit bleibt aktiv.
+
+### Fix H: Beta-Schedule mit Spike bei Phasen-Transition
+
+**Datei:** `config/labyrinth_transformer.yaml`
+
+```yaml
+hyperparameters:
+  learning_rate: 1.0e-4
+  batch_size: 1024
+  buffer_size: 81920
+  beta: 5.0e-3                        # alt: 1.0e-3 (5× größer)
+  beta_schedule: linear               # NEU: linear runter auf 1e-3 über 20M Steps
+  epsilon: 0.2
+  lambd: 0.95
+  num_epoch: 3
+  learning_rate_schedule: constant
+```
+
+**Limitierung von ml-agents:** Der ml-agents-Trainer unterstützt nur globale Schedules (linear/constant), keine event-basierten Spikes. Daher kein „Spike genau bei P5", sondern höhere Start-Beta die langsam runter geht. Der initiale Boost wirkt in P0–P3 (mehr Entropy → mehr Sprung-Sampling auch dort), was im Zusammenspiel mit der neuen JumpWarmup-Phase die Logit-Erosion entschärft.
+
+### Fix I: Optional — kleiner Sprung-Inzentiv-Reward
+
+**Datei:** `Assets/Scripts/Agent/LabyrinthAgent.cs:427-431`
+
+```csharp
+if (jumpAction == 1 && isGrounded)
+{
+    rb.AddForce(Vector3.up * effectiveJumpForce, ForceMode.Impulse);
+    isGrounded = false;
+    // NEU: Mini-Reward für aktiven Sprung-Sample in Lava-Phasen
+    if (phaseIdx >= 4 && phaseIdx <= 8)  // JumpWarmup..Hazard
+    {
+        const float jumpSampleBonus = 0.0005f;
+        AddReward(jumpSampleBonus);
+        rewLavaJump += jumpSampleBonus;
+    }
+}
+```
+
+⚠️ **Risiko:** Reward-Hacking — Agent springt am Spawn ohne Lava in der Nähe. Mitigation: Bonus nur wenn `sensorSawLavaAhead || pendingLavaLanding` oder ähnliche Lava-Proximity-Bedingung. Falls Fix F+H reichen, ist Fix I überflüssig; **erst nach Quick-Win-Test entscheiden**.
+
+---
+
+## 4. V16 Priorität P2 — Curriculum-Sauberkeit & Diagnostik
+
+### Fix J: Timeout-Penalty erhöhen
+
+**Datei:** `Assets/Prefabs/Agent/Agent.prefab`
+
+```yaml
+timeoutPenalty: -10    # alt: -5
+```
+
+Stellt sicher, dass `Reward(Timeout) < Reward(Lava-Tod)` ist und der Agent Lava-Versuche bevorzugen kann.
+
+### Fix K: Phasenspezifische Step-Penalty (Lava-Phasen lockerer)
+
+**Datei:** `Assets/Prefabs/Agent/Agent.prefab`
+
+```yaml
+stepPenalty: -0.001
+phaseStepPenalties:
+  - -0.002    # P0  Trivial            (kurze Episoden, härtere Strafe → schneller fertig)
+  - -0.002    # P1  TrivialCorr
+  - -0.002    # P2  TrivialBranch
+  - -0.002    # P3  TrivialHole
+  - -0.0005   # P4  JumpWarmup         (Sprung darf "kosten", aber wenig)
+  - -0.0005   # P5  TrivialLavaSurround
+  - -0.0005   # P6  TrivialLavaCrossable
+  - -0.0005   # P7  TrivialLavaWide
+  - -0.001    # P8  TrivialHazard
+  - -0.001    # P9  Easy
+  - -0.001    # P10 Medium
+  - -0.002    # P11 Hard
+```
+
+Lava-Phasen brauchen Atem zum Probieren. Hard-Phase pusht zur Effizienz.
+
+### Fix L: EMA-Bookkeeping konsistent
+
+**Datei:** `Assets/Scripts/Map/CurriculumTracker.cs:139-162`
+
+Aktuell:
+```csharp
+int phase = lastSampledPhaseIndex;
+...
+successRateEMA[phase] = (1f - alpha) * successRateEMA[phase] + alpha * (success ? 1f : 0f);
+```
+
+Problem: `CheckPhaseAdvance` liest `successRateEMA[currentPhaseIndex]`, das aber nur 70% der Episodes sieht (Mixing zieht 30% aus anderen Phasen).
+
+**Fix:** EMA wird nur aktualisiert, wenn `lastSampledPhaseIndex == currentPhaseIndex`. Mixing-Episodes zählen nicht für die Advance-Entscheidung, aber als Trainings-Datenpunkt.
+
+```csharp
+int phase = lastSampledPhaseIndex;
+episodesPerPhase[phase]++;
+if (success) successesPerPhase[phase]++;
+
+// EMA nur für aktive Phase, nicht für Mixing-Episodes
+if (phase == currentPhaseIndex)
+{
+    float alpha = config.successRateEMAAlpha;
+    successRateEMA[phase] = (1f - alpha) * successRateEMA[phase] + alpha * (success ? 1f : 0f);
+}
+```
+
+### Fix M: Diagnostik-Stats erweitern
+
+**Datei:** `Assets/Scripts/Agent/LabyrinthAgent.cs:124-141` (OnEpisodeBegin)
+
+Neue Stats:
+- `Custom/JumpsTotal` — pro Episode: wie oft wurde Sprung-Action gesampelt (unabhängig von Lava)
+- `Custom/JumpsNearLava` — pro Episode: Sprünge mit `sensorSawLavaAhead || pendingLavaLanding`
+- `Custom/PathDistInit` — Pfaddistanz zum Goal bei Spawn (normalisiert)
+- `Custom/PathDistFinal` — Pfaddistanz beim Episode-Ende
+
+Erlaubt im TensorBoard zu sehen:
+- Ob Sprung-Branch aktiv ist (`JumpsTotal > 0`)
+- Ob Sprünge in der richtigen Situation passieren (`JumpsNearLava / JumpsTotal`)
+- Ob PBRS überhaupt einen Gradient liefert (`PathDistInit − PathDistFinal`)
+
+---
+
+## 5. Curriculum-Restrukturierung — Detaillierter Plan
+
+### 5.1 Neue Phasen-Reihenfolge
+
+| Idx | Phase                | Difficulty Enum     | Threshold (Episodes) | MaxStep | Mixing-Pool | Zweck                                        |
+| --- | -------------------- | ------------------- | -------------------- | ------- | ----------- | -------------------------------------------- |
+| 0   | TrivialBase          | Trivial=0           | 1200                 | 600     | —           | Basis-Navigation                             |
+| 1   | TrivialCorr          | TrivialCorr=1       | 1800                 | 600     | [0,1]       | Korridor-Folgen                              |
+| 2   | TrivialBranch        | TrivialBranch=2     | 2600                 | 600     | [0,1,2]     | Sackgassen erkennen                          |
+| 3   | TrivialHole          | TrivialHole=3       | 3600                 | 600     | [0,1,2,3]   | Hole-Vermeidung                              |
+| **4** | **TrivialJumpWarmup**| **TrivialJumpWarmup=11 (NEU)** | **3000** | **800** | **[3,4]**   | **Sprung-Skill aktivieren**       |
+| 5   | TrivialLavaSurround  | TrivialLavaSurround=8 | 4000               | 1500    | [3,4,5]     | Lava sehen, drumrum laufen                   |
+| 6   | TrivialLavaCrossable | TrivialLavaCrossable=9| 4300               | 1500    | [4,5,6]     | 1-Tile-Lava springen (BFS-aware!)            |
+| 7   | TrivialLavaWide      | TrivialLavaWide=10  | 4600                 | 1500    | [4,5,6,7]   | 2-Tile-Lava (BFS bleibt für 2-Tile blockiert) |
+| 8   | TrivialHazard        | TrivialHazard=4     | 5000                 | 1500    | [4,5,6,7,8] | Kombi Lava + Hole                            |
+| 9   | Easy                 | Easy=5              | 8000                 | 1500    | [5,6,7,8,9] | Prozedurale Maps                             |
+| 10  | Medium               | Medium=6            | 12000                | 2000    | [7,8,9,10]  | Größere Maps                                 |
+| 11  | Hard                 | Hard=7              | 20000                | 2500    | [9,10,11]   | Volle Komplexität                            |
+
+**Vergleich V15:**
+- V15 hatte 11 Phasen, V16 hat 12 (JumpWarmup eingeschoben)
+- Mixing-Pool ist phasenspezifisch (statt blind alle vorigen), schützt Lava-Skill
+- MaxStep skaliert mit Phase-Komplexität (statt pauschal 15000 für alle Lava-Phasen)
+
+### 5.2 Layout-Generierung für JumpWarmup
+
+`GenerateTrivialJumpWarmupLayout`:
+- 7×7 Grid mit Wand-Rand
+- Spawn in Ecke A, Goal in Ecke B (gegenüberliegende oder benachbarte)
+- 1 Tile Hole (oder: neuer CellType `Gap`) in der direkten Linie zwischen A und B
+- Variation per Seed: Hole-Position, Anlaufrichtung
+- 50–100 Layouts generieren (siehe `Tools/LayoutBatchGenerator` falls vorhanden, sonst manuell via Editor-Skript)
+
+**Implementierungsoption 1 (sauber): Neuer CellType `Gap`**
+- Floor mit visueller Lücke, aber Y=0 → Agent fällt nicht durch
+- Reward: keiner (auch kein Tod)
+- BFS: gleich behandeln wie 1-Tile-Lava (Sprung-Cost 3)
+- Anpassungen in: `CellType.cs`, `MapGenerator.BuildPrefabMap`, `SemanticPathfinder`, `IsCrossableLava` → generisch `IsCrossableObstacle`
+
+**Implementierungsoption 2 (Hack): Hole mit Bridge-Platform**
+- Bestehender Hole-Tile, darüber Platform auf Y=0.75
+- Agent kann darüber laufen, aber Sprung ist schneller (kein Höhensprung nötig, Platform ist halbhoch)
+- Funktioniert nicht als Sprung-Lernsignal, weil Drüberlaufen auch geht
+
+→ **Empfehlung Option 1.** Mehraufwand ca. 1.5h.
+
+### 5.3 Was bleibt unverändert
+
+- `useSuccessRateAdvance=1` (V15-Fix 2.2 war richtig)
+- `successRateThreshold=0.7`, `minEpisodesBeforeAdvance=1000` (V15-Werte gut)
+- `successRateEMAAlpha=0.02` (langsam genug, stabil)
+- `loopPhases=0` (auf Hard einfrieren, V15 OK)
+
+---
+
+## 6. Implementierungs-Reihenfolge
+
+Strikte Reihenfolge wegen Abhängigkeiten:
+
+**Schritt 1 — Code-Änderungen ohne Asset-Konsequenzen:**
+1. `MapGenerator.ComputePathDistanceField` → Dijkstra (Fix A)
+2. `LabyrinthAgent.OnActionReceived` → Pause-Logik (Fix C), Sprung-Bonus optional (Fix I)
+3. `CurriculumTracker.NotifyEpisodeEnd` → EMA-Gate (Fix L)
+4. `CurriculumConfig` → neues Feld `mixingPool` (Fix G, Teil 1)
+5. `CurriculumTracker.SamplePhaseForMixing` → mixingPool nutzen (Fix G, Teil 2)
+6. `LabyrinthAgent` → neue Stats `JumpsTotal`/`JumpsNearLava`/`PathDistInit`/`PathDistFinal` (Fix M)
+7. **Build-Check:** Compilation läuft, keine Editor-Errors
+
+**Schritt 2 — Neuer CellType (falls Option 1 für JumpWarmup):**
+8. `CellType.cs` → `Gap` hinzufügen
+9. `MapGenerator.BuildPrefabMap` → Gap-Tile-Mapping (Floor-Prefab oder neues Gap-Prefab)
+10. `SemanticPathfinder` → Gap behandeln
+11. `MapGenerator.IsCrossableLava` → generischer `IsCrossableObstacle`
+
+**Schritt 3 — Layout-Generator:**
+12. `DifficultyLevel.cs` → `TrivialJumpWarmup=11`
+13. `ProceduralLayoutGenerator` → `GenerateTrivialJumpWarmupLayout`
+14. Layouts generieren (50–100 Stück) → `Assets/Layouts/JumpWarmup/`
+
+**Schritt 4 — Prefab-Werte:**
+15. `Agent.prefab` Updates: `pbrsGamma`, `distanceShapingScale`, `airControlFactor`, `phaseMaxSteps`, `phaseStepPenalties`, `phaseLavaDeathPenalties`, `phaseJumpForces`, `timeoutPenalty`
+16. **Konsistenz-Check:** Alle Arrays haben 12 Einträge (V15 hatte 11)
+
+**Schritt 5 — Curriculum-Asset:**
+17. `CurriculumConfig_Default.asset` → Phase 4 (JumpWarmup) einfügen, mixingPool pro Phase setzen
+
+**Schritt 6 — Training-YAML:**
+18. `config/labyrinth_transformer.yaml` → `beta: 5e-3`, `beta_schedule: linear`
+
+**Schritt 7 — Verifikation vor V16-Run:**
+19. Editor-Test in `Transformer_Test.unity`: Heuristic-Modus, Agent springt korrekt über 1-Tile-Lava in TrivialLavaCrossable-Layout
+20. Quick-Run 500k Steps (`/train` mit `--no-graphics`) → Asserts in TensorBoard (siehe Abschnitt 7)
+21. Wenn Quick-Run grün → V16 full run starten
+
+---
+
+## 7. Erfolgs-Kriterien
+
+### 7.1 Quick-Run (500k Steps)
+
+Soll-Werte nach 500k Steps, P0–P4 traversiert:
+
+| Metrik                    | Soll-Wert        | Bedeutung                                                |
+| ------------------------- | ---------------- | -------------------------------------------------------- |
+| `Custom/JumpsTotal`/Ep    | > 1.0            | Sprung-Branch ist aktiv (V15: 0)                         |
+| `Reward/PBRS`/Ep          | > 0.01           | PBRS liefert Gradient (V15: 0.0008–0.003)                |
+| `Reward/PBRS` Sign        | überwiegend pos. | Agent bewegt sich Richtung Goal                          |
+| Phase erreicht            | ≥ P5 (LavaSurround) | Curriculum schreitet voran                           |
+| `Custom/SuccessRate_P4`   | ≥ 0.5 EMA        | JumpWarmup gelöst                                        |
+
+### 7.2 Volllauf (60M Steps)
+
+| Metrik                                  | Soll-Wert        | Bedeutung                                              |
+| --------------------------------------- | ---------------- | ------------------------------------------------------ |
+| Phase erreicht bei 30M                  | ≥ P8 (Hazard)    | Lava-Skill solide gelernt                              |
+| `Custom/LavaJumps/Successful`/Ep in P6  | > 0.5            | Mehr Erfolge als Tode                                  |
+| Mean Reward in P6                       | > 0              | Lava-Phase ist netto positiv                           |
+| Phase erreicht bei 60M                  | P10–P11          | Mind. Easy/Medium gelöst                               |
+
+### 7.3 Roter Flag — Abbruch-Kriterien
+
+- `Custom/JumpsTotal` bleibt 0 über 500k Steps → Fix F (JumpWarmup-Phase) hat nicht gegriffen, Beta hochziehen oder Fix I (Sprung-Bonus) aktivieren
+- `Reward/PBRS` < 0.005 in P5/P6 → Dijkstra-Implementierung prüfen, `maxPathDistance`-Logging einbauen
+- Mean Reward in P0 < +15 nach 500k → Regression durch erhöhte Step-Penalty oder Beta zu hoch → V15-Werte für P0–P3 restaurieren
+
+---
+
+## 8. Konsistenz-Check vor V16-Run
+
+Da V15 die JumpWarmup-Phase nicht hatte, verschiebt sich die Phase-Indexierung. **Alle Stellen, die Phase-Indices nutzen, müssen geprüft werden:**
+
+| Datei                                | Feld / Variable          | V15-Größe | V16-Soll | Notiz                                           |
+| ------------------------------------ | ------------------------ | --------- | -------- | ----------------------------------------------- |
+| `Agent.prefab`                       | `phaseJumpForces`         | 11        | 12       | Neuer Index 4 = JumpWarmup, force=4 (klein)     |
+| `Agent.prefab`                       | `phaseLavaDeathPenalties` | 11        | 12       | Index 4 = 0 (keine Lava in JumpWarmup)          |
+| `Agent.prefab`                       | `phaseStepPenalties`      | 11        | 12       | Siehe Abschnitt 4 (Fix K)                       |
+| `Agent.prefab`                       | `phaseMaxSteps`           | 11        | 12       | Siehe Abschnitt 5.1                             |
+| `CurriculumConfig_Default.asset`     | `phases`                  | 11        | 12       | JumpWarmup an Idx 4 einfügen                    |
+| `LabyrinthAgent.cs:15,41,56,74`      | Array-Defaults            | 11        | 12       | Default-Werte im Code auf 12 erweitern          |
+
+**Skript-Empfehlung:** Ein kleines C# Editor-Skript `V16ConsistencyCheck.cs` (im `Editor/`-Ordner), das beim Editor-Start prüft, ob alle Arrays die gleiche Länge wie `curriculumConfig.phases.Length` haben und sonst eine Warnung wirft. Verhindert V15-artige Hybrid-Konfigurationen.
+
+---
+
+## 9. Ausgelassen in V16 (Vertagt auf V17 oder später)
+
+| Fix     | Beschreibung                                          | Grund für Auslassung                                                                | Status        |
+| ------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------- |
+| **Fix K (alt)** | Action-Branch 2: 2 → 3 Outputs (mehr Entropy)         | Erfordert Network-Output-Layer-Änderung, bricht alte Checkpoints, hoher Aufwand    | ⏸ V17        |
+| **Fix L (alt)** | Behavioral Cloning Pretrain auf Heuristic-Demo        | Setup für Demo-Aufnahme + BC-Trainer-Config, mind. 1 Tag Vorlauf, V16 zuerst testen | ⏸ V17        |
+| Air-Control-Schedule per Phase                        | airControlFactor in P0–P3 = 0.5, P4+ = 1.0           | Erfordert neuen Schedule-Mechanismus im Agent-Code; V16 nutzt erstmal konstant 1.0  | ⏸ V17        |
+| Per-Phase-Beta (manuelle Beta-Spikes via StatsRecorder Hack) | Beta hochsetzen genau bei Phasen-Transition | ml-agents-Trainer unterstützt das nicht nativ. Workaround wäre fragil.              | ❌ verworfen |
+| Hash-basierte Map-Diversity-Metrik                    | Misst ob Layout-Pool zu klein für Phase ist          | Diagnose-only, kein Lernsignal. V15 hat ausreichend Layouts pro Phase.              | ⏸ Optional   |
+
+**Hinweis zu Fix K (V17):** Wenn V16 erfolgreich ist und der Sprung-Branch lebendig bleibt, ist Branch-Erweiterung nicht mehr nötig. Wenn V16 immer noch Sprung-Probleme zeigt, ist Fix K + Fix L als Paket der nächste Schritt.
+
+---
+
+## 10. Risk Register
+
+| Risiko                                                                                  | Wahrscheinlichkeit | Auswirkung                                          | Mitigation                                                                       |
+| --------------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Dijkstra-Implementierung bricht bestehende Trivial-Phasen (PBRS-Drift in P0–P3)         | mittel             | Regression in einfachen Phasen                      | Quick-Run 500k mit P0–P3-Soll-Reward-Check (siehe 7.1)                           |
+| airControl=1.0 macht Agent in Air zu schnell → überschießt Goal, Wall-Climb-Penalty greift | niedrig            | Goal-Rate sinkt in Trivial-Phasen                  | Wall-Climb-Penalty pausieren während aktiver Sprung-Bewegung (Sub-Fix)           |
+| Beta=5e-3 in P0 erzeugt zu viel Random-Walk → P0 wird nicht in 1200 Episoden gelöst     | niedrig            | Curriculum-Start verzögert                          | Beta-Schedule auf 30M Steps strecken, sodass P0 schon bei ~3e-3 ist               |
+| Neue JumpWarmup-Phase wird trivial gelöst (Agent läuft drumrum statt zu springen)       | mittel             | Sprung-Branch bleibt tot, V15-Problem persistiert   | Layout-Design erzwingt Sprung: Gap blockiert direkten Weg, Drumrum-Weg = 4× länger als Sprung-Weg → Step-Penalty entmutigt Drumrum |
+| Mixing-Pool-Logik bricht bestehende Curriculum-Configs ohne `mixingPool`-Feld           | hoch               | Editor-Errors, Hybrid-Configs                       | `mixingPool == null` als Default = aktuelles V15-Verhalten (alle vorigen Phasen) |
+| ml-agents `beta_schedule: linear` ohne `linear` Definition → Trainer-Error              | niedrig            | Training startet nicht                              | Vor Run: ml-agents-Version checken, `mlagents-learn --help` zeigt unterstützte Werte |
+| Layout-Asset-GUIDs für JumpWarmup-Phase nicht im Curriculum-Asset → null-Layouts        | mittel             | Runtime-Error in `CurriculumTracker.GetNextLayout`  | Verifikation in Editor: Phase 4 mit ≥ 30 Layouts gefüllt                          |
+
+---
+
+## 11. Zusammenfassung
+
+V16 löst die drei kausalen V15-Hauptprobleme durch:
+
+1. **PBRS-Reparatur** = Jump-aware-BFS (Fix A) + Skalierung 10× (Fix B) + Pause-Logik gelockert (Fix C)
+2. **Sprung-Action-Reanimation** = neue JumpWarmup-Phase **vor** Lava (Fix F) + Lava-spezifisches Mixing (Fix G) + Beta-Boost (Fix H) + Physik-Korrektur (Fix D)
+3. **Episode-Budget realistisch** = MaxStep 15000 → 1500 (Fix E) + Timeout-Penalty −5 → −10 (Fix J) + Lava-Phasen-Step-Penalty gelockert (Fix K)
+
+Plus strukturelle Sauberkeit (Fix L = EMA-Gate, Fix M = Diagnostik) und ein Verifikations-Pfad (Schritt 7), der eine Wiederholung der V15-Hybrid-Config-Probleme verhindert.
+
+

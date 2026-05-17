@@ -117,6 +117,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 87884c05a9951b94ebb23d8891ced29f, type: 2}
     thresholdType: 0
     threshold: 1200
+    mixingPool: []
   - difficulty: 1
     layouts:
     - {fileID: 11400000, guid: 973c32bc8b50327449e1b87e37b07d6b, type: 2}
@@ -221,6 +222,9 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 47ae1383fc409a54a9c043bca68170e9, type: 2}
     thresholdType: 0
     threshold: 1800
+    mixingPool:
+    - 0
+    - 1
   - difficulty: 2
     layouts:
     - {fileID: 11400000, guid: e8f986865820b074da4b402709cb9da0, type: 2}
@@ -325,6 +329,10 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 8905aa62a105e9f469ea6aebfa3d7112, type: 2}
     thresholdType: 0
     threshold: 2600
+    mixingPool:
+    - 0
+    - 1
+    - 2
   - difficulty: 3
     layouts:
     - {fileID: 11400000, guid: 82fa4ef1691a5cb4299b711d8692ff2a, type: 2}
@@ -429,6 +437,18 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 5602956d99e9bd24ebe680a5607eccda, type: 2}
     thresholdType: 0
     threshold: 3600
+    mixingPool:
+    - 0
+    - 1
+    - 2
+    - 3
+  - difficulty: 11
+    layouts: []
+    thresholdType: 0
+    threshold: 3000
+    mixingPool:
+    - 3
+    - 4
   - difficulty: 8
     layouts:
     - {fileID: 11400000, guid: 4697fc77b861ca541997fe331db7e736, type: 2}
@@ -533,6 +553,10 @@ MonoBehaviour:
     - {fileID: 11400000, guid: ff279b9f2b8e82645ae62722f15990f4, type: 2}
     thresholdType: 0
     threshold: 4000
+    mixingPool:
+    - 3
+    - 4
+    - 5
   - difficulty: 9
     layouts:
     - {fileID: 11400000, guid: 2c9a053471f324645b2dc8ab1fa3bde9, type: 2}
@@ -637,6 +661,10 @@ MonoBehaviour:
     - {fileID: 11400000, guid: f0bb730801c239d4f8dad729c1df0052, type: 2}
     thresholdType: 0
     threshold: 4300
+    mixingPool:
+    - 4
+    - 5
+    - 6
   - difficulty: 10
     layouts:
     - {fileID: 11400000, guid: 3b1912e5af16af54b9e151f788b3ee2b, type: 2}
@@ -741,6 +769,11 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 7ee52c9fced5a124ba6b0d9ef52e5698, type: 2}
     thresholdType: 0
     threshold: 4600
+    mixingPool:
+    - 4
+    - 5
+    - 6
+    - 7
   - difficulty: 4
     layouts:
     - {fileID: 11400000, guid: 1f86810013ef0e046b808a009f8f6286, type: 2}
@@ -845,6 +878,12 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 27128c4282fdafe46acf61c4b2a9b22a, type: 2}
     thresholdType: 0
     threshold: 5000
+    mixingPool:
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
   - difficulty: 5
     layouts:
     - {fileID: 11400000, guid: 11288727c6ccb90419c32f79402f4d35, type: 2}
@@ -1048,6 +1087,12 @@ MonoBehaviour:
     - {fileID: 11400000, guid: a2c8c02d29568004d9d973c2b096238d, type: 2}
     thresholdType: 0
     threshold: 8000
+    mixingPool:
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
   - difficulty: 6
     layouts:
     - {fileID: 11400000, guid: 9ad13880283618246a6cae57d339986d, type: 2}
@@ -1256,6 +1301,11 @@ MonoBehaviour:
     - {fileID: 11400000, guid: d03ccbd42abfef543bf52050069a96ea, type: 2}
     thresholdType: 0
     threshold: 12000
+    mixingPool:
+    - 7
+    - 8
+    - 9
+    - 10
   - difficulty: 7
     layouts:
     - {fileID: 11400000, guid: 9a5b1b237e2efca46bd633da0236bf74, type: 2}
@@ -1463,6 +1513,10 @@ MonoBehaviour:
     - {fileID: 11400000, guid: 3a3cf457bcc49aa4e9117c3245024e8e, type: 2}
     thresholdType: 0
     threshold: 20000
+    mixingPool:
+    - 9
+    - 10
+    - 11
   loopPhases: 0
   enablePhaseMixing: 1
   mixingCurrentWeight: 0.7

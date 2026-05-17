@@ -77,6 +77,11 @@ public static class SemanticPathfinder
             case CellType.Lava:
                 return IsLavaPassable(pos, clusters);
 
+            case CellType.Gap:
+                // V16: Gap ist „begehbar im Sinne der Validierung" — die Map ist lösbar.
+                // Physisch ist Gap abgesenkt → Agent klettert oder springt.
+                return true;
+
             default:
                 return false;
         }

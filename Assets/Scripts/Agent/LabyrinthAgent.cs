@@ -12,7 +12,8 @@ public class LabyrinthAgent : Agent
     [Header("Sprung")]
     public float jumpForce = 4.5f;
     [Tooltip("Phasenspezifischer Jump-Force-Override. Index = CurrentPhaseIndex. <=0 nutzt jumpForce.")]
-    [SerializeField] private float[] phaseJumpForces = new float[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    // V16: 12 Phasen (0..3 Trivial, 4 JumpWarmup, 5..7 Lava*, 8 Hazard, 9..11 Easy/Med/Hard).
+    [SerializeField] private float[] phaseJumpForces = new float[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     [Header("Air-Control (Fix 6.2)")]
     [Tooltip("Faktor auf moveSpeed wenn nicht grounded. 1.0 = volle Kontrolle. 0.5 = halbe.")]
@@ -38,7 +39,8 @@ public class LabyrinthAgent : Agent
     [Header("Reward – Tod")]
     [SerializeField] private float lavaDeathPenalty = -0.3f;  // Fix 1.4
     [Tooltip("Phasenspezifischer Lava-Death-Penalty-Override. 0 = nutzt lavaDeathPenalty.")]
-    [SerializeField] private float[] phaseLavaDeathPenalties = new float[] { 0, 0, 0, 0, -0.1f, -0.1f, -0.1f, -0.1f, 0, 0, -1f };
+    // V16: P4 (JumpWarmup) hat keine Lava → 0. P5..P7 = Lava-Phasen mit milder Strafe.
+    [SerializeField] private float[] phaseLavaDeathPenalties = new float[] { 0, 0, 0, 0, 0, -0.1f, -0.1f, -0.1f, -0.1f, 0, 0, -1f };
     [SerializeField] private float holeDeathPenalty = -1f;
 
     [Header("Reward – Timeout")]
@@ -49,11 +51,15 @@ public class LabyrinthAgent : Agent
     [SerializeField] private float lavaAboveMinDistance = 0.3f;
     [Tooltip("Belohnung bei erfolgreicher Landung nach 'über Lava' (Edge-Trigger, Fix 1.1)")]
     [SerializeField] private float lavaCrossSuccessReward = 5f;
+    [Tooltip("V16 Fix I: Mini-Reward pro ausgeführtem Sprung in Lava-Phasen (P4..P8), nur wenn Lava in der Nähe. 0 = deaktiviert.")]
+    [SerializeField] private float jumpSampleBonus = 0f;
 
     [Header("Reward – Zeit")]
     [SerializeField] private float stepPenalty = -0.005f;
     [Tooltip("Phasenspezifischer Step-Penalty-Override (Fix 4.4). 0 = nutzt stepPenalty.")]
-    [SerializeField] private float[] phaseStepPenalties = new float[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    // V16: P0..P3 stärker bestrafen, P4..P7 (JumpWarmup + Lava) lockern,
+    // P8 (Hazard) Default, P9..P11 zunehmend strenger. Siehe Plan §4 Fix K.
+    [SerializeField] private float[] phaseStepPenalties = new float[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     [Header("Wall-Climb Guard")]
     [SerializeField] private float wallClimbMaxY = 5.0f;
@@ -69,9 +75,9 @@ public class LabyrinthAgent : Agent
     [SerializeField] private bool pausePbrsOverLava = true;
 
     [Header("Curriculum – MaxStep pro Phase")]
-    // Index = CurriculumTracker.CurrentPhaseIndex.
-    // Default 11 Einträge (4 Trivial + 3 LavaSub + Hazard + Easy/Medium/Hard) — kann je nach CurriculumConfig-Reihenfolge angepasst werden.
-    [SerializeField] private int[] phaseMaxSteps = new int[] { 600, 600, 600, 600, 600, 600, 600, 600, 1000, 1500, 2000 };
+    // V16: 12 Einträge — Phase 4 = JumpWarmup neu eingeschoben.
+    // 0..3 Trivial (600), 4 JumpWarmup (800), 5..7 Lava* (1500), 8 Hazard (1500), 9 Easy (1500), 10 Medium (2000), 11 Hard (2500).
+    [SerializeField] private int[] phaseMaxSteps = new int[] { 600, 600, 600, 600, 800, 1500, 1500, 1500, 1500, 1500, 2000, 2500 };
 
     [Tooltip("Wenn > 0, ueberschreibt phaseMaxSteps fuer diese Szene/Instanz. Nur fuer Tests, im Training auf 0 lassen.")]
     [SerializeField] private int testOverrideMaxSteps = 0;
@@ -106,6 +112,12 @@ public class LabyrinthAgent : Agent
     private bool pendingLavaLanding = false;
     private bool sensorSawLavaAhead = false; // Cache aus CollectObservations für PBRS-Pause
 
+    // V16 Fix M: Sprung-/PBRS-Diagnostik
+    private int   jumpsTotal      = 0;   // tatsächlich ausgeführte Sprünge (nur bei isGrounded)
+    private int   jumpsNearLava   = 0;   // Sprünge mit Lava in Sicht/Anflug
+    private float pathDistInit    = 0f;  // norm. Pfaddistanz zu Episode-Beginn
+    private float pathDistFinal   = 0f;  // norm. Pfaddistanz beim Episode-Ende
+
     // Reward-Komponenten Logging (Fix 4.2)
     private float rewGoal, rewPBRS, rewStep, rewDeath, rewTimeout, rewLavaJump, rewLavaCross, rewWallClimb;
 
@@ -139,6 +151,13 @@ public class LabyrinthAgent : Agent
         Academy.Instance.StatsRecorder.Add("Reward/LavaCross", rewLavaCross);
         Academy.Instance.StatsRecorder.Add("Reward/WallClimb", rewWallClimb);
 
+        // V16 Fix M: Diagnostik — Sprung-Aktivität + PBRS-Gradient
+        Academy.Instance.StatsRecorder.Add("Custom/JumpsTotal",     jumpsTotal);
+        Academy.Instance.StatsRecorder.Add("Custom/JumpsNearLava",  jumpsNearLava);
+        Academy.Instance.StatsRecorder.Add("Custom/PathDistInit",   pathDistInit);
+        Academy.Instance.StatsRecorder.Add("Custom/PathDistFinal",  pathDistFinal);
+        Academy.Instance.StatsRecorder.Add("Custom/PathDistDelta",  pathDistInit - pathDistFinal);
+
         // Curriculum: EMA + Per-Phase-SuccessRate aktualisieren (Fix 2.2 + 5.2)
         CurriculumTracker.NotifyEpisodeEnd(lastEpisodeWasSuccess);
 
@@ -154,6 +173,12 @@ public class LabyrinthAgent : Agent
         episodeEndedByTerminal = false;
         terminalReason        = -1;
         rewGoal = rewPBRS = rewStep = rewDeath = rewTimeout = rewLavaJump = rewLavaCross = rewWallClimb = 0f;
+
+        // V16 Fix M: Diagnostik-Reset
+        jumpsTotal       = 0;
+        jumpsNearLava    = 0;
+        pathDistInit     = 0f;
+        pathDistFinal    = 0f;
 
         if (mapGenerator != null)
         {
@@ -188,6 +213,10 @@ public class LabyrinthAgent : Agent
         previousPathDistance = mapGenerator != null
             ? mapGenerator.GetNormalizedPathDistance(transform.position)
             : 0f;
+
+        // V16 Fix M: initiale Pfaddistanz für Diagnostik festhalten.
+        pathDistInit  = previousPathDistance;
+        pathDistFinal = previousPathDistance;
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -306,8 +335,10 @@ public class LabyrinthAgent : Agent
         // ── PBRS (Fix 1.2: Pause über/vor Lava, Fix 3.3: Pfad-Distanz, Fix 4.3: korrektes Gamma) ──
         if (goalTransform != null)
         {
+            // V16 Fix C: Pause nur über Lava — Annäherung (sensorSawLavaAhead)
+            // braucht den Gradienten, damit die Sprung-Action gelernt wird.
             bool aboveLava = DetectAboveLava();
-            bool pauseShaping = pausePbrsOverLava && (aboveLava || sensorSawLavaAhead);
+            bool pauseShaping = pausePbrsOverLava && aboveLava;
             float scale = pauseShaping ? 0f : distanceShapingScale;
 
             float shapingDelta;
@@ -316,6 +347,7 @@ public class LabyrinthAgent : Agent
                 float currentPath = mapGenerator.GetNormalizedPathDistance(transform.position);
                 shapingDelta = (previousPathDistance - pbrsGamma * currentPath) * scale;
                 previousPathDistance = currentPath;
+                pathDistFinal = currentPath;  // V16 Fix M
                 // euklidisch trotzdem aktualisieren (Observation-Vergleich)
                 previousDistance = Vector3.Distance(transform.position, goalTransform.position);
             }
@@ -428,6 +460,20 @@ public class LabyrinthAgent : Agent
         {
             rb.AddForce(Vector3.up * effectiveJumpForce, ForceMode.Impulse);
             isGrounded = false;
+
+            // V16 Fix M: Sprung-Sample-Statistik (nur tatsächlich ausgeführte Sprünge zählen)
+            jumpsTotal++;
+            bool nearLava = sensorSawLavaAhead || pendingLavaLanding || wasAboveLava;
+            if (nearLava) jumpsNearLava++;
+
+            // V16 Fix I: Mini-Reward für aktiv ausgeführten Sprung in Lava-Phasen,
+            // ausschließlich wenn Lava im Anflug/sichtbar — verhindert „Spawn-Hüpfen".
+            // Phase-Indices in V16: 4=JumpWarmup, 5..7=Lava*, 8=Hazard.
+            if (jumpSampleBonus > 0f && nearLava && phaseIdx >= 4 && phaseIdx <= 8)
+            {
+                AddReward(jumpSampleBonus);
+                rewLavaJump += jumpSampleBonus;
+            }
         }
     }
 

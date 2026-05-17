@@ -219,6 +219,7 @@ MonoBehaviour:
   - 0
   - 0
   - 0
+  - 4
   - 6
   - 6
   - 6
@@ -226,7 +227,7 @@ MonoBehaviour:
   - 6
   - 6
   - 6
-  airControlFactor: 0.5
+  airControlFactor: 1
   useVelocityMovement: 0
   groundCheckDistance: 0.15
   groundSensorRange: 2
@@ -239,6 +240,7 @@ MonoBehaviour:
   - 0
   - 0
   - 0
+  - 0
   - -0.1
   - -0.1
   - -0.1
@@ -247,28 +249,30 @@ MonoBehaviour:
   - 0
   - -1
   holeDeathPenalty: -1
-  timeoutPenalty: -5
+  timeoutPenalty: -10
   lavaAttemptBaseReward: 0
   lavaAboveMinDistance: 0.3
   lavaCrossSuccessReward: 5
+  jumpSampleBonus: 0
   stepPenalty: -0.001
   phaseStepPenalties:
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
+  - -0.002
+  - -0.002
+  - -0.002
+  - -0.002
+  - -0.0005
+  - -0.0005
+  - -0.0005
+  - -0.0005
+  - -0.001
+  - -0.001
+  - -0.001
   - -0.002
   wallClimbMaxY: 3
   wallClimbPenalty: -1
   maxUpwardVelocity: 3.5
-  distanceShapingScale: 0.005
-  pbrsGamma: 1
+  distanceShapingScale: 0.05
+  pbrsGamma: 0.997
   usePathDistanceForPBRS: 1
   pausePbrsOverLava: 1
   phaseMaxSteps:
@@ -276,13 +280,14 @@ MonoBehaviour:
   - 600
   - 600
   - 600
-  - 15000
-  - 15000
-  - 15000
-  - 15000
-  - 1000
+  - 800
+  - 1500
+  - 1500
+  - 1500
+  - 1500
   - 1500
   - 2000
+  - 2500
   testOverrideMaxSteps: 0
   maxObservationDistance: 20
   debugSensors: 1
