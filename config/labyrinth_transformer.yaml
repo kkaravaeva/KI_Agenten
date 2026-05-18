@@ -15,8 +15,8 @@ behaviors:
       learning_rate: 1.0e-4
       batch_size: 1024
       buffer_size: 81920
-      beta: 1.0e-3                       # V17: 5e-3 → 1e-3 zurückgenommen — V16-Fix-H hat nichts gebracht, weil P0/P1 keine Lava enthalten und die hohe Entropie nur Phase-Advance blockiert hat
-      beta_schedule: linear              # läuft über max_steps linear gegen 0 (jetzt mit max_steps=10M deutlich schnellerer Decay)
+      beta: 5.0e-4                       # V18: 1e-3 linear→0 ersetzt durch konstantes 5e-4. V17 ließ β bis 3e-5 fallen (effektiv null Exploration), nachweislich Mitschuld am P2-Plateau bei EMA 0.49. Floor 5e-4 hält Re-Exploration in späten Phasen lebendig, ohne P0/P1 stark zu stören.
+      beta_schedule: constant            # V18: linear → constant. Mit constant ist max_steps für β irrelevant (kein Decay mehr). max_steps regelt jetzt nur Trainer-Laufzeit + LR-Decay (LR ist ohnehin schon constant).
       epsilon: 0.2
       lambd: 0.95
       num_epoch: 3
@@ -34,7 +34,7 @@ behaviors:
           hidden_units: 128
           num_layers: 2
 
-    max_steps: 10000000                  # V17: 60M → 10M; sorgt für 6× schnelleren Beta-Decay (linear) und reicht für P0–P11-Durchlauf
+    max_steps: 20000000                  # V18: 10M → 20M. β ist jetzt constant, daher kein Decay-Effekt; max_steps wirkt nur als Trainer-Termination. Höher gesetzt, damit ein 8h-Run nicht künstlich gestoppt wird, falls Throughput höher als ~1200 steps/s liegt.
     time_horizon: 256
     summary_freq: 20000
     keep_checkpoints: 5

@@ -2508,4 +2508,104 @@ V17 gilt als Erfolg, wenn am Ende des Runs `Custom/CurriculumPhase ≥ 5`, `Cust
 | `Dokumentation/Trainingsanalyse_Transformer_Milestone7.md` | V17-Plan-Block angehängt: Hypothese, Hebel-Tabelle, erwartete Trajektorie (P5 bei ~3M, β-Boden bei 10M), Decision-Punkte bei 2M/5M/10M, Erfolgskriterium (`Phase≥5`, `LavaJumps/Successful>0`, Entropie<1.8) |
 
 **Unverändert** (bewusst): `useSuccessRateAdvance=1`, `successRateEMAAlpha=0.02`, `minEpisodesBeforeAdvance=1000`, alle `mixingPool`-Einträge, alle Phase-`threshold`-Werte, `learning_rate_schedule: constant`, `curiosity.strength=0.02`, alle V16-Änderungen an PBRS / Sprung-Physik / Phase-Thresholds.
-.
+
+
+### V17 Final Report @ 10M — Endzustand: Phase 2 stuck
+
+  Bottom line: V17 hat P0 und P1 erfolgreich gemeistert (großer Fortschritt vs V16), aber dann 4.22M Steps in P2 pure verbracht ohne Advance. Lava wurde nie
+   erreicht. Lauf endet planmäßig bei max_steps=10M.
+
+  Trajektorie-Vergleich V16 vs V17
+
+  ┌─────────────────────────┬───────────┬───────────┐
+  │                         │ V16 (60M) │ V17 (10M) │
+  ├─────────────────────────┼───────────┼───────────┤
+  │ Höchste erreichte Phase │         1 │         2 │
+  ├─────────────────────────┼───────────┼───────────┤
+  │ EMA_P1 final            │    ≈ 0.45 │  0.7024 ✓ │
+  ├─────────────────────────┼───────────┼───────────┤
+  │ EMA_P2 final            │      n.A. │  0.4844 ✗ │
+  ├─────────────────────────┼───────────┼───────────┤
+  │ Mean Reward final       │     ≈ −10 │      +3.0 │
+  ├─────────────────────────┼───────────┼───────────┤
+  │ Lava-Berührung          │         0 │         0 │
+  └─────────────────────────┴───────────┴───────────┘
+
+  V17 ist eine klare Verbesserung, hat das alte Bottleneck (β, Threshold, Mix-Pool) aufgelöst — aber ein neues Bottleneck offenbart: TrivialBranch (P2) bei
+  genau ~50 % SR-Plateau.
+
+  Das neue P2-Bottleneck im Detail
+
+  EMA_P2 nach Eintritt in P2 pure (Step 5.78M):
+  6.0M: 0.4827   7.0M: 0.4802   8.0M: 0.4868
+  9.0M: 0.4789   9.4M: 0.5072   9.8M: 0.5012   10M: 0.4844
+  4 Millionen Steps bei 0.47–0.51 — nie über 0.55. SR_P2 raw oszilliert um 0.43–0.56 ohne Trend.
+
+  Diagnose: Das sieht aus wie eine 50/50-Verzweigungs-Rate — der Agent rät an Branch-Knoten. Plus: Beta ist zu schnell kollabiert.
+  - β @ 6.5M (kurz nach P2-Eintritt): 3.58e-4
+  - β @ 10M: 3.0e-5 (effektiv null Exploration)
+  - Entropy: 2.37 → 1.10 (62 % Decay)
+
+  Sobald der Agent in P2 ankam, war die Exploration bereits soweit reduziert, dass er den korrekten Branch-Pick nicht mehr finden konnte. Mix 1↔2 lief
+  sauber (Mean Reward +6 bis +8), aber sobald pure P2 → Plateau.
+
+  Positiv-Befunde
+
+  - EMA_P0 = 0.7314, EMA_P1 = 0.7024 über 4M Steps in P2 pure: null catastrophic forgetting ✓
+  - Mix-Pool [0,1] funktioniert wie designed
+  - Curiosity-Forward steigt (0.04 → 0.17): Welt-Modell hält Schritt
+  - JumpsTotal sinkt von 37 → 10 (Agent springt seltener „aus Versehen")
+
+  Decision-Punkte final
+
+  - 2M, 5M, 10M Ziele: alle verfehlt
+  - Wichtig: V17 hat dennoch das V16-Hauptproblem (P0/P1-Gate) gelöst
+
+  V18-Plan (Empfehlungen, keine Implementation noch)
+
+  Hypothese: P2 (Branch) braucht mehr Exploration UND/ODER eine niedrigere Schwelle, weil ~50 % bereits an der Informations-Obergrenze des Branch-Pickens
+  liegt.
+
+  Drei Hebel mit klarer Priorität:
+
+  ┌───────────────────────┬─────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────┐
+  │         Hebel         │            Vorschlag            │                                          Risiko                                          │
+  ├───────────────────────┼─────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 1. max_steps          │ 10M → 20M                       │ β-Decay 2× langsamer, mehr Exploration in späten Phasen. Geringes Risiko.                │
+  ├───────────────────────┼─────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 2.                    │ 0.55 → 0.50                     │ V17 hat EMA_P2 zweimal > 0.50 berührt. Bei 0.50 wäre P2→P3 ~9.4M erfolgt. Geringes       │
+  │ successRateThreshold  │                                 │ Risiko.                                                                                  │
+  ├───────────────────────┼─────────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 3. β P2+ Boost        │ konstantes β=5e-4 als Floor     │ Verhindert Exploration-Kollaps in späten Phasen. Mittleres Risiko (kann P0/P1 Forgetting │
+  │                       │ (statt linear→0)                │  auslösen — aber Mix-Pool hält dagegen).                                                 │
+  └───────────────────────┴─────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  ##V18-Änderungen:
+
+  ┌────────────────────────────────────────────┬───────────────────────────────────────────────────────────────┐
+  │                   Datei                    │                           Änderung                            │
+  ├────────────────────────────────────────────┼───────────────────────────────────────────────────────────────┤
+  │ config/labyrinth_transformer.yaml:18-19    │ beta: 1.0e-3 → 5.0e-4, beta_schedule: linear → constant       │
+  ├────────────────────────────────────────────┼───────────────────────────────────────────────────────────────┤
+  │ config/labyrinth_transformer.yaml:37       │ max_steps: 10M → 20M                                          │
+  ├────────────────────────────────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Assets/CurriculumConfig_Default.asset:1625 │ successRateThreshold: 0.55 → 0.5                              │
+  ├────────────────────────────────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Assets/Scripts/Map/MapGenerator.cs:456-510 │ Neu: IsBranchTile() + GetMinNeighborPathDist()                │
+  ├────────────────────────────────────────────┼───────────────────────────────────────────────────────────────┤
+  │ Assets/Scripts/Agent/LabyrinthAgent.cs     │ Neu: 10 V18-Felder + Per-Step-Tracking + 11 TensorBoard-Stats │
+  └────────────────────────────────────────────┴───────────────────────────────────────────────────────────────┘
+
+  Neue TensorBoard-Stats für V19-Analyse
+
+  Pfad-Trajektorie (pro Episode):
+  - Custom/Path/InitialCells, FinalCells, MaxCells — Roh-Pfaddistanz in Zellen
+  - Custom/Path/MaxExcursion — wie tief Agent in Sackgasse abgewichen ist (0 = nie aus optimalem Pfad raus)
+  - Custom/Path/StepsCloser, StepsFarther, StepsEqual — Bewegungs-Direktionen
+  - Custom/Path/RegressionRatio — Anteil der Steps mit ΔPathDist>0 (nahe 0 = sauber zielgerichtet, ~0.5 = oszillierend)
+
+  Branch-Entscheidungen (pro Episode):
+  - Custom/Branch/TilesSeen — wie oft Agent einen echten Entscheidungspunkt betreten hat (Tile mit min-Neighbor < tile UND max-Neighbor > tile+1)
+  - Custom/Branch/WrongChoices — wie oft die direkt-folgende Wahl suboptimal war
+  - Custom/Branch/WrongRatio — die Schlüsselmetrik für P2: 0 = Branches gemeistert, 0.5 = würfelt 50/50, 1 = systematisch falsch

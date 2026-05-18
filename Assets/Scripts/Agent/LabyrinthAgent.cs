@@ -118,6 +118,18 @@ public class LabyrinthAgent : Agent
     private float pathDistInit    = 0f;  // norm. Pfaddistanz zu Episode-Beginn
     private float pathDistFinal   = 0f;  // norm. Pfaddistanz beim Episode-Ende
 
+    // V18 Diagnostik (für V19-Analyse): Wegentscheidungs-Tracking
+    private int pathStepsCloser     = 0;   // Schritte mit ΔPathDist < 0 (Annäherung)
+    private int pathStepsFarther    = 0;   // Schritte mit ΔPathDist > 0 (Entfernung — Sackgasse oder Rückweg)
+    private int pathStepsEqual      = 0;   // Schritte ohne Pfaddistanz-Änderung (Wand, Idle, parallel)
+    private int pathDistRawInit     = -1;  // Roh-Pfaddistanz in Zellen zu Episode-Beginn
+    private int pathDistRawMax      = -1;  // Höchste erreichte Roh-Pfaddistanz in der Episode (Excursion-Indikator)
+    private int pathDistRawFinal    = -1;  // Roh-Pfaddistanz beim Episode-Ende
+    private int prevPathDistRaw     = -1;  // Letzter Wert für Delta-Berechnung
+    private int branchTilesSeen     = 0;   // Wie oft der Agent ein Branch-Tile betreten hat
+    private int branchWrongChoices  = 0;   // Wie oft die direkt-folgende Wahl suboptimal war
+    private int branchOptimalDistPending = -1; // Speichert "optimal next pathDist" wenn letzter Step ein Branch war
+
     // Reward-Komponenten Logging (Fix 4.2)
     private float rewGoal, rewPBRS, rewStep, rewDeath, rewTimeout, rewLavaJump, rewLavaCross, rewWallClimb;
 
@@ -158,6 +170,26 @@ public class LabyrinthAgent : Agent
         Academy.Instance.StatsRecorder.Add("Custom/PathDistFinal",  pathDistFinal);
         Academy.Instance.StatsRecorder.Add("Custom/PathDistDelta",  pathDistInit - pathDistFinal);
 
+        // V18 Diagnostik (für V19): Wegentscheidungs-Telemetrie
+        // - Path/RegressionRatio nahe 0 = sauber zielgerichtet | nahe 0.5 = oszillierend | >0.3 = oft falsch
+        // - Path/MaxExcursion = wie tief in Sackgasse abgewichen (in Roh-Cells), 0 = nie aus dem optimalen Pfad
+        // - Branch/WrongRatio nahe 0 = Branches werden gemeistert | nahe 0.5 = würfelt 50/50 | nahe 1 = systematisch falsch
+        Academy.Instance.StatsRecorder.Add("Custom/Path/InitialCells", Mathf.Max(0, pathDistRawInit));
+        Academy.Instance.StatsRecorder.Add("Custom/Path/FinalCells",   Mathf.Max(0, pathDistRawFinal));
+        Academy.Instance.StatsRecorder.Add("Custom/Path/MaxCells",     Mathf.Max(0, pathDistRawMax));
+        Academy.Instance.StatsRecorder.Add("Custom/Path/MaxExcursion",
+            (pathDistRawInit >= 0 && pathDistRawMax >= 0) ? Mathf.Max(0, pathDistRawMax - pathDistRawInit) : 0);
+        Academy.Instance.StatsRecorder.Add("Custom/Path/StepsCloser",  pathStepsCloser);
+        Academy.Instance.StatsRecorder.Add("Custom/Path/StepsFarther", pathStepsFarther);
+        Academy.Instance.StatsRecorder.Add("Custom/Path/StepsEqual",   pathStepsEqual);
+        int totalMove = pathStepsCloser + pathStepsFarther;
+        Academy.Instance.StatsRecorder.Add("Custom/Path/RegressionRatio",
+            totalMove > 0 ? (float)pathStepsFarther / totalMove : 0f);
+        Academy.Instance.StatsRecorder.Add("Custom/Branch/TilesSeen",     branchTilesSeen);
+        Academy.Instance.StatsRecorder.Add("Custom/Branch/WrongChoices",  branchWrongChoices);
+        Academy.Instance.StatsRecorder.Add("Custom/Branch/WrongRatio",
+            branchTilesSeen > 0 ? (float)branchWrongChoices / branchTilesSeen : 0f);
+
         // Curriculum: EMA + Per-Phase-SuccessRate aktualisieren (Fix 2.2 + 5.2)
         CurriculumTracker.NotifyEpisodeEnd(lastEpisodeWasSuccess);
 
@@ -179,6 +211,18 @@ public class LabyrinthAgent : Agent
         jumpsNearLava    = 0;
         pathDistInit     = 0f;
         pathDistFinal    = 0f;
+
+        // V18 Diagnostik-Reset
+        pathStepsCloser         = 0;
+        pathStepsFarther        = 0;
+        pathStepsEqual          = 0;
+        pathDistRawInit         = -1;
+        pathDistRawMax          = -1;
+        pathDistRawFinal        = -1;
+        prevPathDistRaw         = -1;
+        branchTilesSeen         = 0;
+        branchWrongChoices      = 0;
+        branchOptimalDistPending = -1;
 
         if (mapGenerator != null)
         {
@@ -217,6 +261,15 @@ public class LabyrinthAgent : Agent
         // V16 Fix M: initiale Pfaddistanz für Diagnostik festhalten.
         pathDistInit  = previousPathDistance;
         pathDistFinal = previousPathDistance;
+
+        // V18 Diagnostik: Roh-Pfaddistanz (in Cells) für Branch/Excursion-Analyse.
+        if (mapGenerator != null)
+        {
+            pathDistRawInit  = mapGenerator.GetPathDistanceCells(transform.position);
+            pathDistRawMax   = pathDistRawInit;
+            pathDistRawFinal = pathDistRawInit;
+            prevPathDistRaw  = pathDistRawInit;
+        }
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -311,6 +364,46 @@ public class LabyrinthAgent : Agent
     public override void OnActionReceived(ActionBuffers actions)
     {
         CurriculumTracker.NotifyStep();
+
+        // ── V18 Diagnostik: Pfad-Trajektorie + Branch-Entscheidungen ──
+        // Wird vor der eigentlichen Reward/Action-Logik geprüft, damit die aktuelle
+        // Position (= Resultat des letzten Steps) sauber gegen die Vorgänger-Position
+        // verglichen werden kann. Konsumiert nur 1 Array-Lookup pro Step + ggf. 4
+        // weitere bei Branch-Tile-Check → kein relevanter Overhead.
+        if (mapGenerator != null)
+        {
+            int currentPathRaw = mapGenerator.GetPathDistanceCells(transform.position);
+            if (currentPathRaw >= 0)
+            {
+                if (prevPathDistRaw >= 0)
+                {
+                    int delta = currentPathRaw - prevPathDistRaw;
+                    if (delta > 0)      pathStepsFarther++;
+                    else if (delta < 0) pathStepsCloser++;
+                    else                pathStepsEqual++;
+                }
+                if (currentPathRaw > pathDistRawMax) pathDistRawMax = currentPathRaw;
+                pathDistRawFinal = currentPathRaw;
+
+                // Wurde im letzten Step eine Branch-Entscheidung getroffen? Dann jetzt prüfen,
+                // ob die direkt-folgende Zelle suboptimal ist (PathDist > Min aller Neighbors damals).
+                if (branchOptimalDistPending >= 0)
+                {
+                    if (currentPathRaw > branchOptimalDistPending)
+                        branchWrongChoices++;
+                    branchOptimalDistPending = -1;
+                }
+
+                // Ist die aktuelle Zelle ein Branch-Tile (mind. ein Pfad weiter weg um ≥2 Cells)?
+                if (mapGenerator.IsBranchTile(transform.position))
+                {
+                    branchTilesSeen++;
+                    branchOptimalDistPending = mapGenerator.GetMinNeighborPathDist(transform.position);
+                }
+
+                prevPathDistRaw = currentPathRaw;
+            }
+        }
 
         // ── Step-Penalty (Fix 4.4: phasenspezifisch falls gesetzt) ──
         int phaseIdx = CurriculumTracker.CurrentPhaseIndex;

@@ -453,6 +453,61 @@ public class MapGenerator : MonoBehaviour
 
     public int MaxPathDistance => maxPathDistance;
 
+    // V18 Diagnostik: Branch-Tile-Erkennung für V19-Analyse.
+    // Ein Tile ist ein „echter" Entscheidungspunkt, wenn min(neighbor)<tile (Hauptpfad existiert)
+    // UND max(neighbor)>tile+1 (mindestens ein Neighbor führt deutlich weiter weg, also Sackgassen-Ast).
+    // Reine Korridor-Tiles und 2-breite Korridor-Tiles werden so NICHT als Branch erkannt.
+    public bool IsBranchTile(Vector3 worldPos)
+    {
+        if (pathDistanceField == null || currentMapData == null) return false;
+        int cx = Mathf.RoundToInt((worldPos.x - mapRoot.position.x) / cellSize);
+        int cy = Mathf.RoundToInt((worldPos.z - mapRoot.position.z) / cellSize);
+        int W = currentMapData.width, H = currentMapData.height;
+        if (cx < 0 || cx >= W || cy < 0 || cy >= H) return false;
+        int tileDist = pathDistanceField[cx, cy];
+        if (tileDist < 0) return false;
+
+        int minN = int.MaxValue, maxN = -1;
+        int[] dx = { 1, -1, 0,  0 };
+        int[] dy = { 0,  0, 1, -1 };
+        for (int i = 0; i < 4; i++)
+        {
+            int nx = cx + dx[i], ny = cy + dy[i];
+            if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+            if (!IsPathable(currentMapData.GetCell(nx, ny))) continue;
+            int nd = pathDistanceField[nx, ny];
+            if (nd < 0) continue;
+            if (nd < minN) minN = nd;
+            if (nd > maxN) maxN = nd;
+        }
+        if (minN == int.MaxValue) return false;
+        return minN < tileDist && maxN > tileDist + 1;
+    }
+
+    // V18 Diagnostik: liefert die minimale Pfaddistanz aller pathable Neighbors (= „optimaler nächster Step").
+    // Wird genutzt um zu prüfen, ob der Agent nach einem Branch-Tile den richtigen Pfad gewählt hat.
+    public int GetMinNeighborPathDist(Vector3 worldPos)
+    {
+        if (pathDistanceField == null || currentMapData == null) return -1;
+        int cx = Mathf.RoundToInt((worldPos.x - mapRoot.position.x) / cellSize);
+        int cy = Mathf.RoundToInt((worldPos.z - mapRoot.position.z) / cellSize);
+        int W = currentMapData.width, H = currentMapData.height;
+        if (cx < 0 || cx >= W || cy < 0 || cy >= H) return -1;
+
+        int minN = int.MaxValue;
+        int[] dx = { 1, -1, 0,  0 };
+        int[] dy = { 0,  0, 1, -1 };
+        for (int i = 0; i < 4; i++)
+        {
+            int nx = cx + dx[i], ny = cy + dy[i];
+            if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+            if (!IsPathable(currentMapData.GetCell(nx, ny))) continue;
+            int nd = pathDistanceField[nx, ny];
+            if (nd >= 0 && nd < minN) minN = nd;
+        }
+        return minN == int.MaxValue ? -1 : minN;
+    }
+
     // V16 Fix A: Jump-aware-BFS / SPFA.
     // Floor-Übergänge kosten 1, Sprung über 1-Tile-Lava (oder Gap) kostet 3.
     // Damit existiert auch in TrivialLavaCrossable-Layouts ein PBRS-Gradient

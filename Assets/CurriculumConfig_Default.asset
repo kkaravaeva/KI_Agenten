@@ -1622,6 +1622,6 @@ MonoBehaviour:
   mixingCurrentWeight: 0.7
   mixingPreviousWeight: 0.2
   useSuccessRateAdvance: 1
-  successRateThreshold: 0.55
+  successRateThreshold: 0.5
   minEpisodesBeforeAdvance: 1000
   successRateEMAAlpha: 0.02
