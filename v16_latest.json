@@ -1,0 +1,158 @@
+{
+  "Policy/Entropy": [
+    1040000,
+    2.4374911785125732
+  ],
+  "Custom/SuccessRate": [
+    1040000,
+    0.45338982343673706
+  ],
+  "Custom/LavaJumpAttempts": [
+    1040000,
+    0.0
+  ],
+  "Custom/LavaJumps/Attempted": [
+    1040000,
+    0.0
+  ],
+  "Custom/LavaJumps/Successful": [
+    1040000,
+    0.0
+  ],
+  "Custom/LavaJumps/Failed": [
+    1040000,
+    0.0
+  ],
+  "Custom/CurriculumPhase": [
+    1040000,
+    1.0
+  ],
+  "Custom/CurriculumPhaseSampled": [
+    1040000,
+    0.694915235042572
+  ],
+  "Custom/TerminalReason": [
+    1040000,
+    1.639830470085144
+  ],
+  "Reward/Goal": [
+    1040000,
+    13.60169506072998
+  ],
+  "Reward/PBRS": [
+    1040000,
+    0.06468392163515091
+  ],
+  "Reward/Step": [
+    1040000,
+    -0.8543763160705566
+  ],
+  "Reward/Death": [
+    1040000,
+    0.0
+  ],
+  "Reward/Timeout": [
+    1040000,
+    -10.93220329284668
+  ],
+  "Reward/LavaJump": [
+    1040000,
+    0.0
+  ],
+  "Reward/LavaCross": [
+    1040000,
+    0.0
+  ],
+  "Reward/WallClimb": [
+    1040000,
+    0.0
+  ],
+  "Custom/JumpsTotal": [
+    1040000,
+    30.45339012145996
+  ],
+  "Custom/JumpsNearLava": [
+    1040000,
+    0.0
+  ],
+  "Custom/PathDistInit": [
+    1040000,
+    0.7928903698921204
+  ],
+  "Custom/PathDistFinal": [
+    1040000,
+    0.4805729389190674
+  ],
+  "Custom/PathDistDelta": [
+    1040000,
+    0.3123174011707306
+  ],
+  "Custom/SuccessRate_P0": [
+    1040000,
+    0.5555555820465088
+  ],
+  "Custom/SuccessRateEMA_P0": [
+    1040000,
+    0.8444197773933411
+  ],
+  "Environment/Episode Length": [
+    1040000,
+    84.44491577148438
+  ],
+  "Policy/Extrinsic Value Estimate": [
+    1040000,
+    11.48840618133545
+  ],
+  "Policy/Curiosity Value Estimate": [
+    1040000,
+    0.022718487307429314
+  ],
+  "Environment/Cumulative Reward": [
+    1040000,
+    1.9814610481262207
+  ],
+  "Policy/Extrinsic Reward": [
+    1040000,
+    1.9814610481262207
+  ],
+  "Policy/Curiosity Reward": [
+    1040000,
+    0.08865942806005478
+  ],
+  "Losses/Policy Loss": [
+    1000000,
+    0.08824190497398376
+  ],
+  "Losses/Value Loss": [
+    1000000,
+    7.647980690002441
+  ],
+  "Policy/Learning Rate": [
+    1000000,
+    9.999999747378752e-05
+  ],
+  "Policy/Epsilon": [
+    1000000,
+    0.20000000298023224
+  ],
+  "Policy/Beta": [
+    1000000,
+    0.004918417427688837
+  ],
+  "Losses/Curiosity Forward Loss": [
+    1000000,
+    0.053532421588897705
+  ],
+  "Losses/Curiosity Inverse Loss": [
+    1000000,
+    1.9674785137176514
+  ],
+  "Custom/SuccessRate_P1": [
+    1040000,
+    0.4085365831851959
+  ],
+  "Custom/SuccessRateEMA_P1": [
+    1040000,
+    0.45801636576652527
+  ]
+}

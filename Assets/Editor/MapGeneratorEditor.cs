@@ -35,6 +35,7 @@ public class MapGeneratorEditor : Editor
         TrivialLavaSurround  = 1 << 8,
         TrivialLavaCrossable = 1 << 9,
         TrivialLavaWide      = 1 << 10,
+        TrivialJumpWarmup    = 1 << 11,
         All                  = ~0
     }
 
@@ -296,6 +297,7 @@ public class MapGeneratorEditor : Editor
             case DifficultyLevel.TrivialLavaSurround:  return DifficultyMask.TrivialLavaSurround;
             case DifficultyLevel.TrivialLavaCrossable: return DifficultyMask.TrivialLavaCrossable;
             case DifficultyLevel.TrivialLavaWide:      return DifficultyMask.TrivialLavaWide;
+            case DifficultyLevel.TrivialJumpWarmup:    return DifficultyMask.TrivialJumpWarmup;
             case DifficultyLevel.Easy:                 return DifficultyMask.Easy;
             case DifficultyLevel.Medium:               return DifficultyMask.Medium;
             default:                                   return DifficultyMask.Hard;
@@ -340,14 +342,15 @@ public class MapGeneratorEditor : Editor
         if (name.Contains("_TrivialCorr_"))          return 1;
         if (name.Contains("_TrivialBranch_"))        return 2;
         if (name.Contains("_TrivialHole_"))          return 3;
-        if (name.Contains("_TrivialLavaSurround_"))  return 4;
-        if (name.Contains("_TrivialLavaCrossable_")) return 5;
-        if (name.Contains("_TrivialLavaWide_"))      return 6;
-        if (name.Contains("_TrivialHazard_"))        return 7;
-        if (name.Contains("_Easy_"))                 return 8;
-        if (name.Contains("_Medium_"))               return 9;
-        if (name.Contains("_Hard_"))                 return 10;
-        return 11;
+        if (name.Contains("_TrivialJumpWarmup_"))    return 4;
+        if (name.Contains("_TrivialLavaSurround_"))  return 5;
+        if (name.Contains("_TrivialLavaCrossable_")) return 6;
+        if (name.Contains("_TrivialLavaWide_"))      return 7;
+        if (name.Contains("_TrivialHazard_"))        return 8;
+        if (name.Contains("_Easy_"))                 return 9;
+        if (name.Contains("_Medium_"))               return 10;
+        if (name.Contains("_Hard_"))                 return 11;
+        return 12;
     }
 
     private static int CompareDifficultyThenName(string a, string b)
