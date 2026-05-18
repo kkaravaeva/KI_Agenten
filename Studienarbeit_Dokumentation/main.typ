@@ -33,11 +33,10 @@
   supervisor: "",
   date: datetime.today(),
   bibliography: bibliography("sources.bib"),
-  logo-left: image("assets/logos/dhbw.svg"),
-  logo-size-ratio: "2:1" // ratio between the right logo and the left logo height (left-logo:right-logo) only the right logo is resized
+  logo-left: image("assets/logos/dhbw.svg"),  logo-size-ratio: "2:1" // ratio between the right logo and the left logo height (left-logo:right-logo) only the right logo is resized
 )
 
-
+test test
 // ============================================================================
 // HINWEIS: Dies ist ein erster Entwurf einer Inhaltsverzeichnis-Struktur,
 // basierend auf dem aktuellen Projektstand (Stand: Milestone 7, ~Mai 2026).
