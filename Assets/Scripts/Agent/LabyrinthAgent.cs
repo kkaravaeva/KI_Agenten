@@ -19,6 +19,12 @@ public class LabyrinthAgent : Agent
     [Tooltip("Faktor auf moveSpeed wenn nicht grounded. 1.0 = volle Kontrolle. 0.5 = halbe.")]
     [SerializeField, Range(0f, 1f)] private float airControlFactor = 0.5f;
 
+    [Header("Macro-Jump (Sprung-Sequence)")]
+    [Tooltip("Action-Wert 2 in Branch 2 startet eine garantierte Sprung-Sequenz: forward+jump fuer mehrere FixedUpdates, bis isGrounded oder Timeout. Soll 1 Lava-Feld direkt vor dem Agenten sicher ueberbruecken.")]
+    [SerializeField] private int macroJumpDurationFrames = 40;
+    [Tooltip("Mindest-Air-Frames bevor die isGrounded-Pruefung die Sequenz beenden darf (verhindert Sofort-Abbruch im Take-off-Frame).")]
+    [SerializeField] private int macroJumpMinAirborneFrames = 5;
+
     [Header("Physik (Fix 6.1)")]
     [Tooltip("Wenn true: Velocity-basierte Bewegung statt MovePosition. Experimentell — kann frühere Phasen regressionieren.")]
     [SerializeField] private bool useVelocityMovement = false;
@@ -115,6 +121,11 @@ public class LabyrinthAgent : Agent
     // V16 Fix M: Sprung-/PBRS-Diagnostik
     private int   jumpsTotal      = 0;   // tatsächlich ausgeführte Sprünge (nur bei isGrounded)
     private int   jumpsNearLava   = 0;   // Sprünge mit Lava in Sicht/Anflug
+
+    // Macro-Jump State (V18+)
+    private bool macroJumpActive          = false;
+    private int  macroJumpFramesElapsed   = 0;
+    private int  macroJumpsTotal          = 0;   // gestartete Macro-Sequenzen pro Episode
     private float pathDistInit    = 0f;  // norm. Pfaddistanz zu Episode-Beginn
     private float pathDistFinal   = 0f;  // norm. Pfaddistanz beim Episode-Ende
 
@@ -166,6 +177,7 @@ public class LabyrinthAgent : Agent
         // V16 Fix M: Diagnostik — Sprung-Aktivität + PBRS-Gradient
         Academy.Instance.StatsRecorder.Add("Custom/JumpsTotal",     jumpsTotal);
         Academy.Instance.StatsRecorder.Add("Custom/JumpsNearLava",  jumpsNearLava);
+        Academy.Instance.StatsRecorder.Add("Custom/MacroJumpsTotal", macroJumpsTotal);
         Academy.Instance.StatsRecorder.Add("Custom/PathDistInit",   pathDistInit);
         Academy.Instance.StatsRecorder.Add("Custom/PathDistFinal",  pathDistFinal);
         Academy.Instance.StatsRecorder.Add("Custom/PathDistDelta",  pathDistInit - pathDistFinal);
@@ -211,6 +223,11 @@ public class LabyrinthAgent : Agent
         jumpsNearLava    = 0;
         pathDistInit     = 0f;
         pathDistFinal    = 0f;
+
+        // Macro-Jump Reset
+        macroJumpActive        = false;
+        macroJumpFramesElapsed = 0;
+        macroJumpsTotal        = 0;
 
         // V18 Diagnostik-Reset
         pathStepsCloser         = 0;
@@ -491,10 +508,40 @@ public class LabyrinthAgent : Agent
         lastEpisodeStepCount = StepCount;
         lastEpisodeCumulativeReward = GetCumulativeReward();
 
-        // ── Aktionen ──
-        int moveAction = actions.DiscreteActions[0];
-        int turnAction = actions.DiscreteActions[1];
-        int jumpAction = actions.DiscreteActions[2];
+        // ── Aktionen (mit Macro-Jump-Override) ──
+        // Branch 2: 0 = nichts, 1 = Standard-Jump, 2 = Macro-Jump starten.
+        // Macro erzwingt forward+jump fuer mehrere FixedUpdates, bis isGrounded
+        // (nach Mindest-Air-Frames) oder bis macroJumpDurationFrames erreicht ist.
+        int moveAction;
+        int turnAction;
+        int jumpAction;
+
+        if (!macroJumpActive && actions.DiscreteActions[2] == 2 && isGrounded)
+        {
+            macroJumpActive = true;
+            macroJumpFramesElapsed = 0;
+            macroJumpsTotal++;
+        }
+
+        if (macroJumpActive)
+        {
+            moveAction = 1;
+            turnAction = 0;
+            jumpAction = (macroJumpFramesElapsed == 0) ? 1 : 0;
+            macroJumpFramesElapsed++;
+
+            bool landedAfterAirborne = macroJumpFramesElapsed > macroJumpMinAirborneFrames && isGrounded;
+            if (landedAfterAirborne || macroJumpFramesElapsed >= macroJumpDurationFrames)
+            {
+                macroJumpActive = false;
+            }
+        }
+        else
+        {
+            moveAction = actions.DiscreteActions[0];
+            turnAction = actions.DiscreteActions[1];
+            jumpAction = (actions.DiscreteActions[2] == 1) ? 1 : 0;
+        }
 
         // Phasenspezifischer Jump-Force-Override (Fix 6.3)
         float effectiveJumpForce = (phaseJumpForces != null
@@ -581,6 +628,7 @@ public class LabyrinthAgent : Agent
         else if (Input.GetKey(KeyCode.D)) d[1] = 2;
         d[2] = 0;
         if (Input.GetKey(KeyCode.Space)) d[2] = 1;
+        if (Input.GetKey(KeyCode.Q))     d[2] = 2;
     }
 
     private void FixedUpdate()

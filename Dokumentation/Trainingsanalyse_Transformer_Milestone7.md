@@ -2561,7 +2561,7 @@ V17 gilt als Erfolg, wenn am Ende des Runs `Custom/CurriculumPhase ≥ 5`, `Cust
   - 2M, 5M, 10M Ziele: alle verfehlt
   - Wichtig: V17 hat dennoch das V16-Hauptproblem (P0/P1-Gate) gelöst
 
-  V18-Plan (Empfehlungen, keine Implementation noch)
+  ## V18-Plan (Empfehlungen, keine Implementation noch)
 
   Hypothese: P2 (Branch) braucht mehr Exploration UND/ODER eine niedrigere Schwelle, weil ~50 % bereits an der Informations-Obergrenze des Branch-Pickens
   liegt.
@@ -2609,3 +2609,94 @@ V17 gilt als Erfolg, wenn am Ende des Runs `Custom/CurriculumPhase ≥ 5`, `Cust
   - Custom/Branch/TilesSeen — wie oft Agent einen echten Entscheidungspunkt betreten hat (Tile mit min-Neighbor < tile UND max-Neighbor > tile+1)
   - Custom/Branch/WrongChoices — wie oft die direkt-folgende Wahl suboptimal war
   - Custom/Branch/WrongRatio — die Schlüsselmetrik für P2: 0 = Branches gemeistert, 0.5 = würfelt 50/50, 1 = systematisch falsch
+
+  ### V18 recap
+
+    Korrektur: Kein Sprung — alle Phasen wurden durchlaufen
+
+  Die Logs zeigen alle Phase-Übergänge sauber:
+
+  ┌────────────────────────────────────┬─────────────────┐
+  │              Übergang              │ EMA zum Advance │
+  ├────────────────────────────────────┼─────────────────┤
+  │ Phase 0 → 1 (TrivialCorr)          │           0.509 │
+  ├────────────────────────────────────┼─────────────────┤
+  │ Phase 1 → 2 (TrivialBranch)        │           0.506 │
+  ├────────────────────────────────────┼─────────────────┤
+  │ Phase 2 → 3 (TrivialHole)          │           0.508 │
+  ├────────────────────────────────────┼─────────────────┤
+  │ Phase 3 → 4 (TrivialJumpWarmup)    │           0.609 │
+  ├────────────────────────────────────┼─────────────────┤
+  │ Phase 4 → 5 (TrivialLavaSurround)  │           0.761 │
+  ├────────────────────────────────────┼─────────────────┤
+  │ Phase 5 → 6 (TrivialLavaCrossable) │           0.855 │
+  ├────────────────────────────────────┼─────────────────┤
+  │ Phase 6 → 7 (TrivialLavaWide)      │           0.502 │
+  └────────────────────────────────────┴─────────────────┘
+
+  Die Snapshot-Zeile "Mix-Ramp 1.10 → 5.96 / 920K – 5.12M Steps" hat dich (und mich) in die Irre geführt — die war kein Sprung, sondern Phasen 2 + 3 + 4 + 5
+   wurden in 4.2M Steps nacheinander durchlaufen und im Reporting nur als gemittelte PhaseSampled-Werte sichtbar. Die "pure"-Phasen im Snapshot zeigen nur
+  die langlebigen Anker (P0, P1, P6).
+
+  Was wirklich schiefging
+
+  Die Logik in CurriculumTracker.cs:209-241 ist korrekt. Aber die Config in Assets/CurriculumConfig_Default.asset:1620-1627:
+
+  useSuccessRateAdvance: 1
+  successRateThreshold: 0.5      ← ZU NIEDRIG
+  minEpisodesBeforeAdvance: 1000
+  successRateEMAAlpha: 0.02
+
+  Drei Probleme:
+
+  1. Threshold 0.5 ist Coinflip-Niveau. Die ersten drei Advances (P0→P1, P1→P2, P2→P3) passierten alle bei EMA ≈ 0.508 — genau am Grenzwert. Das heißt:
+  Agent hat die Phasen nicht wirklich gemeistert, sondern nur die Mindestmarke knapp gerissen. Bei α=0.02 schwankt die EMA bei tatsächlich ~50% Erfolg
+  ständig um 0.5 → Advance wird vom Zufall ausgelöst.
+  2. Die wirkliche Bruchstelle ist Phase 5 → 6: Phase 5 (TrivialLavaSurround) bedeutet "Lava sehen, nicht überqueren" — Agent muss nur drumherum laufen. EMA
+   0.855 dort heißt nicht, dass er Lava-Sprünge kann. Phase 6 (TrivialLavaCrossable) verlangt aktiv über Lava springen — eine komplett neue Fähigkeit. Die
+  85% SR in Phase 5 sind nutzlos als Vorbereitung.
+  3. Phase 6 → 7 bei EMA 0.502: Der Agent hat Phase 6 mit Mühe und Not auf 50% gewuchtet, ist dann zu Phase 7 (TrivialLavaWide, 2-Tile-Lava, knapper Anlauf)
+   advancesiert — und ist dort kollabiert. Die letzten 6.8M Steps Mix-Ramp 6.12→6.25 zeigen: Mixing zieht ihn ständig zurück nach Phase 6, wo er auch nicht
+  mehr kann (SR 0.18-0.30 in den Daten).
+
+  Subtiles Detail in der Logik
+
+  In CurriculumTracker.cs:100:
+  episodeCountInPhase++;   // wird IMMER inkrementiert
+
+  Das passiert für ALLE Episoden, auch Mixing aus früheren Phasen. Heißt: Bei mixingCurrentWeight=0.70 sind die 1000 Episoden in Wahrheit nur ~700
+  Pure-Episoden. Kein Showstopper, aber inkonsistent mit successRateEMA (das nur für Pure aktualisiert wird, V16 Fix L in Zeile 191-195).
+
+  Empfehlungen für v19
+
+  ┌─────────────────────────────────────────────────────────────────────────────┬────────────────┬─────────────────────────────────────────────────────┐
+   laufen. EMA 0.855 dort heißt nicht, dass er Lava-Sprünge kann. Phase 6 (TrivialLavaCrossable) verlangt aktiv über Lava springen — eine
+  komplett neue Fähigkeit. Die 85% SR in Phase 5 sind nutzlos als Vorbereitung.
+  3. Phase 6 → 7 bei EMA 0.502: Der Agent hat Phase 6 mit Mühe und Not auf 50% gewuchtet, ist dann zu Phase 7 (TrivialLavaWide, 2-Tile-Lava,
+  knapper Anlauf) advancesiert — und ist dort kollabiert. Die letzten 6.8M Steps Mix-Ramp 6.12→6.25 zeigen: Mixing zieht ihn ständig zurück nach
+   Phase 6, wo er auch nicht mehr kann (SR 0.18-0.30 in den Daten).
+
+  Subtiles Detail in der Logik
+
+  In CurriculumTracker.cs:100:
+  episodeCountInPhase++;   // wird IMMER inkrementiert
+
+  Das passiert für ALLE Episoden, auch Mixing aus früheren Phasen. Heißt: Bei mixingCurrentWeight=0.70 sind die 1000 Episoden in Wahrheit nur
+  ~700 Pure-Episoden. Kein Showstopper, aber inkonsistent mit successRateEMA (das nur für Pure aktualisiert wird, V16 Fix L in Zeile 191-195).
+
+
+  ## V19
+  ### Vorbereitung:
+  pisodeCountInPhase nur bei sampledPhase==currentPhaseIndex │ —             │ Pure-Episoden zählen, nicht Mix                │
+  │  zählen   
+
+  **Was geändert wurde:**
+
+1. **`Agent.prefab`**: `maxUpwardVelocity 3.5→4.5`, Action-Branch 2 von 2 auf 3 Werte erweitert
+2. **`LabyrinthAgent.cs`**: Macro-Jump-Sequenz implementiert (Branch 2 = 2 erzwingt forward+jump für mehrere FixedUpdates bis Landung)
+
+**Action-Space jetzt:** Branch 2 = 0 (nichts) / 1 (Standard-Jump) / 2 (Macro-Jump)
+
+**Sprung-Reichweite:** 1.46 → 1.88 m (benötigt 1.5 m → +0.38 m Puffer)
+
+**Testen:** Im Heuristic-Mode → `Q` = Macro, `Space` = Standard-Jump. Stats-Logging via `Custom/MacroJumpsTotal`.

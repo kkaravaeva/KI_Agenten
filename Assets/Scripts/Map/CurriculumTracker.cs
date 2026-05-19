@@ -94,10 +94,12 @@ public static class CurriculumTracker
             ? phase.layouts[rng.Next(phase.layouts.Length)]
             : phase.layouts[currentLayoutIndexInPhase % phase.layouts.Length];
 
+        // Pure-Episoden zählen für minEpisodesBeforeAdvance; Mix-Episoden nicht.
         if (!config.enablePhaseMixing || sampledPhase == currentPhaseIndex)
+        {
             currentLayoutIndexInPhase++;
-
-        episodeCountInPhase++;
+            episodeCountInPhase++;
+        }
 
         Debug.Log($"[Curriculum] Phase {currentPhaseIndex} ({config.phases[currentPhaseIndex].difficulty}) | Ep {episodeCountInPhase}/{phase.threshold} | Gezogen: Phase {sampledPhase} ({phase.difficulty}) | Layout: {layout?.name}");
 
