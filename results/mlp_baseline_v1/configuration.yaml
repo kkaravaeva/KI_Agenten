@@ -14,6 +14,7 @@ behaviors:
       learning_rate_schedule: linear
       beta_schedule: linear
       epsilon_schedule: linear
+    checkpoint_interval: 200000
     network_settings:
       normalize: false
       hidden_units: 256
@@ -36,8 +37,8 @@ behaviors:
           deterministic: false
     init_path: null
     keep_checkpoints: 5
-    checkpoint_interval: 200000
-    max_steps: 2000000
+    even_checkpoints: false
+    max_steps: 6400000
     time_horizon: 64
     summary_freq: 10000
     threaded: false
@@ -49,6 +50,7 @@ env_settings:
   base_port: 5005
   num_envs: 1
   num_areas: 1
+  timeout_wait: 60
   seed: -1
   max_lifetime_restarts: 10
   restarts_rate_limit_n: 1
@@ -61,12 +63,13 @@ engine_settings:
   target_frame_rate: -1
   capture_frame_rate: 60
   no_graphics: false
+  no_graphics_monitor: false
 environment_parameters: null
 checkpoint_settings:
   run_id: mlp_baseline_v1
   initialize_from: null
   load_model: false
-  resume: false
+  resume: true
   force: false
   train_model: false
   inference: false
