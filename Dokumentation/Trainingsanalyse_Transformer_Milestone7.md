@@ -2700,3 +2700,20 @@ V17 gilt als Erfolg, wenn am Ende des Runs `Custom/CurriculumPhase ≥ 5`, `Cust
 **Sprung-Reichweite:** 1.46 → 1.88 m (benötigt 1.5 m → +0.38 m Puffer)
 
 **Testen:** Im Heuristic-Mode → `Q` = Macro, `Space` = Standard-Jump. Stats-Logging via `Custom/MacroJumpsTotal`.
+
+### Ergebniss
+Agent hat es immer noch nivcht geschafft über lava zu springen
+
+## v20 
+### vorbereitung
+Bug gefunden, sprungreichweite etc. wurde im prefab überschriebne. wurde angepasst. 
+
+### nachbereitung
+sprung funktioniert aber findet weg nicht wirklich
+
+## v21
+### vorbereitung
+wegfindungs belohnung zu wenig, wurde erhöht (ebenfalls im prefab)
+
+### nachbereitung
+bis hard fortgeschritten, jumps funktinoieren sehr gut, wegfindungsprobleme (rennt nciht wirklich ins ziel), jumps zu gut kann über 2x2 löcher und lava springen, und tut das auch sehr gerne (belohnung lava?)

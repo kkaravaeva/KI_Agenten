@@ -34,7 +34,7 @@ behaviors:
           hidden_units: 128
           num_layers: 2
 
-    max_steps: 20000000                  # V18: 10M → 20M. β ist jetzt constant, daher kein Decay-Effekt; max_steps wirkt nur als Trainer-Termination. Höher gesetzt, damit ein 8h-Run nicht künstlich gestoppt wird, falls Throughput höher als ~1200 steps/s liegt.
+    max_steps: 50000000                  # V20: 20M → 50M für Nachttraining. β und LR sind constant, daher kein Decay-Effekt; max_steps wirkt nur als Trainer-Termination.
     time_horizon: 256
     summary_freq: 20000
     keep_checkpoints: 5

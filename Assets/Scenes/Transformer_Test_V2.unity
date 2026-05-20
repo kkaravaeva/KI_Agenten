@@ -2758,6 +2758,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6104281506681004737, guid: 3c8701e500f51804482885ab44a25468, type: 3}
+      propertyPath: m_BehaviorType
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7120640528160658335, guid: 3c8701e500f51804482885ab44a25468, type: 3}
       propertyPath: m_Name
       value: TrainingArea

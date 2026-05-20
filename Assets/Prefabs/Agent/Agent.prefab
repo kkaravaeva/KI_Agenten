@@ -211,15 +211,15 @@ MonoBehaviour:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
   MaxStep: 0
-  moveSpeed: 2
+  moveSpeed: 4
   turnSpeed: 180
-  jumpForce: 3.5
+  jumpForce: 5
   phaseJumpForces:
   - 0
   - 0
   - 0
   - 0
-  - 4
+  - 5
   - 6
   - 6
   - 6
@@ -228,6 +228,8 @@ MonoBehaviour:
   - 6
   - 6
   airControlFactor: 1
+  macroJumpDurationFrames: 40
+  macroJumpMinAirborneFrames: 5
   useVelocityMovement: 0
   groundCheckDistance: 0.15
   groundSensorRange: 2
@@ -271,23 +273,11 @@ MonoBehaviour:
   wallClimbMaxY: 3
   wallClimbPenalty: -1
   maxUpwardVelocity: 4.5
-  distanceShapingScale: 0.05
+  distanceShapingScale: 0.1
   pbrsGamma: 0.997
   usePathDistanceForPBRS: 1
   pausePbrsOverLava: 1
-  phaseMaxSteps:
-  - 600
-  - 600
-  - 600
-  - 600
-  - 800
-  - 1500
-  - 1500
-  - 1500
-  - 1500
-  - 1500
-  - 2000
-  - 2500
+  phaseMaxSteps: 5802000058020000580200005802000020030000dc050000dc050000dc050000dc050000dc050000d0070000c4090000
   testOverrideMaxSteps: 0
   maxObservationDistance: 20
   debugSensors: 1

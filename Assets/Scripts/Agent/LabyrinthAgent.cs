@@ -73,7 +73,7 @@ public class LabyrinthAgent : Agent
     [SerializeField] private float maxUpwardVelocity = 3.5f;
 
     [Header("Reward – Shaping (PBRS)")]
-    [SerializeField] private float distanceShapingScale = 0.005f;
+    [SerializeField] private float distanceShapingScale = 0.1f;
     [SerializeField] private float pbrsGamma = 0.997f;  // Fix 4.3
     [Tooltip("Wenn true: PBRS basiert auf BFS-Pfad-Distanz statt euklidischer Distanz (Fix 3.3).")]
     [SerializeField] private bool usePathDistanceForPBRS = true;
