@@ -89,10 +89,43 @@ public static class CurriculumTracker
             return null;
         }
 
-        // Bei Mixing zufällig aus Layouts ziehen, sonst sequenziell
-        MapData layout = config.enablePhaseMixing
-            ? phase.layouts[rng.Next(phase.layouts.Length)]
-            : phase.layouts[currentLayoutIndexInPhase % phase.layouts.Length];
+        // Wähle ein gültiges Layout. Überspringe zerstörte oder invalide MapData-Instanzen.
+        MapData layout = null;
+        if (phase.layouts != null && phase.layouts.Length > 0)
+        {
+            if (config.enablePhaseMixing)
+            {
+                // Versuche verschiedene Zufallsziehungen, bis ein gültiges Layout gefunden ist
+                for (int attempt = 0; attempt < phase.layouts.Length; attempt++)
+                {
+                    MapData candidate = phase.layouts[rng.Next(phase.layouts.Length)];
+                    if (candidate == null) continue;
+                    if (candidate.cells == null || candidate.cells.Length != candidate.width * candidate.height) continue;
+                    layout = candidate;
+                    break;
+                }
+            }
+            else
+            {
+                int idx = (phase.layouts.Length > 0) ? (currentLayoutIndexInPhase % phase.layouts.Length) : 0;
+                // Bevorzugt sequenziell, aber falls der Eintrag invalid ist, suche nach dem nächsten gültigen
+                for (int offset = 0; offset < phase.layouts.Length; offset++)
+                {
+                    int i = (idx + offset) % phase.layouts.Length;
+                    MapData candidate = phase.layouts[i];
+                    if (candidate == null) continue;
+                    if (candidate.cells == null || candidate.cells.Length != candidate.width * candidate.height) continue;
+                    layout = candidate;
+                    break;
+                }
+            }
+        }
+
+        if (layout == null)
+        {
+            Debug.LogError($"CurriculumTracker: Phase {sampledPhase} ({phase.difficulty}) hat keine gültigen Layouts (evtl. zerstörte MapData-Instanzen)!");
+            return null;
+        }
 
         // Pure-Episoden zählen für minEpisodesBeforeAdvance; Mix-Episoden nicht.
         if (!config.enablePhaseMixing || sampledPhase == currentPhaseIndex)
@@ -101,7 +134,9 @@ public static class CurriculumTracker
             episodeCountInPhase++;
         }
 
-        Debug.Log($"[Curriculum] Phase {currentPhaseIndex} ({config.phases[currentPhaseIndex].difficulty}) | Ep {episodeCountInPhase}/{phase.threshold} | Gezogen: Phase {sampledPhase} ({phase.difficulty}) | Layout: {layout?.name}");
+        string layoutName = "<null>";
+        try { layoutName = layout != null ? layout.name : "<null>"; } catch { layoutName = "<destroyed>"; }
+        Debug.Log($"[Curriculum] Phase {currentPhaseIndex} ({config.phases[currentPhaseIndex].difficulty}) | Ep {episodeCountInPhase}/{phase.threshold} | Gezogen: Phase {sampledPhase} ({phase.difficulty}) | Layout: {layoutName}");
 
         return layout;
     }
