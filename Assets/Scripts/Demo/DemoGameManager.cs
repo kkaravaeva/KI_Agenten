@@ -13,6 +13,11 @@ public class DemoGameManager : MonoBehaviour
     public Transform playerAgent;
     public Transform aiAgent;
 
+    [Header("UI")]
+    public GameObject startPanel;
+    public GameObject hudPanel;
+    public GameObject resultPanel;
+
     [Header("Settings")]
     public int selectedMapIndex = 0;
     public float spawnOffset = 0.6f;
@@ -42,6 +47,12 @@ public class DemoGameManager : MonoBehaviour
 
     public void StartGame()
     {
+        Debug.Log("STARTGAME WURDE GEKLICKT");
+
+        startPanel.SetActive(false);
+        hudPanel.SetActive(true);
+        resultPanel.SetActive(false);
+
         selectedMapIndex = Mathf.Clamp(selectedMapIndex, 0, mapGenerator.mapLayouts.Length - 1);
 
         mapGenerator.selectionMode = MapSelectionMode.Fixed;
@@ -58,7 +69,7 @@ public class DemoGameManager : MonoBehaviour
         gameRunning = true;
 
         Debug.Log("Demo-Spiel gestartet.");
-    }
+   }
 
     private void SetupSpawns()
     {
