@@ -5,6 +5,11 @@ using UnityEngine;
 
 public class LabyrinthAgent : Agent
 {
+    [Header("Demo Mode")]
+    public bool demoMode = false;
+    public DemoGameManager demoGameManager;
+    public DemoParticipant demoParticipant;
+    
     [Header("Bewegung")]
     public float moveSpeed = 3f;
     public float turnSpeed = 180f;
@@ -155,6 +160,12 @@ public class LabyrinthAgent : Agent
 
     public override void OnEpisodeBegin()
     {
+        if (demoMode)
+        {
+            FindGoal(false);
+            return;
+        }
+
         // ── Letzte Episode reporten (Fix 4.2, 5.1, 5.3, sowie Custom/SuccessRate für Kompat.) ──
         Academy.Instance.StatsRecorder.Add("Custom/SuccessRate", lastEpisodeWasSuccess ? 1f : 0f);
         Academy.Instance.StatsRecorder.Add("Custom/LavaJumpAttempts", lavaJumpAttempts);
@@ -667,6 +678,24 @@ public class LabyrinthAgent : Agent
 
     private void OnTriggerEnter(Collider other)
     {
+        if (demoMode)
+        {
+            if (other.CompareTag("Goal"))
+            {
+                if (demoGameManager != null)
+                demoGameManager.AgentReachedGoal(demoParticipant);
+
+            return;
+            }
+
+            if (other.CompareTag("Lava") || other.CompareTag("KillZone") || other.CompareTag("Hole"))
+            {
+                if (demoGameManager != null)
+                    demoGameManager.RespawnAgent(demoParticipant);
+
+                return;
+            }
+        }
         if (other.CompareTag("Goal"))
         {
             episodeEndedByTerminal = true;
