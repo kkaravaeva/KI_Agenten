@@ -76,6 +76,10 @@ public class MapGenerator : MonoBehaviour
     public float minCameraDistance = 8f;
     public float minCameraHeight = 6f;
 
+    // ── Events ───────────────────────────────────────────────────────────────
+
+    public event System.Action OnMapGenerated;
+
     // ── Interne State ─────────────────────────────────────────────────────────
 
     private Transform mapRoot;
@@ -236,6 +240,7 @@ public class MapGenerator : MonoBehaviour
         SpawnMarkers();
         RepositionKillZone();
         FrameCameraToCurrentMap();
+        OnMapGenerated?.Invoke();
     }
 
     public void ClearMap()
@@ -289,6 +294,24 @@ public class MapGenerator : MonoBehaviour
 
     public Transform GetGoalTransform()  => currentGoalTransform;
     public Vector3   GetGoalPosition()   => currentGoalWorldPosition;
+    public bool      HasMapData          => currentMapData != null;
+    public MapData   CurrentMapData      => currentMapData;
+    public Vector3   MapOrigin           => mapRoot != null ? mapRoot.position : transform.position;
+
+    public Bounds GetWorldBounds()
+    {
+        if (currentMapData == null || mapRoot == null)
+            return new Bounds(transform.position, Vector3.one * 10f);
+        Vector3 center = mapRoot.position + new Vector3(
+            (currentMapData.width  - 1) * cellSize * 0.5f,
+            0f,
+            (currentMapData.height - 1) * cellSize * 0.5f);
+        Vector3 size = new Vector3(
+            currentMapData.width  * cellSize,
+            1f,
+            currentMapData.height * cellSize);
+        return new Bounds(center, size);
+    }
     public Vector3   GetSpawnPosition()
     {
         if (currentSpawnCell.x >= 0) return currentSpawnWorldPosition;

@@ -23,10 +23,12 @@ class LSTMMemory(nn.Module):
         self,
         h_size: int,
         memory_size: int,
+        seq_len: int,
         num_layers: int = 1,
     ):
         super().__init__()
         self.output_size = memory_size // 2
+        self.seq_len = seq_len
         self.lstm = nn.LSTM(
             input_size=h_size,
             hidden_size=self.output_size,
@@ -45,7 +47,7 @@ class LSTMMemory(nn.Module):
 
 if __name__ == "__main__":
     # Unit-Test: hidden_units=256, memory_size=128, seq_len=8 — exakt wie in den YAMLs
-    model = LSTMMemory(h_size=256, memory_size=128)
+    model = LSTMMemory(h_size=256, memory_size=128, seq_len=16)
     dummy = torch.zeros(4, 8, 256)
     out = model(dummy)
     assert out.shape == (4 * 8, 64), f"Unerwartete Shape: {out.shape}"

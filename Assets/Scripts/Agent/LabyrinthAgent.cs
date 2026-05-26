@@ -6,11 +6,11 @@ using UnityEngine;
 public class LabyrinthAgent : Agent
 {
     [Header("Bewegung")]
-    public float moveSpeed = 3f;
+    public float moveSpeed = 5f;
     public float turnSpeed = 180f;
 
     [Header("Sprung")]
-    public float jumpForce = 4.5f;
+    public float jumpForce = 9.0f;
 
     [Header("Ground Check")]
     public float groundCheckDistance = 0.15f;
@@ -26,14 +26,15 @@ public class LabyrinthAgent : Agent
     [SerializeField] private float goalReward = 30f;
 
     [Header("Reward – Tod")]
-    [SerializeField] private float lavaDeathPenalty = -1f;
-    [SerializeField] private float holeDeathPenalty = -1f;
+    [SerializeField] private float lavaDeathPenalty = -3f;
+    [SerializeField] private float holeDeathPenalty = -3f;
 
     [Header("Reward – Timeout")]
     [SerializeField] private float timeoutPenalty = -5f;
 
     [Header("Reward – Lava-Sprung")]
-    [SerializeField] private float lavaAttemptBaseReward = 0f;
+    [SerializeField] private float lavaAttemptBaseReward = 1.5f;
+    [SerializeField] private float lavaCrossingReward = 8.0f;
     [SerializeField] private float lavaAboveMinDistance = 0.3f;
 
     [Header("Reward – Zeit")]
@@ -42,7 +43,7 @@ public class LabyrinthAgent : Agent
     [Header("Wall-Climb Guard")]
     [SerializeField] private float wallClimbMaxY = 5.0f;
     [SerializeField] private float wallClimbPenalty = -1f;
-    [SerializeField] private float maxUpwardVelocity = 3.5f;
+    [SerializeField] private float maxUpwardVelocity = 7.0f;
 
     [Header("Reward – Shaping (PBRS)")]
     [SerializeField] private float distanceShapingScale = 0.005f;
@@ -50,8 +51,8 @@ public class LabyrinthAgent : Agent
 
     [Header("Curriculum – MaxStep pro Phase")]
     // Index = CurriculumTracker.CurrentPhaseIndex
-    // 0-4 Trivial-Varianten | 5 Easy | 6 Medium | 7 Hard
-    [SerializeField] private int[] phaseMaxSteps = new int[] { 600, 600, 600, 600, 600, 1000, 1500, 2000 };
+    // 0 Trivial | 1 TrivialCorr | 2 TrivialLava | 3 Easy | 4 Medium | 5 Hard
+    [SerializeField] private int[] phaseMaxSteps = new int[] { 600, 1200, 1200, 1500, 2000, 2500 };
 
     [Tooltip("Wenn > 0, ueberschreibt phaseMaxSteps fuer diese Szene/Instanz. Nur fuer Tests, im Training auf 0 lassen.")]
     [SerializeField] private int testOverrideMaxSteps = 0;
@@ -59,8 +60,29 @@ public class LabyrinthAgent : Agent
     [Header("Observation – Distanz zum Ziel")]
     [SerializeField] private float maxObservationDistance = 20f;
 
+    [Header("Wand-Sensor")]
+    [SerializeField] private float wallRaycastRange = 3.0f;
+    [SerializeField] private float wallRaycastHeight = 0.5f;
+
+    [Header("Reward – Sichtbarkeit")]
+    [SerializeField] private float lineOfSightReward = 0.005f;
+
     [Header("Debug")]
     public bool debugSensors = false;
+
+    [Header("V24 Transformer – Inference Mode")]
+    [Tooltip("Aktivieren wenn das Transformer_v24.onnx Modell verwendet wird. Gibt exakt 21 Vektor-Obs aus (Boden + Velocity), die restlichen werden nicht benoetigt da das Modell nur damit trainiert wurde.")]
+    [SerializeField] public bool v24CompatMode = false;
+
+    [Header("Wettkampf-Modus")]
+    [Tooltip("Wenn aktiv: kein EndEpisode, keine Rewards, kein Map-Neu-Generieren. Steuerung durch CompetitionManager.")]
+    public bool competitionMode = false;
+    /// <summary>Wird ausgeloest, wenn der Agent das Ziel im Wettkampfmodus erreicht.</summary>
+    public System.Action onGoalReached;
+    /// <summary>Wird ausgeloest, wenn der Agent im Wettkampfmodus stirbt (Lava / Loch).</summary>
+    public System.Action onAgentDied;
+    // Bewegungssperre (waehrend Countdown / nach Zieleinlauf)
+    private bool movementFrozen = false;
 
     private Rigidbody rb;
     private bool isGrounded;
@@ -70,10 +92,13 @@ public class LabyrinthAgent : Agent
     private float lastEpisodeCumulativeReward = 0f;
     private float spawnY = 0f;
     private bool lastEpisodeWasSuccess = false;
+    private enum DeathReason { None, Lava, Hole, Timeout }
+    private DeathReason lastDeathReason = DeathReason.None;
+
     private int lavaJumpAttempts = 0;
     private bool wasAboveLava = false;
     private bool episodeEndedByTerminal = false;
-
+    private bool hasLineOfSight = false;
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
@@ -82,15 +107,58 @@ public class LabyrinthAgent : Agent
         FindGoal(warnIfMissing: false);
     }
 
+    // ── Wettkampf-Modus öffentliche API ──────────────────────────────────────
+
+    /// <summary>Setzt den Agenten auf die aktuelle Spawn-Position zurück (ohne EndEpisode).</summary>
+    public void RespawnAtStart()
+    {
+        if (mapGenerator == null) return;
+        Vector3 spawnPos = mapGenerator.GetSpawnPosition();
+        transform.position = spawnPos + Vector3.up * 0.6f;
+        transform.localRotation = Quaternion.identity;
+        rb.velocity        = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+        episodeEndedByTerminal = false;
+        lavaJumpAttempts       = 0;
+        wasAboveLava           = false;
+        if (goalTransform == null) FindGoal(warnIfMissing: false);
+        previousDistance = goalTransform != null
+            ? Vector3.Distance(transform.position, goalTransform.position) : 0f;
+    }
+
+    /// <summary>Goal-Transform nach Map-Neugenerierung aktualisieren.</summary>
+    public void RefreshGoal() => FindGoal();
+
+    /// <summary>Bewegt den Agenten nicht, er sammelt aber weiter Observations.</summary>
+    public void FreezeMovement()   => movementFrozen = true;
+
+    /// <summary>Gibt die Bewegung wieder frei.</summary>
+    public void UnfreezeMovement() => movementFrozen = false;
+
+    // ── Episode-Lifecycle ────────────────────────────────────────────────────
+
     public override void OnEpisodeBegin()
     {
-        Academy.Instance.StatsRecorder.Add("Custom/SuccessRate", lastEpisodeWasSuccess ? 1f : 0f);
+        // Im Wettkampf-Modus übernimmt CompetitionManager das gesamte Reset/Positioning.
+        if (competitionMode)
+        {
+            episodeEndedByTerminal = false;
+            lavaJumpAttempts       = 0;
+            wasAboveLava           = false;
+            return;
+        }
+
+        Academy.Instance.StatsRecorder.Add("Custom/SuccessRate",    lastEpisodeWasSuccess ? 1f : 0f);
         Academy.Instance.StatsRecorder.Add("Custom/LavaJumpAttempts", lavaJumpAttempts);
         Academy.Instance.StatsRecorder.Add("Custom/CurriculumPhase", CurriculumTracker.CurrentPhaseIndex);
-        Debug.Log($"[Episode] Neue Episode. Steps letzte Episode: {lastEpisodeStepCount} | Letzter Cumulative Reward: {lastEpisodeCumulativeReward:F3} | Erfolg: {lastEpisodeWasSuccess} | LavaJumps: {lavaJumpAttempts}");
-        lastEpisodeWasSuccess = false;
-        lavaJumpAttempts = 0;
-        wasAboveLava = false;
+        Academy.Instance.StatsRecorder.Add("Custom/DeathByLava",    lastDeathReason == DeathReason.Lava    ? 1f : 0f);
+        Academy.Instance.StatsRecorder.Add("Custom/DeathByHole",    lastDeathReason == DeathReason.Hole    ? 1f : 0f);
+        Academy.Instance.StatsRecorder.Add("Custom/DeathByTimeout", lastDeathReason == DeathReason.Timeout ? 1f : 0f);
+        Debug.Log($"[Episode] Steps: {lastEpisodeStepCount} | Reward: {lastEpisodeCumulativeReward:F3} | Erfolg: {lastEpisodeWasSuccess} | Tod: {lastDeathReason} | LavaJumps: {lavaJumpAttempts}");
+        lastEpisodeWasSuccess  = false;
+        lastDeathReason        = DeathReason.None;
+        lavaJumpAttempts       = 0;
+        wasAboveLava           = false;
         episodeEndedByTerminal = false;
 
         if (mapGenerator != null)
@@ -133,15 +201,26 @@ public class LabyrinthAgent : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // === Boden-Sensor (6 Observations) ===
+        // === Boden-Sensor (18 Observations: 9 Positionen × 2) ===
         Vector3[] checkOffsets = new Vector3[]
         {
             Vector3.zero,
             transform.forward * 1f,
-            transform.forward * 2f
+            transform.forward * 2f,
+            transform.forward * 0.7f + transform.right * 0.7f,
+            transform.forward * 0.7f - transform.right * 0.7f,
+            transform.right * 1f,
+            -transform.right * 1f,
+            transform.forward * 1.41f + transform.right * 1.41f,
+            transform.forward * 1.41f - transform.right * 1.41f,
         };
 
-        string[] offsetNames = new string[] { "Unter Agent", "1 Zelle voraus", "2 Zellen voraus" };
+        string[] offsetNames = new string[] {
+            "Unter Agent", "1 Zelle voraus", "2 Zellen voraus",
+            "1 Zelle rechts-vorne", "1 Zelle links-vorne",
+            "1 Zelle rechts", "1 Zelle links",
+            "2 Zellen diagonal rechts", "2 Zellen diagonal links"
+        };
 
         for (int i = 0; i < checkOffsets.Length; i++)
         {
@@ -181,6 +260,10 @@ public class LabyrinthAgent : Agent
         sensor.AddObservation(normalizedVelocity.x);
         sensor.AddObservation(normalizedVelocity.y);
         sensor.AddObservation(normalizedVelocity.z);
+
+        // V24-Kompatibilitätsmodus: nur 21 Obs (Boden 18 + Velocity 3)
+        // Das V24-Transformer-Modell wurde ohne die folgenden Sensoren trainiert.
+        if (v24CompatMode) return;
 
         // === Ground-Status (1 Observation) ===
         sensor.AddObservation(isGrounded ? 1f : 0f);
@@ -223,50 +306,105 @@ public class LabyrinthAgent : Agent
         {
             Debug.Log($"[Status] Velocity=({normalizedVelocity.x:F2}, {normalizedVelocity.y:F2}, {normalizedVelocity.z:F2}) isGrounded={isGrounded} DistToGoal={distToGoal:F2}");
         }
+
+        // === Wand-Raycasts horizontal (4 Observations) ===
+        Vector3 wallRayOrigin = transform.position + Vector3.up * wallRaycastHeight;
+        Vector3[] wallDirs = new Vector3[] { transform.forward, transform.right, -transform.right, -transform.forward };
+        string[] wallDirNames = new string[] { "vorwärts", "rechts", "links", "rückwärts" };
+
+        for (int i = 0; i < wallDirs.Length; i++)
+        {
+            RaycastHit wallHit;
+            if (Physics.Raycast(wallRayOrigin, wallDirs[i], out wallHit, wallRaycastRange,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                float wallDist = wallHit.distance / wallRaycastRange;
+                sensor.AddObservation(wallDist);
+                if (debugSensors)
+                    Debug.Log($"[WandSensor] {wallDirNames[i]}: dist={wallDist:F2}");
+            }
+            else
+            {
+                sensor.AddObservation(1f);
+                if (debugSensors)
+                    Debug.Log($"[WandSensor] {wallDirNames[i]}: kein Treffer");
+            }
+        }
+
+        // === Line-of-Sight zum Ziel (1 Observation) ===
+        hasLineOfSight = false;
+        if (goalTransform != null)
+        {
+            Vector3 agentEye = transform.position + Vector3.up * 0.5f;
+            Vector3 dirToGoal = (goalTransform.position - transform.position).normalized;
+            RaycastHit losHit;
+            if (!Physics.Raycast(agentEye, dirToGoal, out losHit, distToGoal,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                hasLineOfSight = true;
+            else if (losHit.collider.CompareTag("Goal"))
+                hasLineOfSight = true;
+
+            if (debugSensors)
+                Debug.Log($"[LOS] Sichtbar={hasLineOfSight}");
+        }
+        sensor.AddObservation(hasLineOfSight ? 1f : 0f);
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        CurriculumTracker.NotifyStep();
-        AddReward(stepPenalty);
-
-        // Timeout: schlechteste Strafe, schlechter als Tod
-        if (!episodeEndedByTerminal && MaxStep > 0 && StepCount >= MaxStep - 1)
+        // ── Im Wettkampf-Modus: keine Rewards, kein Curriculum-Tracking ─────────
+        if (!competitionMode)
         {
-            AddReward(timeoutPenalty);
-            Debug.Log($"[Timeout] MaxStep={MaxStep} erreicht | Penalty={timeoutPenalty}");
-        }
+            CurriculumTracker.NotifyStep();
+            AddReward(stepPenalty);
 
-        // PBRS: F(s,s') = γΦ(s') - Φ(s), Φ(s) = -distance_to_goal
-        if (goalTransform != null)
-        {
-            float currentDistance = Vector3.Distance(transform.position, goalTransform.position);
-            AddReward((previousDistance - pbrsGamma * currentDistance) * distanceShapingScale);
-            previousDistance = currentDistance;
-        }
-
-        if (transform.position.y > spawnY + wallClimbMaxY)
-        {
-            AddReward(wallClimbPenalty);
-            Debug.Log($"[WallClimb] Y={transform.position.y:F2} > SpawnY+{wallClimbMaxY} | Penalty={wallClimbPenalty}");
-        }
-
-        // Lava-Sprung: Belohnung beim Eintritt in "über Lava"-Zustand (Edge-Trigger)
-        bool currentlyAboveLava = DetectAboveLava();
-        if (currentlyAboveLava && !wasAboveLava)
-        {
-            lavaJumpAttempts++;
-            float attemptReward = GetLavaAttemptReward(lavaJumpAttempts);
-            if (attemptReward > 0f)
+            if (!episodeEndedByTerminal && MaxStep > 0 && StepCount >= MaxStep - 1)
             {
-                AddReward(attemptReward);
-                Debug.Log($"[LavaJump] Versuch={lavaJumpAttempts} | Reward={attemptReward:F4}");
+                lastDeathReason = DeathReason.Timeout;
+                AddReward(timeoutPenalty);
+                Debug.Log($"[Timeout] MaxStep={MaxStep} erreicht | Penalty={timeoutPenalty}");
             }
-        }
-        wasAboveLava = currentlyAboveLava;
 
-        lastEpisodeStepCount = StepCount;
-        lastEpisodeCumulativeReward = GetCumulativeReward();
+            if (goalTransform != null)
+            {
+                float currentDistance = Vector3.Distance(transform.position, goalTransform.position);
+                AddReward((previousDistance - pbrsGamma * currentDistance) * distanceShapingScale);
+                previousDistance = currentDistance;
+            }
+
+            if (hasLineOfSight && lineOfSightReward > 0f)
+                AddReward(lineOfSightReward);
+
+            if (transform.position.y > spawnY + wallClimbMaxY)
+            {
+                AddReward(wallClimbPenalty);
+                Debug.Log($"[WallClimb] Y={transform.position.y:F2} > SpawnY+{wallClimbMaxY} | Penalty={wallClimbPenalty}");
+            }
+
+            bool currentlyAboveLava = DetectAboveLava();
+            if (currentlyAboveLava && !wasAboveLava)
+            {
+                lavaJumpAttempts++;
+                float attemptReward = GetLavaAttemptReward(lavaJumpAttempts);
+                if (attemptReward > 0f)
+                {
+                    AddReward(attemptReward);
+                    Debug.Log($"[LavaJump] Versuch={lavaJumpAttempts} | Reward={attemptReward:F4}");
+                }
+            }
+            if (wasAboveLava && !currentlyAboveLava && isGrounded && !episodeEndedByTerminal)
+            {
+                AddReward(lavaCrossingReward);
+                Debug.Log($"[LavaKreuzung] Erfolgreich überquert | Reward={lavaCrossingReward}");
+            }
+            wasAboveLava = currentlyAboveLava;
+
+            lastEpisodeStepCount        = StepCount;
+            lastEpisodeCumulativeReward = GetCumulativeReward();
+        }
+
+        // ── Bewegungssperre (Countdown / nach Ziel erreicht) ──────────────────
+        if (movementFrozen) return;
 
         int moveAction = actions.DiscreteActions[0];
         int turnAction = actions.DiscreteActions[1];
@@ -381,27 +519,60 @@ public class LabyrinthAgent : Agent
     //    (Lava und Hole haben bewusst separate Felder für spätere Differenzierung)
     private void OnTriggerEnter(Collider other)
     {
+        // Wenn die Komponente deaktiviert ist (z.B. Competition-Szene: ScriptedAIAgent
+        // läuft auf demselben GameObject), OnTriggerEnter ignorieren – Unity feuert
+        // physikalische Callbacks auch auf deaktivierten MonoBehaviours.
+        if (!enabled) return;
+
         if (other.CompareTag("Goal"))
         {
-            episodeEndedByTerminal = true;
-            lastEpisodeWasSuccess = true;
-            AddReward(goalReward);
-            Debug.Log($"[Ziel] Ziel erreicht | Reward={goalReward} | LavaJumps={lavaJumpAttempts}");
-            EndEpisode();
+            if (competitionMode)
+            {
+                // Bewegung einfrieren, CompetitionManager benachrichtigen
+                FreezeMovement();
+                rb.velocity = Vector3.zero;
+                onGoalReached?.Invoke();
+            }
+            else
+            {
+                episodeEndedByTerminal = true;
+                lastEpisodeWasSuccess  = true;
+                AddReward(goalReward);
+                Debug.Log($"[Ziel] Ziel erreicht | Reward={goalReward} | LavaJumps={lavaJumpAttempts}");
+                EndEpisode();
+            }
         }
         else if (other.CompareTag("Lava"))
         {
-            episodeEndedByTerminal = true;
-            AddReward(lavaDeathPenalty);
-            Debug.Log($"[Tod] Todesursache=Lava | Reward={lavaDeathPenalty} | LavaJumps={lavaJumpAttempts}");
-            EndEpisode();
+            if (competitionMode)
+            {
+                RespawnAtStart();
+                onAgentDied?.Invoke();
+            }
+            else
+            {
+                episodeEndedByTerminal = true;
+                lastDeathReason        = DeathReason.Lava;
+                AddReward(lavaDeathPenalty);
+                Debug.Log($"[Tod] Todesursache=Lava | Reward={lavaDeathPenalty} | LavaJumps={lavaJumpAttempts}");
+                EndEpisode();
+            }
         }
         else if (other.CompareTag("KillZone"))
         {
-            episodeEndedByTerminal = true;
-            AddReward(holeDeathPenalty);
-            Debug.Log($"[Tod] Todesursache=Hole | Reward={holeDeathPenalty}");
-            EndEpisode();
+            if (competitionMode)
+            {
+                RespawnAtStart();
+                onAgentDied?.Invoke();
+            }
+            else
+            {
+                episodeEndedByTerminal = true;
+                lastDeathReason        = DeathReason.Hole;
+                AddReward(holeDeathPenalty);
+                Debug.Log($"[Tod] Todesursache=Hole | Reward={holeDeathPenalty}");
+                EndEpisode();
+            }
         }
     }
 
@@ -436,7 +607,9 @@ public class LabyrinthAgent : Agent
         {
             Vector3.zero,
             transform.forward * 1f,
-            transform.forward * 2f
+            transform.forward * 2f,
+            transform.forward * 0.7f + transform.right * 0.7f,
+            transform.forward * 0.7f - transform.right * 0.7f,
         };
 
         foreach (Vector3 offset in checkOffsets)

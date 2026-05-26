@@ -107,6 +107,7 @@ NETWORKS_INIT_NEW = (
     "                self.lstm_memory: LSTMMemory = LSTMMemory(\n"
     "                    h_size=self.h_size,\n"
     "                    memory_size=self.m_size,\n"
+    "                    seq_len=network_settings.memory.sequence_length,\n"
     "                )\n"
     "            else:\n"
     "                self.lstm = LSTM(self.h_size, self.m_size)\n"
@@ -157,6 +158,8 @@ NETWORKS_PROP_NEW = (
     "            return self.lstm.memory_size\n"
     "        elif getattr(self, 'transformer_memory', None) is not None:\n"
     "            return (self.transformer_memory.seq_len - 1) * self.h_size\n"
+    "        elif getattr(self, 'lstm_memory', None) is not None:\n"
+    "            return (self.lstm_memory.seq_len - 1) * self.h_size\n"
     "        return 0\n"
     "\n"
     "    def forward("
@@ -201,17 +204,34 @@ NETWORKS_FWD_NEW = (
     "                    B = encoding.shape[0]\n"
     "                    seq_len = self.transformer_memory.seq_len\n"
     "                    if memories is not None:\n"
-    "                        buf = memories.squeeze(0).reshape(B, seq_len - 1, self.h_size)\n"
+    "                        buf = memories.squeeze(0).reshape(-1, seq_len - 1, self.h_size)\n"
     "                    else:\n"
     "                        buf = torch.zeros(B, seq_len - 1, self.h_size, device=encoding.device, dtype=encoding.dtype)\n"
     "                    full_seq = torch.cat([buf, encoding.unsqueeze(1)], dim=1)\n"
-    "                    memories = full_seq[:, 1:, :].reshape(B, (seq_len - 1) * self.h_size).unsqueeze(0)\n"
+    "                    memories = full_seq[:, 1:, :].reshape(-1, (seq_len - 1) * self.h_size).unsqueeze(0)\n"
     "                    all_out = self.transformer_memory(full_seq)\n"
-    "                    encoding = all_out.reshape(B, seq_len, self.transformer_memory.output_size)[:, -1, :]\n"
+    "                    encoding = all_out.reshape(-1, seq_len, self.transformer_memory.output_size)[:, -1, :]\n"
     "                else:\n"
     "                    # Training: normaler Pfad mit sequence_length aus Buffer\n"
     "                    encoding = encoding.reshape([-1, sequence_length, self.h_size])\n"
     "                    encoding = self.transformer_memory(encoding)\n"
+    "            elif getattr(self, 'lstm_memory', None) is not None:\n"
+    "                if sequence_length == 1:\n"
+    "                    # Inference: rolling buffer\n"
+    "                    B = encoding.shape[0]\n"
+    "                    seq_len = self.lstm_memory.seq_len\n"
+    "                    if memories is not None:\n"
+    "                        buf = memories.squeeze(0).reshape(-1, seq_len - 1, self.h_size)\n"
+    "                    else:\n"
+    "                        buf = torch.zeros(B, seq_len - 1, self.h_size, device=encoding.device, dtype=encoding.dtype)\n"
+    "                    full_seq = torch.cat([buf, encoding.unsqueeze(1)], dim=1)\n"
+    "                    memories = full_seq[:, 1:, :].reshape(-1, (seq_len - 1) * self.h_size).unsqueeze(0)\n"
+    "                    all_out = self.lstm_memory(full_seq)\n"
+    "                    encoding = all_out.reshape(-1, seq_len, self.lstm_memory.output_size)[:, -1, :]\n"
+    "                else:\n"
+    "                    # Training: full sequence\n"
+    "                    encoding = encoding.reshape([-1, sequence_length, self.h_size])\n"
+    "                    encoding = self.lstm_memory(encoding)\n"
     "            else:\n"
     "                encoding = encoding.reshape([-1, sequence_length, self.h_size])\n"
     "                encoding, memories = self.lstm(encoding, memories)\n"
@@ -224,9 +244,65 @@ NETWORKS_FWD_NEW = (
 
 def patch_networks():
     text = NETWORKS_FILE.read_text(encoding="utf-8")
-    # Bereits auf v3 (korrektes Memory-Shape mit squeeze/unsqueeze)?
+    # Bereits auf v4 (LSTM rolling buffer)?
+    if "self.lstm_memory.seq_len" in text:
+        print("networks.py: Patch (v4) bereits vorhanden — überspringe.")
+        return
+    # Auf v3 (Transformer rolling buffer, aber LSTM-Branch fehlt)? → Upgrade auf v4
     if "memories.squeeze(0).reshape" in text:
-        print("networks.py: Patch (v3) bereits vorhanden — überspringe.")
+        text = text.replace(
+            "                self.lstm_memory: LSTMMemory = LSTMMemory(\n"
+            "                    h_size=self.h_size,\n"
+            "                    memory_size=self.m_size,\n"
+            "                )\n",
+            "                self.lstm_memory: LSTMMemory = LSTMMemory(\n"
+            "                    h_size=self.h_size,\n"
+            "                    memory_size=self.m_size,\n"
+            "                    seq_len=network_settings.memory.sequence_length,\n"
+            "                )\n",
+            1,
+        )
+        text = text.replace(
+            "            return (self.transformer_memory.seq_len - 1) * self.h_size\n"
+            "        return 0\n",
+            "            return (self.transformer_memory.seq_len - 1) * self.h_size\n"
+            "        elif getattr(self, 'lstm_memory', None) is not None:\n"
+            "            return (self.lstm_memory.seq_len - 1) * self.h_size\n"
+            "        return 0\n",
+            1,
+        )
+        text = text.replace(
+            "            else:\n"
+            "                encoding = encoding.reshape([-1, sequence_length, self.h_size])\n"
+            "                encoding, memories = self.lstm(encoding, memories)\n"
+            "                encoding = encoding.reshape([-1, self.m_size // 2])\n"
+            "        return encoding, memories\n",
+            "            elif getattr(self, 'lstm_memory', None) is not None:\n"
+            "                if sequence_length == 1:\n"
+            "                    # Inference: rolling buffer\n"
+            "                    B = encoding.shape[0]\n"
+            "                    seq_len = self.lstm_memory.seq_len\n"
+            "                    if memories is not None:\n"
+            "                        buf = memories.squeeze(0).reshape(-1, seq_len - 1, self.h_size)\n"
+            "                    else:\n"
+            "                        buf = torch.zeros(B, seq_len - 1, self.h_size, device=encoding.device, dtype=encoding.dtype)\n"
+            "                    full_seq = torch.cat([buf, encoding.unsqueeze(1)], dim=1)\n"
+            "                    memories = full_seq[:, 1:, :].reshape(-1, (seq_len - 1) * self.h_size).unsqueeze(0)\n"
+            "                    all_out = self.lstm_memory(full_seq)\n"
+            "                    encoding = all_out.reshape(-1, seq_len, self.lstm_memory.output_size)[:, -1, :]\n"
+            "                else:\n"
+            "                    # Training: full sequence\n"
+            "                    encoding = encoding.reshape([-1, sequence_length, self.h_size])\n"
+            "                    encoding = self.lstm_memory(encoding)\n"
+            "            else:\n"
+            "                encoding = encoding.reshape([-1, sequence_length, self.h_size])\n"
+            "                encoding, memories = self.lstm(encoding, memories)\n"
+            "                encoding = encoding.reshape([-1, self.m_size // 2])\n"
+            "        return encoding, memories\n",
+            1,
+        )
+        NETWORKS_FILE.write_text(text, encoding="utf-8")
+        print("networks.py OK  Patch (v3→v4, LSTM rolling buffer) angewendet.")
         return
     # Auf v2 (Rolling-Buffer, aber falsches Memory-Shape)? → Upgrade auf v3
     if "(self.transformer_memory.seq_len - 1) * self.h_size" in text and NETWORKS_FWD_PREV not in text:
@@ -282,6 +358,46 @@ def undo_networks():
     print("networks.py OK  Patch rückgängig gemacht.")
 
 
+# ── Patch: torch_policy.py ───────────────────────────────────────────────────
+
+TORCH_POLICY_FILE = VENV / "Lib/site-packages/mlagents/trainers/policy/torch_policy.py"
+
+POLICY_MARKER = (
+    "        # Save the m_size needed for export\n"
+    "        self._export_m_size = self.m_size\n"
+    "        # m_size needed for training is determined by network, not trainer settings\n"
+    "        self.m_size = self.actor.memory_size\n"
+)
+POLICY_PATCH = (
+    "        # Save the m_size needed for export\n"
+    "        self._export_m_size = self.m_size\n"
+    "        # m_size needed for training is determined by network, not trainer settings\n"
+    "        self.m_size = self.actor.memory_size\n"
+    "        # Rolling-buffer architectures (Transformer, custom LSTM) require export\n"
+    "        # size == actor.memory_size, not the YAML memory_size\n"
+    "        if self.m_size != self._export_m_size:\n"
+    "            self._export_m_size = self.m_size\n"
+)
+
+def patch_torch_policy():
+    text = TORCH_POLICY_FILE.read_text(encoding="utf-8")
+    if "Rolling-buffer architectures" in text:
+        print("torch_policy.py: Patch bereits vorhanden — überspringe.")
+        return
+    text = _replace_once(text, POLICY_MARKER, POLICY_PATCH, "torch_policy.py")
+    TORCH_POLICY_FILE.write_text(text, encoding="utf-8")
+    print("torch_policy.py OK  export_memory_size-Fix angewendet.")
+
+def undo_torch_policy():
+    text = TORCH_POLICY_FILE.read_text(encoding="utf-8")
+    if "Rolling-buffer architectures" not in text:
+        print("torch_policy.py: kein Patch gefunden — überspringe.")
+        return
+    text = text.replace(POLICY_PATCH, POLICY_MARKER, 1)
+    TORCH_POLICY_FILE.write_text(text, encoding="utf-8")
+    print("torch_policy.py OK  Patch rückgängig gemacht.")
+
+
 # ── Modul kopieren ─────────────────────────────────────────────────────────────
 
 def copy_module():
@@ -323,11 +439,13 @@ if __name__ == "__main__":
         remove_module()
         undo_settings()
         undo_networks()
+        undo_torch_policy()
         print("\nUndo abgeschlossen.")
     else:
         print("=== mlagents 0.30.0 Transformer-Patch ===")
         copy_module()
         patch_settings()
         patch_networks()
+        patch_torch_policy()
         print("\nPatch abgeschlossen.")
         print("Teste jetzt mit: python training/transformer_policy.py")

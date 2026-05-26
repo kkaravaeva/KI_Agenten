@@ -7,7 +7,8 @@ public enum DifficultyLevel
     TrivialHazard = 4,  // + 2×1 Lava im Hauptkorridor + Hole-Ast
     Easy          = 5,
     Medium        = 6,
-    Hard          = 7
+    Hard          = 7,
+    TrivialLava   = 8,  // flacher Raum mit 1-Zellen-Lava-Wand quer → Sprung erzwungen
 }
 
 public struct DifficultySettings
@@ -35,6 +36,7 @@ public struct DifficultySettings
             case DifficultyLevel.TrivialBranch:
             case DifficultyLevel.TrivialHole:
             case DifficultyLevel.TrivialHazard:
+            case DifficultyLevel.TrivialLava:
                 return new DifficultySettings
                 {
                     GridWidthMin  = 7, GridWidthMax  = 7,

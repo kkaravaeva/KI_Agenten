@@ -32,9 +32,10 @@ public static class CurriculumTracker
             Debug.LogError("CurriculumTracker: CurriculumConfig ist null!");
             return;
         }
-        config      = cfg;
-        initialized = true;
-        Debug.Log($"[Curriculum] Initialisiert. Phasen: {cfg.phases?.Length ?? 0} | Startphase: {cfg.phases?[0].difficulty}");
+        config            = cfg;
+        currentPhaseIndex = Mathf.Clamp(cfg.initialPhaseIndex, 0, (cfg.phases?.Length ?? 1) - 1);
+        initialized       = true;
+        Debug.Log($"[Curriculum] Initialisiert. Phasen: {cfg.phases?.Length ?? 0} | Startphase: {currentPhaseIndex} ({cfg.phases?[currentPhaseIndex].difficulty})");
     }
 
     /// <summary>
@@ -77,16 +78,21 @@ public static class CurriculumTracker
 
     private static void CheckPhaseAdvance()
     {
-        if (!config.loopPhases && currentPhaseIndex >= config.phases.Length - 1) return;
+        bool isLastPhase = currentPhaseIndex >= config.phases.Length - 1;
+        if (!config.loopPhases && isLastPhase) return;
 
-        CurriculumPhase phase   = config.phases[currentPhaseIndex];
+        CurriculumPhase phase = config.phases[currentPhaseIndex];
         bool advance = phase.thresholdType == ThresholdType.Episodes
             ? episodeCountInPhase >= phase.threshold
             : stepCountInPhase   >= phase.threshold;
 
         if (!advance) return;
 
-        currentPhaseIndex         = (currentPhaseIndex + 1) % config.phases.Length;
+        if (isLastPhase)
+            currentPhaseIndex = Mathf.Clamp(config.loopStartPhaseIndex, 0, config.phases.Length - 1);
+        else
+            currentPhaseIndex++;
+
         currentLayoutIndexInPhase = 0;
         episodeCountInPhase       = 0;
         stepCountInPhase          = 0;
