@@ -164,7 +164,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 14
+    VectorObservationSize: 21
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -227,7 +227,7 @@ MonoBehaviour:
   - 6
   - 6
   - 6
-  airControlFactor: 1
+  airControlFactor: 0.75
   macroJumpDurationFrames: 40
   macroJumpMinAirborneFrames: 5
   useVelocityMovement: 0
