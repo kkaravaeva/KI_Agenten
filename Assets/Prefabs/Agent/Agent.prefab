@@ -227,7 +227,7 @@ MonoBehaviour:
   - 6
   - 6
   - 6
-  airControlFactor: 1
+  airControlFactor: 0.75
   macroJumpDurationFrames: 40
   macroJumpMinAirborneFrames: 5
   useVelocityMovement: 0

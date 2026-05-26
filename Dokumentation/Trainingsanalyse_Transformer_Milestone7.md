@@ -2717,3 +2717,23 @@ wegfindungs belohnung zu wenig, wurde erhöht (ebenfalls im prefab)
 
 ### nachbereitung
 bis hard fortgeschritten, jumps funktinoieren sehr gut, wegfindungsprobleme (rennt nciht wirklich ins ziel), jumps zu gut kann über 2x2 löcher und lava springen, und tut das auch sehr gerne (belohnung lava?)
+
+
+## v22 
+### vorbereitung
+**1. ObservationSize-Mismatch behoben**
+- `Assets/Prefabs/Agent/Agent.prefab` Z. 167: `VectorObservationSize: 14 → 21`
+- `Assets/Scenes/Sensor_Test.unity`: Prefab-Override `VectorObservationSize: 13` entfernt (erbt jetzt 21)
+- Grund: `CollectObservations()` schreibt 21 Werte (6 Boden-Strahlen × 2 + 3 Velocity + 1 Grounded + 3 GoalDir + 1 EuklDist + 1 PathDist). Vorher wurden 7 Werte stillschweigend abgeschnitten.
+
+**2. Sprungweite begrenzt**
+- `Assets/Prefabs/Agent/Agent.prefab` Z. 230: `airControlFactor: 1 → 0.5`
+- Wirkung: Horizontale Bewegung in der Luft halbiert (4 → 2 m/s), Sprung-Höhe unverändert (0.79 m).
+- Max Pivot-Reichweite: 3.24 m → 1.62 m.
+- 1-Feld-Lücke bleibt sicher überbrückbar (0.87 m Puffer), 2-Feld-Lücke scheitert knapp (13 cm zu wenig).
+
+**Folgen fürs Training**
+- Bestehende `.onnx`-Modelle sind durch beide Änderungen inkompatibel — Neutraining nötig (kein Resume).
+
+**Offen / Hinweis**
+- Phasenspezifische `phaseJumpForces` 5 → 6 (ab Phase 5) ist wegen `maxUpwardVelocity = 4.5` aktuell wirkungslos. Falls echte Sprung-Höhen-Erhöhung gewünscht, müsste der Cap mit angehoben werden.
