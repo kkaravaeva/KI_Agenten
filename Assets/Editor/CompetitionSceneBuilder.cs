@@ -35,7 +35,6 @@ public static class CompetitionSceneBuilder
     {
         "Assets/Layouts/Procedural/Layout_P_Medium_047.asset",
         "Assets/Layouts/Procedural/Layout_P_Medium_049.asset",
-        "Assets/Layouts/Procedural/Layout_P_Medium_050.asset",
         "Assets/Layouts/Procedural/Layout_P_Medium_057.asset",
         "Assets/Layouts/Procedural/Layout_P_Medium_138.asset",
     };
@@ -387,7 +386,7 @@ public static class CompetitionSceneBuilder
             "✓  " + TARGET_SCENE + "\n\n" +
             $"• {removed} überflüssige TrainingArea(s) entfernt\n" +
             $"• {loadedMaps}/{MAP_PATHS.Length} Maps geladen (Medium 47/49/50/57/138)\n" +
-            "• KI: ScriptedAIAgent (BFS + Erkundungsverhalten)\n" +
+            "• KI: ScriptedAIAgent (naturalistisch, ~80%-trainiert-Optik)\n" +
             "• Kamera-Startmodus: Ego (Tab wechselt Drohne/Ego/Front)\n" +
             "• HUD: Stretch-Anchors – Name oben / Punkte unten, kein Überlappen\n\n" +
             "→  Play drücken und spielen!",

@@ -182,6 +182,6 @@ public class DayNightCycle : MonoBehaviour
                        elev >  0.00f ? "Abenddämmerung" :
                        elev > -0.20f ? "Nacht (Dämmerung)" : "Nacht";
         string pauseHint = paused ? " [PAUSE]" : "";
-        GUI.Label(new Rect(10, 35, 280, 22), $"{hr:D2}:{min:D2}  {phase}{pauseHint}  [P/N/D]");
+        GUI.Label(new Rect(Screen.width - 310f, 148f, 300f, 22f), $"{hr:D2}:{min:D2}  {phase}{pauseHint}  [P/N/D]");
     }
 }

@@ -88,7 +88,7 @@ public class CompetitionUI : MonoBehaviour
     // ── Interner State ─────────────────────────────────────────────────────────
 
     private CompetitionManager mgr;
-    private int cachedTotalRounds = 5;
+    private int cachedTotalRounds = 4;
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
 

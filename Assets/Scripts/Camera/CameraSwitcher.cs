@@ -99,6 +99,6 @@ public class CameraSwitcher : MonoBehaviour
             Mode.Front => "Front (Gesicht)",
             _          => _current.ToString()
         };
-        GUI.Label(new Rect(10, 10, 240, 25), $"Kamera: {label}  [Tab]");
+        GUI.Label(new Rect(Screen.width - 260f, 120f, 250f, 25f), $"Kamera: {label}  [Tab]");
     }
 }

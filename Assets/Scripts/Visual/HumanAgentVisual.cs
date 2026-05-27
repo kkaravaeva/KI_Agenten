@@ -315,7 +315,7 @@ public class HumanAgentVisual : MonoBehaviour
         // Face plate (quad with generated texture, mirrored x to face correctly)
         var faceGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         faceGO.name = "Face";
-        Destroy(faceGO.GetComponent<Collider>());
+        DestroyImmediate(faceGO.GetComponent<Collider>());
         faceGO.transform.SetParent(_headRoot, false);
         // Position it just in front of the head sphere surface
         faceGO.transform.localPosition = new Vector3(0f, HeadCY, HeadRX * 0.97f);

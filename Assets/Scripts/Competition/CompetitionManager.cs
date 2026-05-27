@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Orchestriert den 5-Runden-Wettkampf zwischen Mensch (PlayerController) und KI (LabyrinthAgent).
+/// Orchestriert den 4-Runden-Wettkampf zwischen Mensch (PlayerController) und KI (LabyrinthAgent).
 ///
 /// Ablauf pro Runde:
 ///   1. Vordefinierte Map laden (competitionMaps[rundenIndex])
@@ -30,8 +30,8 @@ public class CompetitionManager : MonoBehaviour
     public MapData[] competitionMaps;
 
     [Header("Einstellungen")]
-    [Tooltip("Anzahl Runden (Standard: 5)")]
-    public int   totalRounds          = 5;
+    [Tooltip("Anzahl Runden (Standard: 4)")]
+    public int   totalRounds          = 4;
     [Tooltip("Anzeige-Dauer des Runden-Ergebnisses in Sekunden")]
     public float resultDisplaySeconds = 3f;
     [Tooltip("Countdown-Dauer vor jeder Runde in Sekunden")]
