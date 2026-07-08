@@ -58,6 +58,12 @@
 // 1. EINLEITUNG
 // ============================================================================
 = Einleitung
+// >>> AUFTEILUNG DIESES KAPITELS (ALT -> NEU):
+//     "Motivation und Kontext"           -> SPLIT: 1.1 Restaurant | 1.2 Abstraktion(+Analogie) | 1.3 Generalisierung | 1.5 Forschungsluecke
+//     "Problemstellung/Forschungsfrage"  -> 1.5
+//     "Zielsetzung und Abgrenzung"       -> 1.6
+//     "Aufbau der Arbeit"                -> 1.7
+//     (NEU 1.4 Messbarkeit ist NEU zu schreiben — kein alter Text vorhanden)
 
 == Motivation und Kontext
 
@@ -96,6 +102,13 @@
 // 2. THEORETISCHE GRUNDLAGEN
 // ============================================================================
 = Theoretische Grundlagen
+// >>> BLEIBT KAPITEL 2 — nur Reihenfolge/Rahmung geaendert (ALT -> NEU):
+//     "Maschinelles Lernen und RL"       -> 2.1
+//     "Proximal Policy Optimization"     -> 2.2
+//     "Wahrnehmung in RL-Agenten"        -> 2.3  (VORGEZOGEN, vor Sequenzmodellierung)
+//     "Sequenzmodellierung fuer RL"      -> 2.4  (LSTM -> 2.4.2, Transformer -> 2.4.3)
+//     "Unity ML-Agents Toolkit"          -> 2.5
+//     (NEU 2.4.1 Gedaechtnisproblem: NEU/kurz; Motivation auch in 1.5)
 
 == Maschinelles Lernen und Reinforcement Learning
 
@@ -150,6 +163,7 @@
 // 3. STAND DER TECHNIK / VERWANDTE ARBEITEN
 // ============================================================================
 = Stand der Technik
+// >>> ALT 3 -> NEU 3 (1:1, unveraendert)
 
 // - Klassische Pathfinding-Algorithmen (A*, Dijkstra) vs. RL-Navigation
 // - RL-basierte Navigation: DeepMind Atari (Mnih et al. 2015), AlphaGo,
@@ -163,6 +177,11 @@
 // 4. METHODIK UND EXPERIMENTELLES DESIGN
 // ============================================================================
 = Methodik
+// >>> ACHTUNG: GANZES KAPITEL WIRD ZU NEU 5 (tauscht Platz mit Systemarchitektur!)
+//     "Wissenschaftliche Rahmung"        -> 5.1
+//     "Agenten-Matrix/Vergleichsdesign"  -> 5.2
+//     "Kontrollierte Variablen"          -> 5.3  (+ NEU 5.3.2 "YAML-Abweichungen": ZUSATZ)
+//     "Evaluationsprotokoll"             -> 5.4
 
 == Wissenschaftliche Rahmung
 
@@ -210,6 +229,14 @@
 // 5. SYSTEMARCHITEKTUR UND UMGEBUNG
 // ============================================================================
 = Systemarchitektur
+// >>> ACHTUNG: GANZES KAPITEL WIRD ZU NEU 4 (tauscht Platz mit Methodik!)
+//     "Gesamtueberblick"                 -> 4.1
+//     "Map-System": Datenmodell -> 4.2.1 | MapGenerator -> 4.2.2 |
+//                   Prozedurale Generierung -> 4.2.3 (UMGERAHMT: Rueckgriff auf 1.4)
+//     "Agent-System" (alle Unterpunkte)  -> 4.3
+//     "Sensorik"                         -> 4.4  (+ explizite Wahl "warum Ray")
+//     "Reward-System"                    -> 4.5
+//     "Trainingsinfrastruktur"           -> 4.6
 
 == Gesamtüberblick
 
@@ -298,6 +325,13 @@
 // 6. MODELLARCHITEKTUREN
 // ============================================================================
 = Modellarchitekturen
+// >>> ALT 6 -> NEU 6 — ABER: der Transformer-PROZESS wandert nach Kap. 7!
+//     "MLP-Baseline"                     -> 6.1
+//     "LSTM-Memory"                      -> 6.2
+//     "Transformer-Memory / Architektur" -> 6.3 (nur statische Architektur bleibt)
+//        -> Unterpunkt "Rolling-Memory-Buffer"    WANDERT nach 7.6.3 (Prozess!)
+//        -> Unterpunkt "Integration in ML-Agents" WANDERT nach 7.6.1 (Prozess!)
+//     "Geplante Architekturen"           -> 6.4
 
 == MLP-Baseline
 
@@ -349,6 +383,14 @@
 // 7. UMSETZUNG NACH MEILENSTEINEN
 // ============================================================================
 = Umsetzung
+// >>> ALT 7 -> NEU 7 (mit neuem Kernabschnitt 7.6):
+//     "Milestones 1-2 / 3 / 4 / 5 / 6"   -> 7.1 / 7.2 / 7.3 / 7.4 / 7.5
+//     "Milestone 7: Transformer-/LSTM-Integration" -> SPLIT:
+//        Transformer + "Iterative Fehlerdiagnose" (Bug 1-5)
+//                                          -> 7.6 (nach Problemklassen A/B/C sortiert)
+//        LSTM-Teil                         -> 7.7 (bewusst knapp)
+//     "Trainings-Iterationen V5-V13"     -> 7.6.5 (verdichtete Tabelle,
+//                                          erweitert bis V22; Detail -> Anhang)
 
 == Milestones 1–2: Map-System und Mehrere Layouts
 
@@ -436,6 +478,15 @@
 // 8. EVALUATION UND ERGEBNISSE
 // ============================================================================
 = Evaluation
+// >>> ALT 8 -> NEU 8 (nur noch FINALE Ergebnisse, keine Iterations-Doppelung):
+//     "MLP-Baseline"                     -> 8.1
+//     "Transformer-/LSTM-Iterationen"    -> WICHTIG: der VERLAUF (Reward-Kurven
+//                                          V5-V13, Diagnose) gehoert nach 7.6,
+//                                          NICHT hierher!
+//     "Paarweise Architektur-Vergleiche" -> 8.2
+//     "Generalisierung held-out Maps"    -> 8.3
+//     "Statistische Auswertung"          -> 8.4
+//     "Diskussion"                       -> 8.5
 
 // HINWEIS: Stand Mai 2026 sind die finalen vollständigen Trainingsläufe
 // für die Vergleichsmatrix (5 Mio. Steps × 5 Seeds × 7 Agenten) noch
@@ -492,6 +543,12 @@
 // 9. ÜBERTRAGBARKEIT UND PRAKTISCHE ANWENDBARKEIT
 // ============================================================================
 = Übertragbarkeit und praktische Anwendbarkeit
+// >>> ALT 9 -> NEU 9:
+//     "Analogie Labyrinth <-> real"  -> SPLIT: Tabelle/Rahmung nach vorn zu 1.2 |
+//                                       praktische Auswertung bleibt 9.1
+//     "Hardware-/Software-Anforderungen" -> 9.2
+//     "Bewertungsmatrix"                 -> 9.3
+//     "Limitationen der Uebertragbarkeit"-> 9.4
 
 == Analogie Labyrinth ↔ reale Navigationsszenarien
 
@@ -519,6 +576,11 @@
 // 10. FAZIT UND AUSBLICK
 // ============================================================================
 = Fazit und Ausblick
+// >>> ALT 10 -> NEU 10 (1:1):
+//     "Zusammenfassung"                    -> 10.1
+//     "Beantwortung der Forschungsfragen"  -> 10.2
+//     "Limitationen und Lessons Learned"   -> 10.3
+//     "Ausblick"                           -> 10.4
 
 == Zusammenfassung
 
@@ -550,6 +612,9 @@
 
 // ============================================================================
 // ANHANG (in appendix.typ verschoben)
+// >>> ALT Anhang -> NEU Anhang + ZWEI ZUSAETZE:
+//     + YAML-Basis mit MARKIERTEN Abweichungen je Agent (stuetzt NEU 5.3.2)
+//     + vollstaendige Iterationstabelle V1-V22 mit TensorBoard-Belegen (stuetzt 7.6.5)
 // ============================================================================
 // - YAML-Konfigurationen (labyrinth_training.yaml,
 //   labyrinth_transformer.yaml, labyrinth_lstm.yaml)
@@ -557,4 +622,582 @@
 // - Übersicht aller bearbeiteten Issues (#2 – #134)
 // - Hardware-/Software-Stack
 // - TensorBoard-Screenshots (Lernkurven)
+// - Repository-Struktur
+
+
+#pagebreak()
+
+// ############################################################################
+// ############################################################################
+// ##                                                                        ##
+// ##   NEUSTRUKTURIERUNG (Entwurf 2) — narrativ entlang der Kausalkette      ##
+// ##   Restaurant -> Abstraktion -> Generalisierung -> Messbarkeit ->       ##
+// ##   Engine -> Sensorik -> Verarbeitung -> Gedaechtnis -> LSTM/Transf.    ##
+// ##                                                                        ##
+// ##   HINWEIS: Dieser Block dupliziert die Kapitel-Ueberschriften von      ##
+// ##   oben. Nach dem Review den ALTEN Block (oben) loeschen, damit das     ##
+// ##   Dokument nur EINE Gliederung enthaelt.                               ##
+// ##                                                                        ##
+// ############################################################################
+// ############################################################################
+
+
+// ----------------------------------------------------------------------------
+// MIGRATIONS-KARTE  —  welcher Inhalt aus der ALTEN Struktur wohin wandert
+// (Quelle = altes Kapitel oben im File  ->  Ziel = neues Kapitel unten)
+// ----------------------------------------------------------------------------
+//
+// --- EINLEITUNG ---
+// ALT 1 "Motivation und Kontext"          -> SPLIT auf mehrere neue Abschnitte:
+//        · Serviceroboter/Einsatzkontext   -> NEU 1.1 (Ausgangsszenario)
+//        · reale Umgebung -> Abstraktion    -> NEU 1.2 (+ Analogie-Tab. aus ALT 9.1)
+//        · Generalisierung als Anforderung  -> NEU 1.3
+//        · Forschungsluecke/Arch.-Vergleich -> NEU 1.5
+//        · (Messbarkeits-Argument NEU 1.4 ist neu, aus Generalisierungs-Inhalt)
+// ALT 1 "Problemstellung/Forschungsfrage" -> NEU 1.5 (RQ1-4, H1-4)
+// ALT 1 "Zielsetzung und Abgrenzung"      -> NEU 1.6 (1:1)
+// ALT 1 "Aufbau der Arbeit"               -> NEU 1.7 (1:1)
+//
+// --- GRUNDLAGEN (bleibt Kapitel 2, nur Reihenfolge/Rahmung) ---
+// ALT 2 "ML und Reinforcement Learning"   -> NEU 2.1 (1:1)
+// ALT 2 "Proximal Policy Optimization"    -> NEU 2.2 (1:1)
+// ALT 2 "Wahrnehmung in RL-Agenten"       -> NEU 2.3 (VORGEZOGEN vor Sequenzmodell.)
+//        (die Sensor-Substanz speist zusaetzlich die Entscheidung in NEU 4.4)
+// ALT 2 "Sequenzmodellierung fuer RL"     -> NEU 2.4
+//        · LSTM-Unterkapitel                -> NEU 2.4.2
+//        · Transformer-Unterkapitel         -> NEU 2.4.3
+//        · (Gedaechtnisproblem NEU 2.4.1 ist neu/kurz; Motivation auch in 1.5)
+// ALT 2 "Unity ML-Agents Toolkit"         -> NEU 2.5 (1:1)
+//
+// --- STAND DER TECHNIK ---
+// ALT 3 "Stand der Technik"               -> NEU 3 (1:1)
+//
+// --- ACHTUNG: METHODIK (alt 4) und SYSTEMARCHITEKTUR (alt 5) TAUSCHEN ---
+// ALT 5 "Gesamtueberblick"                -> NEU 4.1
+// ALT 5 "Map-System / Datenmodell"        -> NEU 4.2.1
+// ALT 5 "Map-System / MapGenerator"       -> NEU 4.2.2
+// ALT 5 "Prozedurale Map-Generierung"     -> NEU 4.2.3 (UMGERAHMT: Rueckgriff 1.4,
+//                                            "Umsetzung der Messbarkeitsbedingung")
+// ALT 5 "Agent-System" (alle Unterpunkte) -> NEU 4.3
+// ALT 5 "Sensorik"                        -> NEU 4.4 (+ explizite Wahl "warum Ray")
+// ALT 5 "Reward-System"                   -> NEU 4.5 (1:1)
+// ALT 5 "Trainingsinfrastruktur"          -> NEU 4.6 (1:1)
+//
+// ALT 4 "Wissenschaftliche Rahmung"       -> NEU 5.1
+// ALT 4 "Agenten-Matrix/Vergleichsdesign" -> NEU 5.2
+// ALT 4 "Kontrollierte Variablen"         -> NEU 5.3 (Vorspann + 5.3.1)
+//        (NEU 5.3.2 "Notwendige YAML-Abweichungen" ist ZUSATZ; Quelle:
+//         02_Anforderungen_Fairer_Vergleich.md, Abschnitt A.2)
+// ALT 4 "Evaluationsprotokoll"            -> NEU 5.4 (Primaer/General./Statistik)
+//
+// --- MODELLARCHITEKTUREN ---
+// ALT 6 "MLP / LSTM / Transformer / Geplante" -> NEU 6.1 / 6.2 / 6.3 / 6.4
+//        ACHTUNG: der Bau-/Debugging-PROZESS des Transformers wandert nach
+//        NEU 7.6; in 6.3 bleibt nur die statische ARCHITEKTUR-Beschreibung.
+//
+// --- UMSETZUNG ---
+// ALT 7 "Milestones 1-2 / 3 / 4 / 5 / 6"  -> NEU 7.1 / 7.2 / 7.3 / 7.4 / 7.5 (1:1)
+// ALT 7 "Milestone 7: Transformer-/LSTM-Integration" -> AUFTEILEN:
+//        · Transformer-Teil + "Iterative Fehlerdiagnose" (Bug 1-5)
+//                                           -> NEU 7.6, nach PROBLEMKLASSEN sortiert
+//                                              (7.6.1 Patch, 7.6.2 A, 7.6.3 B, 7.6.4 C)
+//        · LSTM-Teil                        -> NEU 7.7 (bewusst knapp)
+// ALT 7 "Trainings-Iterationen V5-V13"    -> NEU 7.6.5 (verdichtete Tabelle,
+//                                            erweitert bis V22; Detail -> Anhang)
+//
+// --- EVALUATION (nur FINALE Ergebnisse, keine Doppelung mit 7.6) ---
+// ALT 8 "MLP-Baseline"                    -> NEU 8.1
+// ALT 8 "Transformer-/LSTM-Iterationen"   -> WICHTIG: der ITERATIONS-VERLAUF
+//        (Reward-Kurven V5-V13, Diagnose) gehoert nach NEU 7.6, NICHT hierher.
+//        In Kap. 8 bleiben nur die abschliessenden Vergleichszahlen.
+// ALT 8 "Paarweise Architektur-Vergleiche" -> NEU 8.2
+// ALT 8 "Generalisierung held-out Maps"   -> NEU 8.3
+// ALT 8 "Statistische Auswertung"         -> NEU 8.4
+// ALT 8 "Diskussion"                      -> NEU 8.5
+//
+// --- UEBERTRAGBARKEIT ---
+// ALT 9 "Analogie Labyrinth <-> real"     -> ZWEIGETEILT:
+//        · die Analogie-Tabelle/Rahmung     -> nach vorn zu NEU 1.2
+//        · die praktische Auswertung         -> bleibt NEU 9.1
+// ALT 9 "Hardware-/Software-Anforderungen" -> NEU 9.2 (1:1)
+// ALT 9 "Bewertungsmatrix"                -> NEU 9.3 (1:1)
+// ALT 9 "Limitationen der Uebertragbarkeit"-> NEU 9.4 (1:1)
+//
+// --- FAZIT ---
+// ALT 10 (alle Unterpunkte)               -> NEU 10.1-10.4 (1:1)
+//
+// --- ANHANG ---
+// ALT Anhang                              -> NEU Anhang, ZUSAETZLICH:
+//        · YAML-Basis + markierte Abweichungen (stuetzt NEU 5.3.2)
+//        · vollstaendige Iterationstabelle V1-V22 m. TensorBoard (stuetzt 7.6.5)
+// ----------------------------------------------------------------------------
+
+
+// ============================================================================
+// 1. EINLEITUNG  — Kausalkette als roter Faden
+// ============================================================================
+= Einleitung
+
+== Ausgangsszenario: Serviceroboter im Restaurant
+
+// - Konkreter Anker: KI-gesteuerte Serviceroboter sollen autonom navigieren
+// - Warum ein reales, greifbares Szenario als Ausgangspunkt (statt abstrakt)
+
+== Von der realen Umgebung zur testbaren Abstraktion
+
+// - Uebersetzung realer Umgebung in eine vergleichbare, abstrahierte Welt
+//   -> testbar ohne physischen Roboter
+// - Analogie-Tabelle: Korridor <-> Gang, Lava <-> Stufe/Kabel,
+//   prozedurales Layout <-> veraenderliche Umgebung
+//   (aus altem Kap. "Uebertragbarkeit" nach vorn gezogen)
+
+== Generalisierung als zentrale Anforderung
+
+// - Jedes Restaurant sieht anders aus -> Agent muss generalisieren,
+//   nicht einen Grundriss auswendig lernen
+// - Das ist die zentrale Anforderung, nicht bloss Memorierung
+
+== Messbarkeit von Generalisierung
+
+// - TRAGENDES ARGUMENT 1:
+//   Generalisierung ist nur nachweisbar auf Layouts, die im Training NIE
+//   vorkamen -> setzt systematisch erzeugbare Layouts (prozedurale
+//   Map-Generierung) UND ein zurueckgehaltenes, ungesehenes Test-Set voraus
+// - Map-Generierung ist damit Bedingung der Messbarkeit, kein Feature
+
+== Offene Fragen und Forschungsfrage
+
+// - Abgeleitete offene Fragen (in dieser Reihenfolge):
+//     (a) Wie lassen sich KI-Agenten in einer 3D-Welt implementieren,
+//         welche Herausforderungen bringt die Game-Engine mit?
+//     (b) Welche Sensorik bildet reale Wahrnehmung ab -> warum Ray-basiert?
+//     (c) Wie verarbeitet der Agent Informationen zu Entscheidungen?
+//     (d) Sackgassen: ein gedaechtnisloser Agent laeuft reaktiv gegen die
+//         Wand -> Gedaechtnis noetig
+// - Hauptforschungsfrage:
+//   "Kann ein Transformer-basierter RL-Agent in einer selbst gebauten
+//    3D-Labyrinthwelt generalisierbares Navigations- und Hindernis-
+//    vermeidungsverhalten erlernen, das sich auf unbekannte Map-Layouts
+//    uebertragen laesst?"
+// - Erweiterte Forschungsfragen RQ1-RQ4, Hypothesen H1-H4
+
+== Zielsetzung und Abgrenzung
+
+// - Pflichtumfang: 3D-Labyrinth, 5 Maps, Ray-Sensorik, Lava/Hole/Sackgassen,
+//   Transformer als Kernmodell, MLP-Baseline, >= 1 Ablationsstudie,
+//   Generalisierungstest, reproduzierbares Repo, Bericht + Video-Demos
+// - Optionale, umgesetzte Erweiterungen: prozedurale Map-Generierung,
+//   Curriculum Learning, LSTM-Vergleich, Multi-Area-Training
+// - NICHT geleistet: Sim-to-Real, Multi-Agent, dynamische Hindernisse
+
+== Aufbau der Arbeit
+
+// - Kurze Uebersicht der Kapitel
+
+
+// ============================================================================
+// 2. THEORETISCHE GRUNDLAGEN  — als Werkzeugkasten, geordnet nach den Fragen
+// ============================================================================
+= Theoretische Grundlagen
+
+== Maschinelles Lernen und Reinforcement Learning
+
+// - Einordnung KI ⊃ ML ⊃ RL; supervised / unsupervised / reinforcement
+// - Markov-Entscheidungsprozesse (MDP), Policy, Value-/Q-Function
+// - On-Policy vs. Off-Policy
+
+== Proximal Policy Optimization (PPO)
+
+// - Actor-Critic-Framework (Actor-Netz + Critic-Netz)
+// - Schulman et al. (2017): Clipping (ε = 0.2), GAE (λ = 0.95)
+// - Vorteil ggue. Vanilla Policy Gradient (Stabilitaet)
+
+== Wahrnehmung in RL-Agenten
+
+// - Sensortypen: Ray-Sensoren, Kamera (CNN), Vector-Observations
+// - Beobachtungsraeume und Normalisierung
+// - (liefert die Substanz fuer die Sensor-Entscheidung in 4.4)
+
+== Sequenzmodellierung und Gedaechtnis in RL
+
+=== Das Gedaechtnisproblem reaktiver Agenten
+
+// - TRAGENDES ARGUMENT 2 (KURZ, konzeptionell, 1 Absatz):
+//   Ein gedaechtnisloser Agent kann nicht wissen, aus welcher Richtung er
+//   kam -> reaktives Anlaufen gegen die naechste Wand in Sackgassen
+// - Motiviert, warum ueberhaupt sequenzfaehige Architekturen noetig sind
+// - Querverweis auf 1.5 (Frage) und 7.6.4 (empirischer Beleg)
+
+=== Long Short-Term Memory (LSTM)
+
+// - Hochreiter & Schmidhuber (1997); Forget-/Input-/Output-Gates
+// - Implizites Gedaechtnis ohne expliziten Sequenz-Buffer
+// - In ML-Agents standardmaessig verfuegbar (use_recurrent: true)
+
+=== Transformer-Architektur
+
+// - Vaswani et al. (2017); Self-/Multi-Head-Attention, Positional Encoding
+// - RL-Kontext: Decision Transformer (Chen 2021), GTrXL (Parisotto 2020)
+// - Vor-/Nachteile ggue. LSTM NEUTRAL beschreiben (keine Wertung vorwegnehmen)
+
+== Unity ML-Agents Toolkit
+
+// - Architektur: Unity-Environment <-> Python-Trainer (gRPC)
+// - Komponenten: Agent, Behavior Parameters, Decision Requester, Sensoren
+// - Workflow: YAML-Config, ONNX-Export, TensorBoard; Version 0.30.0
+
+
+// ============================================================================
+// 3. STAND DER TECHNIK
+// ============================================================================
+= Stand der Technik
+
+// - Klassisches Pathfinding (A*, Dijkstra) vs. RL-Navigation
+// - RL-Navigation: DeepMind Atari (Mnih 2015), Habitat/AI2-THOR, CARLA
+// - Memory-augmented RL: DNC, GTrXL
+// - Curriculum Learning (Bengio 2009)
+// - Procedural Content Generation fuer RL (Justesen et al. 2018)
+
+
+// ============================================================================
+// 4. SYSTEMARCHITEKTUR UND UMGEBUNG  — erst die Welt bauen (vor Methodik)
+// ============================================================================
+= Systemarchitektur und Umgebung
+
+== Gesamtueberblick
+
+// - Komponentendiagramm: Unity-Editor/Build <-> Python-Trainer <-> TensorBoard
+// - Code-Layout: Assets/Scripts/{Map, Agent, Camera}, training/, config/, results/
+
+== Map-System
+
+=== Datenmodell
+
+// - CellType-Enum (Empty, Floor, Wall, Obstacle, Goal, SpawnPoint)
+// - MapData (ScriptableObject, flaches Array, GetCell/SetCell)
+
+=== MapGenerator (Runtime)
+
+// - Layout-basierte Generierung mit Prefab-Mapping
+// - Spawn-/Goal-/Obstacle-Platzierung dynamisch; BFS-Pfadvalidierung
+// - Modi: SpawnPlacement / GoalPlacement / ObstaclePlacement,
+//   MapSelectionMode (Fixed/Random/Sequential/Curriculum)
+// - Multi-Area-Setup (4-10 parallele TrainingAreas), Tile-Pool
+
+=== Prozedurale Generierung als Umsetzung der Messbarkeitsbedingung
+
+// - UMGERAHMT: Rueckgriff auf 1.4 — hier wird die geforderte Bedingung baulich
+//   eingeloest (nicht als "Feature")
+// - RoomCorridorGraph (2-Tile-Korridore, Wand-Saum, BORDER-Puffer)
+// - ObstacleClusterPlacer (Cluster aus Lava/Hole/Platform)
+// - SemanticPathfinder (Loesbarkeitscheck mit Sprung-/Plattform-Semantik)
+// - Schwierigkeitsgrade (Trivial -> ... -> Hard)
+
+== Agent-System
+
+=== Aktionsraum
+
+// - 3 Branches: Bewegung, Rotation, Sprung; agent-relative Bewegung (V11)
+
+=== Observation-Space
+
+// - VectorSensor (14 Floats); RayPerceptionSensor3D (11 Rays x 2 Frames x ...)
+
+=== Bewegungs- und Sprungphysik
+
+// - Rigidbody (MovePosition/MoveRotation/AddForce); Sprungkalibrierung
+// - Wall-Climb-Guard, maxUpwardVelocity-Cap (V11/V12)
+
+=== Third-Person-Kamera
+
+// - Smooth-Follow in LateUpdate, lokaler Agent-Raum
+
+== Sensorik — und die begruendete Wahl der Ray-Wahrnehmung
+
+// - ENTSCHEIDUNG SICHTBAR MACHEN: warum Ray statt (nur) Kamera fuer die
+//   Basis-Vergleichsgruppe -> CPU-tauglich, robust, direkt interpretierbar
+// - Horizontaler RayPerceptionSensor: 11 Rays, 120°, 12 Zellen, Stacked = 2
+// - 6 Detectable Tags: Wall, Obstacle, Lava, Hole, Goal, Bridge
+// - Manueller Boden-Sensor: 3 Raycasts mit Typ-Codes
+
+== Reward-System
+
+// - Formale Reward-Funktion (goalReward, lava/hole/timeout, stepPenalty, PBRS)
+// - Aktuelle Werte + PBRS (F = (prevDist − γ·currDist)·scale) + Curiosity
+// - Quelle: Reward_Strategie.md
+
+== Trainingsinfrastruktur
+
+// - Python venv (mlagents 0.30.0, PyTorch 2.0.1+cu118)
+// - Patch-Skript (training/patch_mlagents.py) fuer Custom-Policies
+// - Multi-Area-/Headless-Parallelisierung; Hardware (RTX 3050, Ryzen 5 5625U)
+
+
+// ============================================================================
+// 5. METHODIK UND EXPERIMENTELLES DESIGN  — nach dem System
+// ============================================================================
+= Methodik und experimentelles Design
+
+== Wissenschaftliche Rahmung
+
+// - Forschungsfragen RQ1-RQ4, Hypothesen H1-H4
+
+== Agenten-Matrix und Vergleichsdesign
+
+// - Baseline (Ray + MLP)
+//   A3 Ray+LSTM        A4 Ray+Transformer
+//   A1 Kamera+CNN+LSTM A2 Kamera+CNN+Transformer
+//   A6 Multi+CNN+LSTM  A5 Multi+CNN+Transformer
+// - Paarweise Vergleiche innerhalb/ueber Sensorgruppen und gegen MLP
+
+== Kontrollierte Variablen und begruendete Abweichungen
+
+// - VORSPANN (Grundprinzip): pro Vergleich aendert sich nur EINE Variable,
+//   alles andere ist eingefroren -> Messgrundlage fuer die Unterabschnitte.
+//   (frueheres 5.3.1 hier in den Fliesstext-Vorspann verschoben)
+
+=== Identische Parameter
+
+// - PPO-Kern identisch fuer alle Agenten: learning_rate 3e-4, batch_size 512,
+//   buffer_size, beta, epsilon 0.2, lambd 0.95, num_epoch, max_steps,
+//   time_horizon, gamma, hidden_units 256, num_layers 2
+// - Reward-Struktur identisch und VOR dem Training eingefroren
+//   (inkl. Curiosity: fuer ALLE an oder fuer KEINEN)
+// - Sensor-Basis und Seeds identisch
+
+=== Notwendige YAML-Abweichungen und ihre Begruendung
+
+// - DEINE FRAGE / EXPLIZIT: die YAMLs sind NICHT zu 100% identisch — und das
+//   ist korrekt, nicht unfair.
+// - Kontrolliert abweichende Parameter:
+//     · memory_type: lstm | transformer  (je nach Agent)
+//     · vis_encode_type: simple           (nur bei Kamera-Agenten)
+//     · Sensor-Konfiguration              (Ray vs. Kamera vs. Kombination)
+// - Begruendung: diese Parameter sind KONSTITUTIV fuer den Vergleichs-
+//   gegenstand selbst — man kann Transformer vs. LSTM nicht vergleichen,
+//   ohne memory_type zu aendern. Eine erzwungene 100%-Identitaet waere
+//   nicht "fairer", sondern sinnlos.
+// - Quelle: 02_Anforderungen_Fairer_Vergleich.md (Abschnitt A.2)
+
+== Evaluationsprotokoll
+
+=== Primaermetriken
+// - Erfolgsrate (letzte 100 Episoden), Konvergenzgeschwindigkeit,
+//   Kollisionsrate, Mean Episodenlaenge, Cumulative Reward
+
+=== Generalisierungsmetriken
+// - Held-out Maps (nie im Training gesehen); Overfitting-Index
+//   = Trainings-Erfolgsrate − Generalisierungs-Erfolgsrate
+// - (jetzt verstaendlich, weil Map-System in 4.2 bereits erklaert)
+
+=== Statistische Auswertung
+// - Mann-Whitney U, Bonferroni (α' = 0.005), Cliff's Delta,
+//   95%-Bootstrap-Konfidenzintervalle
+
+
+// ============================================================================
+// 6. MODELLARCHITEKTUREN  — die konkrete Antwort auf die Frage aus 2.4
+// ============================================================================
+= Modellarchitekturen
+
+== MLP-Baseline
+
+// - Standard ML-Agents: 2 Hidden-Layer, 256 Units, direkt auf Observation
+// - mlp_baseline_v2: +0.81 Reward (2 Mio. Steps, 10 Agents)
+
+== LSTM-Memory (Custom Policy)
+
+// - hidden_size 64, num_layers 1; ~82k Parameter
+// - Patch-Strategie: additive elif-Bloecke in mlagents NetworkBody
+// - Output-Shape GAE-kompatibel
+
+== Transformer-Memory (Custom Policy)
+
+// - d_model 256, nhead 4, num_layers 2; gelerntes Positional Encoding
+// - manuelle MultiheadAttention, batch_first = False; ~1,07 Mio. Parameter
+// - (Bau-/Debugging-Prozess: siehe 7.6)
+
+== Geplante Architekturen (M8-M10)
+
+// - CNN-Encoder (Nature-CNN, Mnih 2015): 3 Conv + FC -> [256]
+// - Multi-Sensor Late Fusion: CNN(256) + Vector(14) -> LayerNorm -> Concat -> FC
+
+
+// ============================================================================
+// 7. UMSETZUNG NACH MEILENSTEINEN  (mit Kernabschnitt 7.6)
+// ============================================================================
+= Umsetzung
+
+== Milestones 1-2: Map-System und mehrere Layouts
+
+// - Datenmodell; 5 manuell entworfene Layouts; Custom Editor (Preview)
+// - Issues #2, #3, #4, #19, #20, #39-#44
+
+== Milestone 3: Agent-Grundsystem
+
+// - LabyrinthAgent.cs (Initialize/OnEpisodeBegin/CollectObservations/...)
+// - RayPerceptionSensor3D, Boden-Sensor, Sprungkalibrierung; Issues #21-#36
+
+== Milestone 4: Hindernisse und Todeslogik
+
+// - Tag-basiert: Lava, Hole, Bridge, KillZone; Lava-Trigger-Plate
+// - Hole-Mechanik (HoleSurface-Layer, KillZone); zentrale Reward-Vergabe
+// - Issues #82-#88
+
+== Milestone 5: Reward-System und erstes Training
+
+// - Reward-Strategie, YAML-Config, Multi-Area, TensorBoard verifiziert
+// - mlp_baseline_v1/v2; Limitierung v2 (Obstacles = 0); Issues #93-#99
+
+== Milestone 6: Prozedurale Generierung und Curriculum
+
+// - Variable Grid-Groesse (BORDER = 2), Terminal-Korridore (echte Sackgassen)
+// - Easy/Medium/Hard (DifficultySettings.Factory)
+// - Curriculum (CurriculumConfig + CurriculumTracker); Issues #127, #133, #134
+
+== Transformer-Integration: von V1 bis zum lauffaehigen Modell
+
+// - KERNLEISTUNG, prominent: der 22-fach dokumentierte, messgetriebene
+//   Integrationsprozess. Nach PROBLEMKLASSEN geordnet (nicht rein chronologisch),
+//   die Chronologie lebt in der verdichteten Tabelle (7.6.5).
+
+=== Warum kein Fork: der venv-Patch-Ansatz
+
+// - additive elif-Bloecke im mlagents NetworkBody statt Fork
+// - Patch-Skript idempotent + --undo; Argument: Wartbarkeit
+
+=== Problemklasse A - Framework-/Engine-Workarounds
+
+// - manuelle MultiheadAttention (Workaround PyTorch-2.0-CUDA-Segfault)
+// - batch_first = False (Workaround ONNX-Export-Bug)
+
+=== Problemklasse B - Inference/Training-Konsistenz
+
+// - PPO-Ratio-Inkonsistenz: Inference (seq=1) != Training (seq=8)
+// - Loesung: Rolling-Memory-Buffer (letzte 7 MLP-Encodings) -> konsistente
+//   Log-Probs, gueltige PPO-Ratio
+
+=== Problemklasse C - Reward-/Curriculum-Pathologien
+
+// - Sparse Reward (Goal in 1 Mio. Steps nie gefunden) -> Trivial-Phase + PBRS
+//   + Distanz-Observation
+// - Wall-Climb (PhysX-Depenetration) -> Guard + maxUpwardVelocity-Cap
+// - Eck-Heuristik/Memorierung -> zufaellige Goal-Platzierung
+// - PBRS farmbar; Discount-Faktor entscheidend
+
+=== Iterationsuebersicht V1-V22 (verdichtete Tabelle)
+
+// - Tabelle: Version | Hypothese/Aenderung | Kennzahl-Wirkung (belegt) | Erkenntnis
+// - vollstaendige Tabelle + Einzel-Kennzahlen (TensorBoard-Belege) im Anhang
+// - Auszug bekannter Iterationen:
+//     V5  kein Causal Mask -> kein Lernen
+//     V6  Beta zu hoch, Entropy faellt nicht
+//     V7  Value Loss kollabiert (Buffer zu klein)
+//     V8  Buffer 40960, Time Horizon 256
+//     V9  8.7 Mio. Steps, Plateau Reward 8.9 (Timeout-Stagnation)
+//     V10 goalReward 10, stepPenalty −0.005, Success-Rate-Logging
+//     V11 agent-relative Bewegung + Dreh-Action, seq_length 8 -> 16
+//     V12 timeoutPenalty −2, Lava-Adrenalin-Reward
+//     V13 γ = 0.997, goalReward 30, Curiosity-Modul, curriculum-aware MaxStep
+//     ... bis V22 (spaetere Iterationen ggf. nur auf Branch milestone-7)
+
+== LSTM-Integration (direkte Baseline)
+
+// - BEWUSST KNAPP: LSTM weitgehend ueber use_recurrent verfuegbar
+// - Die Aufwands-Asymmetrie (Transformer 22 Iterationen vs. LSTM Baseline)
+//   ist selbst ein Befund und wird benannt
+
+
+// ============================================================================
+// 8. EVALUATION UND ERGEBNISSE  — nur FINALE Vergleiche (keine Doppelung mit 7.6)
+// ============================================================================
+= Evaluation
+
+// HINWEIS: finale vollstaendige Laeufe (5 Mio. Steps x 5 Seeds x 7 Agenten)
+// ggf. noch nicht abgeschlossen -> Zwischenergebnisse kennzeichnen.
+
+== MLP-Baseline
+
+// - 2 Mio. Steps, Reward −2.4 -> +0.81; v1 (CPU) vs. v2 (GPU); ~1h44min
+
+== Paarweise Architektur-Vergleiche
+
+=== Ray-Gruppe: LSTM (A3) vs. Transformer (A4)
+=== Kamera-Gruppe: LSTM (A1) vs. Transformer (A2)
+=== Multi-Sensor-Gruppe: LSTM (A6) vs. Transformer (A5)
+
+== Generalisierung auf held-out Maps
+
+// - 3 unabhaengige Eval-Maps; Erfolgs-/Kollisionsrate, Overfitting-Index
+
+== Statistische Auswertung
+
+// - Mann-Whitney U + Bonferroni, Cliff's Delta, Bootstrap-CI, Lernkurven mit CI-Band
+
+== Diskussion
+
+// - Bewertung H1-H4; welche Architektur lernt schneller / generalisiert besser
+// - Beobachtetes Verhalten (Wall-Hugging, Lava-Avoidance, PBRS-Artefakte)
+
+
+// ============================================================================
+// 9. UEBERTRAGBARKEIT UND PRAKTISCHE ANWENDBARKEIT  (verweist zurueck auf 1.1/1.2)
+// ============================================================================
+= Uebertragbarkeit und praktische Anwendbarkeit
+
+== Analogie Labyrinth <-> reale Navigationsszenarien
+
+// - Rueckgriff auf die Rahmung aus 1.1/1.2 (nicht neu einfuehren, auswerten)
+// - Serviceroboter, Lager-/Indoor-Logistik, Spiele-NPCs
+
+== Hardware- und Software-Anforderungen
+
+// - Ray-only (CPU, niedrige Kosten) / Kamera (GPU) / Multi-Sensor (robust, teuer)
+
+== Bewertungsmatrix
+
+// - Kriterien x Gewichte x Agenten; Empfehlung je Einsatzszenario
+
+== Limitationen der Uebertragbarkeit
+
+// - 2D-Abstraktion, statische Hindernisse, Sim-to-Real-Gap, idealisierte Sensorik
+
+
+// ============================================================================
+// 10. FAZIT UND AUSBLICK
+// ============================================================================
+= Fazit und Ausblick
+
+== Zusammenfassung
+
+// - Gebaut: 3D-Labyrinth, prozedurale Generierung, Curriculum, Custom-LSTM,
+//   Custom-Transformer, Multi-Area, vollstaendige Evaluations-Pipeline
+
+== Beantwortung der Forschungsfragen
+
+// - RQ1 Sensortyp, RQ2 Temporal-Architektur, RQ3 Sensor-Fusion,
+//   RQ4 praktische Uebertragbarkeit
+
+== Limitationen und Lessons Learned
+
+// - PPO + Transformer: Inference/Training-Konsistenz nicht trivial
+// - PBRS nuetzlich aber farmbar; Discount-Faktor entscheidend
+// - Curriculum: Phasenwechsel als Stress-Test; Reward Engineering sensibel
+
+== Ausblick
+
+// - Vollstaendige Trainingsmatrix; CNN-/Multi-Sensor-Pfad (M8-M10)
+// - Dynamische Hindernisse, Multi-Agent, Sim-to-Real
+
+
+// ============================================================================
+// ANHANG (in appendix.typ)
+// ============================================================================
+// - YAML-Konfigurationen: identische Basis + je Agent MARKIERTE Abweichungen
+//   (stuetzt 5.3.2 "Notwendige YAML-Abweichungen")
+// - Vollstaendige Iterationstabelle V1-V22 mit TensorBoard-Belegen
+//   (stuetzt 7.6.5)
+// - Reward-Tabelle (vollstaendig)
+// - Uebersicht aller bearbeiteten Issues (#2 - #134)
+// - Hardware-/Software-Stack
 // - Repository-Struktur
