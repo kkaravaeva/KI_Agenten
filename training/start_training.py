@@ -2,17 +2,18 @@
 Startet ein mlagents-Training im KI_Agenten-Projekt.
 
 Verwendung:
-    python training/start_training.py [--run-id=<name>] [--resume] [--force] [--no-patch]
+    python training/start_training.py [--run-id=<name>] [--resume] [--force] [--no-patch] [--config=<pfad>]
 
 Standardmäßig:
-    Config:   config/labyrinth_transformer.yaml
-    Run-ID:   transformer_v5
+    Config:   config/model_comparison.yaml   (LSTM + Transformer + MLP gleichzeitig)
+    Run-ID:   model_comparison_v1
     Venv:     C:/Users/Finnl/mlagents-31008
 
 Beispiele:
     python training/start_training.py
-    python training/start_training.py --run-id=transformer_v5 --resume
-    python training/start_training.py --run-id=transformer_v5 --force
+    python training/start_training.py --run-id=model_comparison_v1 --resume
+    python training/start_training.py --run-id=model_comparison_v1 --force
+    python training/start_training.py --config=config/labyrinth_lstm_v7.yaml --run-id=lstm_v8
 """
 
 import subprocess
@@ -22,21 +23,22 @@ from pathlib import Path
 
 # ── Konfiguration ──────────────────────────────────────────────────────────────
 
-VENV        = Path(r"C:\Users\Finnl\mlagents-31008")
-PYTHON      = VENV / "Scripts" / "python.exe"
 PROJECT_DIR = Path(__file__).parent.parent   # KI_Agenten/
-CONFIG      = "config/labyrinth_transformer.yaml"
-DEFAULT_RUN = "transformer_v5"
+VENV        = Path(r"C:\Users\alxbe\KI_Agent\.venv")
+PYTHON      = VENV / "Scripts" / "python.exe"
+CONFIG      = "config/model_comparison.yaml"
+DEFAULT_RUN = "model_comparison_v1"
 
 # ── Argumente parsen ───────────────────────────────────────────────────────────
 
-args = sys.argv[1:]
-run_id  = next((a.split("=", 1)[1] for a in args if a.startswith("--run-id=")), DEFAULT_RUN)
-resume  = "--resume" in args
-force   = "--force" in args
+args     = sys.argv[1:]
+run_id   = next((a.split("=", 1)[1] for a in args if a.startswith("--run-id=")),   DEFAULT_RUN)
+config   = next((a.split("=", 1)[1] for a in args if a.startswith("--config=")),   CONFIG)
+resume   = "--resume"   in args
+force    = "--force"    in args
 no_patch = "--no-patch" in args
 
-# ── Patch anwenden (einmalig nötig) ───────────────────────────────────────────
+# ── Patch anwenden (für Transformer-Memory erforderlich) ──────────────────────
 
 if not no_patch:
     print("=== Transformer-Patch prüfen / anwenden ===")
@@ -53,7 +55,7 @@ if not no_patch:
 
 cmd = [
     str(PYTHON), "-m", "mlagents.trainers.learn",
-    CONFIG,
+    config,
     f"--run-id={run_id}",
 ]
 if resume:
@@ -61,11 +63,21 @@ if resume:
 if force:
     cmd.append("--force")
 
-print(f"=== Training starten ===")
-print(f"  Config:  {CONFIG}")
-print(f"  Run-ID:  {run_id}")
-print(f"  Flags:   {'--resume' if resume else '--force' if force else '(keine)'}")
-print(f"  Venv:    {VENV}")
+flags_str = " ".join([
+    "--resume" if resume else "",
+    "--force"  if force  else "",
+]).strip() or "(keine)"
+
+print("=== Model Comparison Training starten ===")
+print(f"  Config:    {config}")
+print(f"  Run-ID:    {run_id}")
+print(f"  Flags:     {flags_str}")
+print(f"  Venv:      {VENV}")
+print()
+print("  Behaviors in dieser Config:")
+print("    LSTM_Navigator        -> Spalte 0 (LSTM_0/1/2)")
+print("    Transformer_Navigator -> Spalte 1 (Transformer_0/1/2)")
+print("    MLP_Navigator         -> Spalte 2 (MLP_0/1/2)")
 print()
 print("Warte auf Unity: Wenn 'Listening on port 5004' erscheint -> Play in Unity druecken.")
 print("-" * 70)

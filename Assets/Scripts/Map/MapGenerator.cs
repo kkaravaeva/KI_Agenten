@@ -458,11 +458,22 @@ public class MapGenerator : MonoBehaviour
             for (int x = 0; x < mapData.width; x++)
             {
                 CellType t = mapData.GetCell(x, y);
-                bool ok = obstaclePlacementMode == ObstaclePlacementMode.PredefinedSpawnPoints
-                    ? (t == CellType.Floor || t == CellType.SpawnPoint || t == CellType.Goal)
-                    : (t == CellType.Floor || t == CellType.SpawnPoint || t == CellType.Goal || t == CellType.Obstacle);
-                if (ok) valid.Add(new Vector2Int(x, y));
+                if (t != CellType.Floor && t != CellType.SpawnPoint) continue;
+                if (HasDangerousNeighbour(mapData, x, y)) continue;
+                valid.Add(new Vector2Int(x, y));
             }
+
+        if (valid.Count == 0)
+        {
+            Debug.LogWarning($"MapGenerator: Layout '{mapData.name}' hat keine sichere Spawn-Zelle (ohne Nachbar-Lava/Hole). Fallback ohne Abstandsprüfung.");
+            for (int y = 0; y < mapData.height; y++)
+                for (int x = 0; x < mapData.width; x++)
+                {
+                    CellType t = mapData.GetCell(x, y);
+                    if (t == CellType.Floor || t == CellType.SpawnPoint)
+                        valid.Add(new Vector2Int(x, y));
+                }
+        }
 
         if (valid.Count == 0)
         {
@@ -470,6 +481,20 @@ public class MapGenerator : MonoBehaviour
             return new Vector2Int(-1, -1);
         }
         return valid[Random.Range(0, valid.Count)];
+    }
+
+    private bool HasDangerousNeighbour(MapData mapData, int x, int y)
+    {
+        for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                if (dx == 0 && dy == 0) continue;
+                int nx = x + dx, ny = y + dy;
+                if (nx < 0 || ny < 0 || nx >= mapData.width || ny >= mapData.height) continue;
+                CellType n = mapData.GetCell(nx, ny);
+                if (n == CellType.Lava || n == CellType.Hole) return true;
+            }
+        return false;
     }
 
     private Vector2Int SelectRandomGoalCell(MapData mapData, Vector2Int spawnCell)

@@ -1,7 +1,9 @@
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
+using Unity.MLAgents.Policies;
 using UnityEngine;
+using System.Collections.Generic;
 
 public class LabyrinthAgent : Agent
 {
@@ -30,7 +32,7 @@ public class LabyrinthAgent : Agent
     [SerializeField] private float holeDeathPenalty = -3f;
 
     [Header("Reward – Timeout")]
-    [SerializeField] private float timeoutPenalty = -5f;
+    [SerializeField] private float timeoutPenalty = -10f;
 
     [Header("Reward – Lava-Sprung")]
     [SerializeField] private float lavaAttemptBaseReward = 1.5f;
@@ -38,7 +40,7 @@ public class LabyrinthAgent : Agent
     [SerializeField] private float lavaAboveMinDistance = 0.3f;
 
     [Header("Reward – Zeit")]
-    [SerializeField] private float stepPenalty = -0.005f;
+    [SerializeField] private float stepPenalty = -0.002f;
 
     [Header("Wall-Climb Guard")]
     [SerializeField] private float wallClimbMaxY = 5.0f;
@@ -46,7 +48,7 @@ public class LabyrinthAgent : Agent
     [SerializeField] private float maxUpwardVelocity = 7.0f;
 
     [Header("Reward – Shaping (PBRS)")]
-    [SerializeField] private float distanceShapingScale = 0.005f;
+    [SerializeField] private float distanceShapingScale = 0.01f;
     [SerializeField] private float pbrsGamma = 1.0f;
 
     [Header("Curriculum – MaxStep pro Phase")]
@@ -99,11 +101,22 @@ public class LabyrinthAgent : Agent
     private bool wasAboveLava = false;
     private bool episodeEndedByTerminal = false;
     private bool hasLineOfSight = false;
+
+    // TensorBoard-Logging
+    private string statPrefix = "";
+    private const int ROLLING_WINDOW = 50;
+    private Queue<float> rollingSuccesses = new Queue<float>();
+    private float lastDistanceToGoal = 0f;
+    private int lavaCrossingsThisEpisode = 0;
+
+    // Erstes-Mal-Milestone pro Behavior (static = geteilt über alle Agenten derselben Architektur)
+    private static readonly Dictionary<string, bool> firstLavaCrossingDone = new Dictionary<string, bool>();
+
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
-        // warnIfMissing=false: Map ist zu diesem Zeitpunkt noch nicht generiert (Start läuft nach Initialize).
-        // FindGoal() wird erneut in OnEpisodeBegin aufgerufen, wenn die Map bereit ist.
+        var bp = GetComponent<BehaviorParameters>();
+        statPrefix = (bp != null ? bp.BehaviorName : "Agent") + "/";
         FindGoal(warnIfMissing: false);
     }
 
@@ -148,18 +161,49 @@ public class LabyrinthAgent : Agent
             return;
         }
 
-        Academy.Instance.StatsRecorder.Add("Custom/SuccessRate",    lastEpisodeWasSuccess ? 1f : 0f);
-        Academy.Instance.StatsRecorder.Add("Custom/LavaJumpAttempts", lavaJumpAttempts);
-        Academy.Instance.StatsRecorder.Add("Custom/CurriculumPhase", CurriculumTracker.CurrentPhaseIndex);
-        Academy.Instance.StatsRecorder.Add("Custom/DeathByLava",    lastDeathReason == DeathReason.Lava    ? 1f : 0f);
-        Academy.Instance.StatsRecorder.Add("Custom/DeathByHole",    lastDeathReason == DeathReason.Hole    ? 1f : 0f);
-        Academy.Instance.StatsRecorder.Add("Custom/DeathByTimeout", lastDeathReason == DeathReason.Timeout ? 1f : 0f);
-        Debug.Log($"[Episode] Steps: {lastEpisodeStepCount} | Reward: {lastEpisodeCumulativeReward:F3} | Erfolg: {lastEpisodeWasSuccess} | Tod: {lastDeathReason} | LavaJumps: {lavaJumpAttempts}");
-        lastEpisodeWasSuccess  = false;
-        lastDeathReason        = DeathReason.None;
-        lavaJumpAttempts       = 0;
-        wasAboveLava           = false;
-        episodeEndedByTerminal = false;
+        var stats = Academy.Instance.StatsRecorder;
+
+        // ── Erfolg & Rolling Average ───────────────────────────────────────────
+        float successVal = lastEpisodeWasSuccess ? 1f : 0f;
+        rollingSuccesses.Enqueue(successVal);
+        if (rollingSuccesses.Count > ROLLING_WINDOW)
+            rollingSuccesses.Dequeue();
+
+        float rollingSuccess = 0f;
+        foreach (float v in rollingSuccesses) rollingSuccess += v;
+        rollingSuccess /= rollingSuccesses.Count;
+
+        stats.Add(statPrefix + "SuccessRate",        successVal);
+        stats.Add(statPrefix + "RollingSuccessRate", rollingSuccess);
+
+        // ── Episodenlänge & Effizienz ─────────────────────────────────────────
+        stats.Add(statPrefix + "EpisodeLength",      lastEpisodeStepCount);
+        if (lastEpisodeWasSuccess)
+            stats.Add(statPrefix + "StepsToGoal",    lastEpisodeStepCount);
+
+        // ── Distanz bei Timeout ───────────────────────────────────────────────
+        if (lastDeathReason == DeathReason.Timeout)
+            stats.Add(statPrefix + "DistanceAtTimeout", lastDistanceToGoal);
+
+        // ── Curriculum ────────────────────────────────────────────────────────
+        stats.Add(statPrefix + "CurriculumPhase",    CurriculumTracker.CurrentPhaseIndex);
+
+        // ── Todesursachen ─────────────────────────────────────────────────────
+        stats.Add(statPrefix + "DeathByLava",        lastDeathReason == DeathReason.Lava    ? 1f : 0f);
+        stats.Add(statPrefix + "DeathByHole",        lastDeathReason == DeathReason.Hole    ? 1f : 0f);
+        stats.Add(statPrefix + "DeathByTimeout",     lastDeathReason == DeathReason.Timeout ? 1f : 0f);
+
+        // ── Explorationsverhalten ─────────────────────────────────────────────
+        stats.Add(statPrefix + "LavaJumpAttempts",   lavaJumpAttempts);
+        stats.Add(statPrefix + "LavaCrossings",      lavaCrossingsThisEpisode);
+
+        Debug.Log($"[{statPrefix}Episode] Steps={lastEpisodeStepCount} | Reward={lastEpisodeCumulativeReward:F3} | Erfolg={lastEpisodeWasSuccess} | Tod={lastDeathReason} | Phase={CurriculumTracker.CurrentPhaseIndex}");
+        lastEpisodeWasSuccess    = false;
+        lastDeathReason          = DeathReason.None;
+        lavaJumpAttempts         = 0;
+        wasAboveLava             = false;
+        episodeEndedByTerminal   = false;
+        lavaCrossingsThisEpisode = 0;
 
         if (mapGenerator != null)
         {
@@ -268,34 +312,6 @@ public class LabyrinthAgent : Agent
         // === Ground-Status (1 Observation) ===
         sensor.AddObservation(isGrounded ? 1f : 0f);
 
-        // === Richtung zum Ziel normalisiert (3 Observations) ===
-        if (goalTransform == null)
-            FindGoal(warnIfMissing: false);
-
-        if (goalTransform != null)
-        {
-            Vector3 directionToGoal = transform.InverseTransformDirection((goalTransform.position - transform.position).normalized);
-            sensor.AddObservation(directionToGoal.x);
-            sensor.AddObservation(directionToGoal.y);
-            sensor.AddObservation(directionToGoal.z);
-
-            if (debugSensors)
-            {
-                Debug.Log($"[Zielrichtung] Dir=({directionToGoal.x:F2}, {directionToGoal.y:F2}, {directionToGoal.z:F2})");
-            }
-        }
-        else
-        {
-            sensor.AddObservation(0f);
-            sensor.AddObservation(0f);
-            sensor.AddObservation(0f);
-
-            if (debugSensors)
-            {
-                Debug.LogWarning("[Zielrichtung] Kein Goal gefunden!");
-            }
-        }
-
         // === Distanz zum Ziel normalisiert (1 Observation) ===
         float distToGoal = goalTransform != null
             ? Vector3.Distance(transform.position, goalTransform.position)
@@ -369,7 +385,8 @@ public class LabyrinthAgent : Agent
             {
                 float currentDistance = Vector3.Distance(transform.position, goalTransform.position);
                 AddReward((previousDistance - pbrsGamma * currentDistance) * distanceShapingScale);
-                previousDistance = currentDistance;
+                previousDistance    = currentDistance;
+                lastDistanceToGoal  = currentDistance;
             }
 
             if (hasLineOfSight && lineOfSightReward > 0f)
@@ -392,10 +409,22 @@ public class LabyrinthAgent : Agent
                     Debug.Log($"[LavaJump] Versuch={lavaJumpAttempts} | Reward={attemptReward:F4}");
                 }
             }
-            if (wasAboveLava && !currentlyAboveLava && isGrounded && !episodeEndedByTerminal)
+            bool landedAfterLava = wasAboveLava && !currentlyAboveLava &&
+                                   (isGrounded || episodeEndedByTerminal);
+            if (landedAfterLava)
             {
                 AddReward(lavaCrossingReward);
-                Debug.Log($"[LavaKreuzung] Erfolgreich überquert | Reward={lavaCrossingReward}");
+                lavaCrossingsThisEpisode++;
+
+                // Erstes Mal dieser Architektur — einmalig loggen
+                if (!firstLavaCrossingDone.ContainsKey(statPrefix) || !firstLavaCrossingDone[statPrefix])
+                {
+                    firstLavaCrossingDone[statPrefix] = true;
+                    Academy.Instance.StatsRecorder.Add(statPrefix + "FirstLavaCrossingAtStep", StepCount);
+                    Debug.Log($"[MILESTONE] {statPrefix} Erste Lava-Überquerung nach {StepCount} Steps!");
+                }
+
+                Debug.Log($"[LavaKreuzung] Erfolgreich überquert | Reward={lavaCrossingReward} | Total={lavaCrossingsThisEpisode}");
             }
             wasAboveLava = currentlyAboveLava;
 
@@ -483,7 +512,8 @@ public class LabyrinthAgent : Agent
         {
             isGrounded = hit.collider.CompareTag("Floor")
                       || hit.collider.CompareTag("Bridge")
-                      || hit.collider.CompareTag("Platform");
+                      || hit.collider.CompareTag("Platform")
+                      || hit.collider.CompareTag("Goal");
         }
         else
         {

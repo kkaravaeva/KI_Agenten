@@ -1,0 +1,1248 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.2/staging' branch; Version is '6000.2.6f1 (cc51a95c0300) revision 13390249'; Using compiler version '194234433'; Build Type 'Release'
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-alxbe" at "2026-07-08T12:33:12.3417874Z"
+OS: 'Windows 11  (10.0.26200) 64bit Professional' Language: 'de' Physical Memory: 16301 MB
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+Date: 2026-07-08T12:33:12Z
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Unity.exe
+-quit
+-batchmode
+-projectPath
+C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten
+-executeMethod
+StandaloneBuild.BuildFromCommandLine
+-logFile
+build_log.txt
+Successfully changed project path to: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten
+C:/Users/alxbe/Documents/DHBW/Kurse/Studienarbeit/KI_Agenten
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gfx=262144"
+Player connection [5788]  Target information:
+
+Player connection [5788]  * "[IP] 172.19.85.15 [Port] 55504 [Flags] 2 [Guid] 2037899849 [EditorId] 2037899849 [Version] 1048832 [Id] WindowsEditor(7,Alex_Surface) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [5788] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [5788] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Licensing::Client] Code 10 while verifying Licensing Client signature (process Id: 5348, path: "C:/Program Files/Unity Hub/UnityLicensingClient_V1/Unity.Licensing.Client.exe")
+[Licensing::Module] LicensingClient has failed validation; ignoring
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.17.3+a4e98f1
+  Session Id:              17a7151c706343688cb50d5fd5bfe279
+  Correlation Id:          e8a187422f3757dc84111e9aabf9f61b
+  External correlation Id: 7647593594134802259
+  Machine Id:              /zfBq2zOwr8gTMO7kmdVHJxZzg4=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-alxbe" (connect: 0.00s, validation: 0.01s, handshake: 0.28s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-alxbe-notifications" at "2026-07-08T12:33:12.6333741Z"
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-ERGG-MZ3J-E2W5-XTNS-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Module] License group:
+  Id: 9072312717369-debernall-UnityProStuXXXX
+  Product: Unity Student
+  Type: Assigned
+  Expiration: 2026-10-02T14:43:15Z
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.01
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-ERGG-MZ3J-E2W5-XTNS-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Module] License group:
+  Id: 9072312717369-debernall-UnityProStuXXXX
+  Product: Unity Student
+  Type: Assigned
+  Expiration: 2026-10-02T14:43:15Z
+[Licensing::Module] Licensing Background thread has ended after 0.32s
+[Package Manager] Connected to IPC stream "Upm-13352" after 0.3 seconds.
+Library Redirect Path: Library/
+[Physics::Module] Selected backend.
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Refreshing native plugins compatible for Editor in 2.14 ms, found 0 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Initialize engine version: 6000.2.6f1 (cc51a95c0300)
+[Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/6000.2.6f1/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path C:/Users/alxbe/Documents/DHBW/Kurse/Studienarbeit/KI_Agenten/Assets
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+Direct3D:
+    Version:  Direct3D 11.0 [level 11.1]
+    Renderer: Intel(R) UHD Graphics 620 (ID=0x5917)
+    Vendor:   Intel
+    VRAM:     8150 MB
+    Driver:   30.0.101.1339
+Initialize mono
+Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/6000.2.6f1/Editor/Data/Managed'
+Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/6000.2.6f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'C:/Program Files/Unity/Hub/Editor/6000.2.6f1/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56352
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+Using cacheserver namespaces - metadata:defaultmetadata, artifacts:defaultartifacts
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.2.6f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.2.6f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+Registered in 0.006442 seconds.
+- Loaded All Assemblies, in  0.753 seconds
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  0.515 seconds
+Domain Reload Profiling: 1265ms
+	BeginReloadAssembly (304ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (0ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (2ms)
+	RebuildCommonClasses (66ms)
+	RebuildNativeTypeToScriptingClass (18ms)
+	initialDomainReloadingComplete (85ms)
+	LoadAllAssembliesAndSetupDomain (275ms)
+		LoadAssemblies (295ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (269ms)
+			TypeCache.Refresh (266ms)
+				TypeCache.ScanAssembly (243ms)
+			BuildScriptInfoCaches (0ms)
+			ResolveRequiredComponents (1ms)
+	FinalizeReload (516ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (460ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (86ms)
+			SetLoadedEditorAssemblies (6ms)
+			BeforeProcessingInitializeOnLoad (110ms)
+			ProcessInitializeOnLoadAttributes (169ms)
+			ProcessInitializeOnLoadMethodAttributes (89ms)
+			AfterProcessingInitializeOnLoad (0ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (0ms)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-ERGG-MZ3J-E2W5-XTNS-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Module] License group:
+  Id: 9072312717369-debernall-UnityProStuXXXX
+  Product: Unity Student
+  Type: Assigned
+  Expiration: 2026-10-02T14:43:15Z
+Application.AssetDatabase Initial Refresh Start
+Package Manager log level set to [2]
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 54 packages:
+  Packages from [https://packages.unity.com]:
+    com.unity.ai.navigation@2.0.9 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.ai.navigation@5218e4bf7edc)
+    com.unity.collab-proxy@2.9.3 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.collab-proxy@ab839cc7d2ad)
+    com.unity.ide.rider@3.0.37 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.ide.rider@0baf0f91edc0)
+    com.unity.ide.visualstudio@2.0.23 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.ide.visualstudio@198cdf337d13)
+    com.unity.ide.vscode@1.2.5 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.ide.vscode@82e68656b7bd)
+    com.unity.ml-agents@2.0.2 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.ml-agents@b5c6c30d646c)
+    com.unity.timeline@1.8.9 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.timeline@6b9e48457ddb)
+    com.unity.visualscripting@1.9.7 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.visualscripting@6279e2b7c485)
+    com.unity.barracuda@3.0.0 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.barracuda@82bcfb51cf28)
+    com.unity.editorcoroutines@1.0.0 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.editorcoroutines@7d48783e7b8c)
+    com.unity.performance.profile-analyzer@1.2.3 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.performance.profile-analyzer@a68e7bc84997)
+    com.unity.testtools.codecoverage@1.2.6 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39)
+    com.unity.burst@1.8.24 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.burst@f7a407abf4d5)
+    com.unity.settings-manager@2.1.0 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.settings-manager@41738c275190)
+    com.unity.mathematics@1.3.2 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.mathematics@8017b507cc74)
+  Built-in packages:
+    com.unity.feature.development@1.0.2 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.feature.development@767aadbc6eb7)
+    com.unity.multiplayer.center@1.0.0 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.multiplayer.center@f3fb577b3546)
+    com.unity.test-framework@1.6.0 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.test-framework@40b8da2bd3e9)
+    com.unity.ugui@2.0.0 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.ugui@e375ff18e90f)
+    com.unity.modules.accessibility@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.accessibility)
+    com.unity.modules.ai@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.ai)
+    com.unity.modules.androidjni@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.androidjni)
+    com.unity.modules.animation@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.animation)
+    com.unity.modules.assetbundle@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.assetbundle)
+    com.unity.modules.audio@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.audio)
+    com.unity.modules.cloth@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.cloth)
+    com.unity.modules.director@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.director)
+    com.unity.modules.imageconversion@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.imageconversion)
+    com.unity.modules.imgui@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.imgui)
+    com.unity.modules.jsonserialize@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.jsonserialize)
+    com.unity.modules.particlesystem@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.particlesystem)
+    com.unity.modules.physics@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.physics)
+    com.unity.modules.physics2d@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.physics2d)
+    com.unity.modules.screencapture@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.screencapture)
+    com.unity.modules.terrain@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.terrain)
+    com.unity.modules.terrainphysics@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.terrainphysics)
+    com.unity.modules.tilemap@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.tilemap)
+    com.unity.modules.ui@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.ui)
+    com.unity.modules.uielements@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.uielements)
+    com.unity.modules.umbra@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.umbra)
+    com.unity.modules.unityanalytics@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.unityanalytics)
+    com.unity.modules.unitywebrequest@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.unitywebrequest)
+    com.unity.modules.unitywebrequestassetbundle@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.unitywebrequestassetbundle)
+    com.unity.modules.unitywebrequestaudio@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.unitywebrequestaudio)
+    com.unity.modules.unitywebrequesttexture@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.unitywebrequesttexture)
+    com.unity.modules.unitywebrequestwww@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.unitywebrequestwww)
+    com.unity.modules.vehicles@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.vehicles)
+    com.unity.modules.video@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.video)
+    com.unity.modules.vr@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.vr)
+    com.unity.modules.wind@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.wind)
+    com.unity.modules.xr@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.xr)
+    com.unity.modules.subsystems@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.subsystems)
+    com.unity.modules.hierarchycore@1.0.0 (location: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Resources\PackageManager\BuiltInPackages\com.unity.modules.hierarchycore)
+    com.unity.ext.nunit@2.0.5 (location: C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.ext.nunit@031a54704bff)
+[Package Manager] com.unity.ide.rider@3.0.37 is deprecated: 3.3.0.37 has a regression: newly created C# files are not added in the project
+[Package Manager] com.unity.ide.vscode is deprecated: Visual Studio Code package is not supported anymore. You can continue to use it, but we won't provide any update anymore.
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.04 seconds
+[ScriptCompilation] Requested script compilation because: Assetdatabase observed changes in script compilation related files
+Starting: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1900b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: C:/Users/alxbe/Documents/DHBW/Kurse/Studienarbeit/KI_Agenten
+DisplayProgressbar: Compiling Scripts
+ExitCode: 0 Duration: 4s91ms
+[248/675    0s] WriteResponseFile Library/Bee/artifacts/rsp/4747638433968585886.rsp
+[540/675    0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[667/675    2s] Csc Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp.dll (+2 others)
+Assets\Scripts\Agent\LabyrinthAgent.cs(132,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Camera\CameraSwitcher.cs(30,29): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Scripts\Camera\EgoClipGuard.cs(45,25): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Scripts\Audio\AgentAudio.cs(31,43): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Audio\AgentAudio.cs(37,44): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Audio\AgentAudio.cs(37,64): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\PlayerController.cs(66,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\PlayerController.cs(67,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\PlayerController.cs(67,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\PlayerController.cs(67,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(181,28): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Scripts\Competition\PlayerController.cs(129,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\PlayerController.cs(153,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(217,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(303,74): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(192,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(197,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(197,43): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Camera\CameraSwitcher.cs(89,17): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(256,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(256,47): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(319,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(319,47): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(498,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(563,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(494,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(495,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(496,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(497,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\DayNightCycle.cs(30,31): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Scripts\Visual\MapFXSpawner.cs(35,26): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Scripts\Visual\DayNightCycle.cs(169,27): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(807,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(1025,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(1049,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\HumanAgentVisual.cs(444,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\HumanAgentVisual.cs(444,59): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\HumanAgentVisual.cs(447,37): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\HumanAgentVisual.cs(487,48): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\HumanAgentVisual.cs(489,29): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+[668/675    0s] Csc Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp-Editor.dll (+2 others)
+Assets\Editor\HumanAgentSetup.cs(11,21): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\CameraSetup.cs(48,31): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\CameraSetup.cs(117,30): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Editor\CameraSetup.cs(125,16): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\MapDataEditor.cs(134,37): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Editor\MedievalLandscapeSetup.cs(70,18): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\MedievalLandscapeSetup.cs(99,18): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\ModelComparisonSceneBuilder.cs(90,30): warning CS0618: 'Object.FindObjectsOfType<T>(bool)' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Editor\ModelComparisonSceneBuilder.cs(168,19): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\OutdoorGroundSetup.cs(75,22): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\SkySetup.cs(143,27): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Editor\OutdoorGroundSetup.cs(109,22): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\VisualPolishSetup.cs(104,45): warning CS0618: 'TextureImporterGenerateCubemap.None' is obsolete: 'This value is deprecated (use TextureImporter.textureShape instead).'
+
+Assets\Editor\VisualPolishSetup.cs(105,78): warning CS0618: 'TextureImporterGenerateCubemap.None' is obsolete: 'This value is deprecated (use TextureImporter.textureShape instead).'
+
+Assets\Editor\VisualPolishSetup.cs(154,22): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Editor\VisualPolishSetup.cs(189,34): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\VisualPolishSetup.cs(269,22): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\VisualPolishSetup.cs(282,13): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\VisualPolishSetup.cs(292,21): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\VisualPolishSetup.cs(305,21): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\CompetitionSceneBuilder.cs(71,25): warning CS0618: 'Object.FindObjectsOfType<T>(bool)' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Editor\CompetitionSceneBuilder.cs(165,29): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Editor\CompetitionSceneBuilder.cs(166,29): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Editor\CompetitionSceneBuilder.cs(167,29): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Editor\VisualPolishSetup.cs(321,24): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\VisualPolishSetup.cs(352,25): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\CompetitionSceneBuilder.cs(401,24): warning CS0618: 'Object.FindObjectOfType<T>(bool)' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\CompetitionSceneBuilder.cs(458,9): warning CS0618: 'Rigidbody.drag' is obsolete: 'Please use Rigidbody.linearDamping instead. (UnityUpgradable) -> linearDamping'
+
+Assets\Editor\CompetitionSceneBuilder.cs(459,9): warning CS0618: 'Rigidbody.angularDrag' is obsolete: 'Please use Rigidbody.angularDamping instead. (UnityUpgradable) -> angularDamping'
+
+Assets\Editor\CompetitionSceneBuilder.cs(518,9): warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'
+
+Assets\Editor\CompetitionSceneBuilder.cs(549,9): warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'
+
+Assets\Editor\CompetitionSceneBuilder.cs(599,9): warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'
+
+Assets\Editor\MedievalLandscapeSetup.cs(514,13): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Editor\MedievalLandscapeSetup.cs(527,27): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+[669/675    0s] ILPostProcess Library/Bee/artifacts/1900b0aE.dag/post-processed/Assembly-CSharp.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp.dll, with 134 defines and 295 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[670/675    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp.pdb
+[671/675    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp.dll
+[672/675    0s] ILPostProcess Library/Bee/artifacts/1900b0aE.dag/post-processed/Assembly-CSharp-Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp-Editor.dll, with 132 defines and 314 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[673/675    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp-Editor.pdb
+[674/675    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp-Editor.dll
+*** Tundra build success (4.03 seconds), 10 items updated, 675 evaluated
+[ApiUpdater] Total time: 1974ms, Parse response file: 119ms, Collect updater configs: 262ms, Update: 1580ms, Save: 13ms Files: 5 modified / 5 visited / 32 total (Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp.dll).
+[ApiUpdater] Total time: 1528ms, Parse response file: 99ms, Collect updater configs: 145ms, Update: 1280ms, Save: 4ms Files: 1 modified / 1 visited / 18 total (Library/Bee/artifacts/1900b0aE.dag/Assembly-CSharp-Editor.dll).
+[API Updater] Updated Files:
+Skipping ScriptUpdater consent dialog. Consent declined based on command line parameters.
+Finished running ScriptUpdaters
+Assets\Scripts\Agent\LabyrinthAgent.cs(132,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Camera\CameraSwitcher.cs(30,29): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Scripts\Camera\EgoClipGuard.cs(45,25): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Scripts\Audio\AgentAudio.cs(31,43): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Audio\AgentAudio.cs(37,44): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Audio\AgentAudio.cs(37,64): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\PlayerController.cs(66,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\PlayerController.cs(67,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\PlayerController.cs(67,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\PlayerController.cs(67,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(181,28): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Scripts\Competition\PlayerController.cs(129,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\PlayerController.cs(153,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(217,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(303,74): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(192,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(197,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(197,43): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Camera\CameraSwitcher.cs(89,17): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(256,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(256,47): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(319,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(319,47): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(498,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(563,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(494,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(495,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(496,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(497,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\DayNightCycle.cs(30,31): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Scripts\Visual\MapFXSpawner.cs(35,26): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Scripts\Visual\DayNightCycle.cs(169,27): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(807,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(1025,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(1049,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\HumanAgentVisual.cs(444,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\HumanAgentVisual.cs(444,59): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\HumanAgentVisual.cs(447,37): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\HumanAgentVisual.cs(487,48): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\HumanAgentVisual.cs(489,29): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Editor\HumanAgentSetup.cs(11,21): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\CameraSetup.cs(48,31): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\CameraSetup.cs(117,30): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Editor\CameraSetup.cs(125,16): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\MapDataEditor.cs(134,37): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Editor\MedievalLandscapeSetup.cs(70,18): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\MedievalLandscapeSetup.cs(99,18): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\ModelComparisonSceneBuilder.cs(90,30): warning CS0618: 'Object.FindObjectsOfType<T>(bool)' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Editor\ModelComparisonSceneBuilder.cs(168,19): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\OutdoorGroundSetup.cs(75,22): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\SkySetup.cs(143,27): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Editor\OutdoorGroundSetup.cs(109,22): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\VisualPolishSetup.cs(104,45): warning CS0618: 'TextureImporterGenerateCubemap.None' is obsolete: 'This value is deprecated (use TextureImporter.textureShape instead).'
+Assets\Editor\VisualPolishSetup.cs(105,78): warning CS0618: 'TextureImporterGenerateCubemap.None' is obsolete: 'This value is deprecated (use TextureImporter.textureShape instead).'
+Assets\Editor\VisualPolishSetup.cs(154,22): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Editor\VisualPolishSetup.cs(189,34): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\VisualPolishSetup.cs(269,22): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\VisualPolishSetup.cs(282,13): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\VisualPolishSetup.cs(292,21): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\VisualPolishSetup.cs(305,21): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\CompetitionSceneBuilder.cs(71,25): warning CS0618: 'Object.FindObjectsOfType<T>(bool)' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Editor\CompetitionSceneBuilder.cs(165,29): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Editor\CompetitionSceneBuilder.cs(166,29): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Editor\CompetitionSceneBuilder.cs(167,29): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Editor\VisualPolishSetup.cs(321,24): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\VisualPolishSetup.cs(352,25): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\CompetitionSceneBuilder.cs(401,24): warning CS0618: 'Object.FindObjectOfType<T>(bool)' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\CompetitionSceneBuilder.cs(458,9): warning CS0618: 'Rigidbody.drag' is obsolete: 'Please use Rigidbody.linearDamping instead. (UnityUpgradable) -> linearDamping'
+Assets\Editor\CompetitionSceneBuilder.cs(459,9): warning CS0618: 'Rigidbody.angularDrag' is obsolete: 'Please use Rigidbody.angularDamping instead. (UnityUpgradable) -> angularDamping'
+Assets\Editor\CompetitionSceneBuilder.cs(518,9): warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'
+Assets\Editor\CompetitionSceneBuilder.cs(549,9): warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'
+Assets\Editor\CompetitionSceneBuilder.cs(599,9): warning CS0618: 'TMP_Text.enableWordWrapping' is obsolete: 'The enabledWordWrapping property is now obsolete. Please use the textWrappingMode property instead.'
+Assets\Editor\MedievalLandscapeSetup.cs(514,13): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Editor\MedievalLandscapeSetup.cs(527,27): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+AssetDatabase: script compilation time: 6.345367s
+Begin MonoManager ReloadAssembly
+- Loaded All Assemblies, in  1.264 seconds
+Refreshing native plugins compatible for Editor in 12.47 ms, found 4 plugins.
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Refreshing native plugins compatible for Editor in 3.35 ms, found 4 plugins.
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  3.815 seconds
+Domain Reload Profiling: 5075ms
+	BeginReloadAssembly (384ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (17ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (163ms)
+	RebuildCommonClasses (54ms)
+	RebuildNativeTypeToScriptingClass (16ms)
+	initialDomainReloadingComplete (43ms)
+	LoadAllAssembliesAndSetupDomain (761ms)
+		LoadAssemblies (580ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (318ms)
+			TypeCache.Refresh (246ms)
+				TypeCache.ScanAssembly (233ms)
+			BuildScriptInfoCaches (57ms)
+			ResolveRequiredComponents (8ms)
+	FinalizeReload (3817ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (3597ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (41ms)
+			SetLoadedEditorAssemblies (6ms)
+			BeforeProcessingInitializeOnLoad (204ms)
+			ProcessInitializeOnLoadAttributes (3246ms)
+			ProcessInitializeOnLoadMethodAttributes (85ms)
+			AfterProcessingInitializeOnLoad (14ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (28ms)
+Refreshing native plugins compatible for Editor in 6.33 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=402fcdf33baaff94a8c0860a211ff9f9): Total: 12.586 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=4439 ms
+		Asset DB Callback time: managed=410 ms, native=63 ms
+		Scripting: domain reloads=1, domain reload time=1265 ms, compile time=6351 ms, other=55 ms
+		Project Asset Count: scripts=845, non-scripts=2260
+		Asset File Changes: new=0, changed=1, moved=0, deleted=0
+		Scan Filter Count: 0
+	InvokeCustomDependenciesCallbacks: 0.002ms
+	InvokePackagesCallback: 45.544ms
+	ApplyChangesToAssetFolders: 0.783ms
+	Scan: 148.169ms
+	OnSourceAssetsModified: 1.083ms
+	CategorizeAssetsWithTransientArtifact: 107.896ms
+	ProcessAssetsWithTransientArtifactChanges: 69.745ms
+	CategorizeAssets: 53.690ms
+	ImportOutOfDateAssets: 3845.823ms (-2508.000ms without children)
+		CompileScripts: 6351.309ms
+		ReloadNativeAssets: 0.001ms
+		UnloadImportedAssets: 0.138ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 1.142ms
+		InitializingProgressBar: 0.001ms
+		PostProcessAllAssetNotificationsAddChangedAssets: 0.002ms
+		OnDemandSchedulerStart: 1.230ms
+	PostProcessAllAssets: 419.850ms
+	Hotreload: 10.119ms
+	GatherAllCurrentPrimaryArtifactRevisions: 0.007ms
+	UnloadStreamsBegin: 1.289ms
+	PersistCurrentRevisions: 0.287ms
+	UnloadStreamsEnd: 0.003ms
+	GenerateScriptTypeHashes: 7.259ms
+	Untracked: 7882.134ms
+
+Application.AssetDatabase Initial Refresh End
+Launched and connected shader compiler UnityShaderCompiler.exe after 0.06 seconds
+Scanning for USB devices : 5.208ms
+Initializing Unity extensions:
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-KI Agenten
+Unloading 26 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 4160 unused Assets / (25.6 MB). Loaded Objects now: 4684.
+Memory consumption went from 156.0 MB to 130.4 MB.
+Total: 21.741100 ms (FindLiveObjects: 0.699200 ms CreateObjectMapping: 0.854900 ms MarkObjects: 11.348800 ms  DeleteObjects: 8.836500 ms)
+
+Start importing Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset using Guid(2e498d1c8094910479dc3e1b768306a4) (NativeFormatImporter) -> (artifact id: '4a5d367b37836c3ca36f65bb9abb0e14') in 0.0134764 seconds
+Refreshing native plugins compatible for Editor in 3.94 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Asset Pipeline Refresh (id=6b778519f3ba34a4793e88a2a017fd82): Total: 0.074 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Starting: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1900b0aESkipCompile.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssembliesAndTypeDB
+WorkingDir: C:/Users/alxbe/Documents/DHBW/Kurse/Studienarbeit/KI_Agenten
+ExitCode: 0 Duration: 1s623ms
+[2/3        1s] BuildPlayerDataGenerator Library/BuildPlayerData/Editor/TypeDb-All.json
+Field 'System.Numerics.Vector2 SixLabors.Fonts.GlyphInstance/ControlPointCollection::SecondControlPoint' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector2
+
+Field 'System.Numerics.Vector2 SixLabors.Fonts.GlyphInstance/ControlPointCollection::ThirdControlPoint' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector2
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.ComplexVector4::Real' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.ComplexVector4::Imaginary' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V0L' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V0R' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V1L' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V1R' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V2L' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V2R' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V3L' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V3R' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V4L' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V4R' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V5L' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V5R' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V6L' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V6R' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V7L' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Block8x8F::V7R' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder.ColorConverters.JpegColorConverter/Vector4Octet::V0' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder.ColorConverters.JpegColorConverter/Vector4Octet::V1' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder.ColorConverters.JpegColorConverter/Vector4Octet::V2' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder.ColorConverters.JpegColorConverter/Vector4Octet::V3' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder.ColorConverters.JpegColorConverter/Vector4Octet::V4' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder.ColorConverters.JpegColorConverter/Vector4Octet::V5' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder.ColorConverters.JpegColorConverter/Vector4Octet::V6' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Formats.Jpeg.Components.Decoder.ColorConverters.JpegColorConverter/Vector4Octet::V7' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Tuples.Vector4Pair::A' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+
+Field 'System.Numerics.Vector4 SixLabors.ImageSharp.Tuples.Vector4Pair::B' from 'C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten\Library\PackageCache\com.unity.testtools.codecoverage@205a02cbcb39\lib\ReportGenerator\ReportGeneratorMerged.dll', exception Failed to resolve System.Numerics.Vector4
+*** Tundra build success (1.56 seconds), 1 items updated, 3 evaluated
+Asset Pipeline Refresh (id=b1d43fe75b6e0a743a9cc727d7ad51c6): Total: 0.020 seconds - Initiated by RefreshV2(NoUpdateAssetOptions)
+[ScriptCompilation] Requested script compilation because: Recompiling scripts for player build.
+BuildPlayer: start building target 19
+Starting: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1900b0aP.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssembliesAndTypeDB
+WorkingDir: C:/Users/alxbe/Documents/DHBW/Kurse/Studienarbeit/KI_Agenten
+Total cache size 267156288
+Total cache size after purge 267156288, took 00:00:01.4855027
+ExitCode: 0 Duration: 2s799ms
+[303/435    0s] WriteResponseFile Library/Bee/artifacts/rsp/4747638433968585886.rsp
+[383/435    0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[399/435    0s] Csc Library/Bee/artifacts/1900b0aP.dag/Assembly-CSharp.dll (+2 others)
+Assets\Scripts\Camera\CameraSwitcher.cs(30,29): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(132,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Camera\EgoClipGuard.cs(45,25): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Scripts\Camera\CameraSwitcher.cs(89,17): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Scripts\Competition\PlayerController.cs(66,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\PlayerController.cs(67,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\PlayerController.cs(67,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\PlayerController.cs(67,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(217,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\PlayerController.cs(129,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(181,28): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Scripts\Competition\PlayerController.cs(153,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Audio\AgentAudio.cs(31,43): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Audio\AgentAudio.cs(37,44): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Audio\AgentAudio.cs(37,64): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(192,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(197,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(197,43): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(256,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(256,47): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(303,74): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(319,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(319,47): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(498,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Agent\LabyrinthAgent.cs(563,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\DayNightCycle.cs(30,31): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Scripts\Visual\MapFXSpawner.cs(35,26): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(494,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(495,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(496,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(497,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\DayNightCycle.cs(169,27): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(807,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\HumanAgentVisual.cs(444,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\HumanAgentVisual.cs(444,59): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\HumanAgentVisual.cs(447,37): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\HumanAgentVisual.cs(487,48): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Visual\HumanAgentVisual.cs(489,29): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(1025,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+
+Assets\Scripts\Competition\ScriptedAIAgent.cs(1049,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+[400/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Mathematics.dll
+[401/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.AI.Navigation.dll
+[402/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.TextMeshPro.dll
+[403/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Barracuda.dll
+[404/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.VisualScripting.Core.dll
+[405/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.ML-Agents.dll
+[406/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.VisualScripting.State.dll
+[407/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Barracuda.BurstBLAS.dll
+[408/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.ML-Agents.CommunicatorObjects.dll
+[409/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UnityEngine.UI.dll
+[410/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.VisualScripting.Flow.dll
+[411/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Multiplayer.Center.Common.dll
+[412/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Timeline.dll
+[413/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Barracuda.ONNX.dll
+[414/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Burst.dll
+[415/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.VisualScripting.State.pdb
+[416/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.ML-Agents.pdb
+[417/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.AI.Navigation.pdb
+[418/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.VisualScripting.Core.pdb
+[419/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Barracuda.pdb
+[420/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.TextMeshPro.pdb
+[421/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Mathematics.pdb
+[422/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Barracuda.BurstBLAS.pdb
+[423/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UnityEngine.UI.pdb
+[424/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.ML-Agents.CommunicatorObjects.pdb
+[425/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.VisualScripting.Flow.pdb
+[426/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Timeline.pdb
+[427/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Multiplayer.Center.Common.pdb
+[428/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Barracuda.ONNX.pdb
+[429/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.Burst.pdb
+[430/435    0s] ILPostProcess Library/Bee/artifacts/1900b0aP.dag/post-processed/Assembly-CSharp.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1900b0aP.dag/Assembly-CSharp.dll, with 123 defines and 219 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+running zzzUnity.Burst.CodeGen.BurstILPostProcessor
+[431/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Assembly-CSharp.pdb
+[432/435    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Assembly-CSharp.dll
+[434/435    1s] BuildPlayerDataGenerator Library/BuildPlayerData/Player/RuntimeInitializeOnLoads.json (+1 other)
+*** Tundra build success (2.75 seconds), 37 items updated, 435 evaluated
+[ApiUpdater] Total time: 1717ms, Parse response file: 124ms, Collect updater configs: 155ms, Update: 1426ms, Save: 12ms Files: 5 modified / 5 visited / 32 total (Library/Bee/artifacts/1900b0aP.dag/Assembly-CSharp.dll).
+[API Updater] Updated Files:
+Skipping ScriptUpdater consent dialog. Consent declined based on command line parameters.
+Finished running ScriptUpdaters
+Assets\Scripts\Camera\CameraSwitcher.cs(30,29): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Scripts\Agent\LabyrinthAgent.cs(132,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Camera\EgoClipGuard.cs(45,25): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Scripts\Camera\CameraSwitcher.cs(89,17): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Scripts\Competition\PlayerController.cs(66,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\PlayerController.cs(67,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\PlayerController.cs(67,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\PlayerController.cs(67,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(217,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\PlayerController.cs(129,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(181,28): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Scripts\Competition\PlayerController.cs(153,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Audio\AgentAudio.cs(31,43): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Audio\AgentAudio.cs(37,44): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Audio\AgentAudio.cs(37,64): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(192,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(193,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(197,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(197,43): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(256,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(256,47): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(303,74): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(319,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(319,47): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(498,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(499,73): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Agent\LabyrinthAgent.cs(563,17): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\DayNightCycle.cs(30,31): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Scripts\Visual\MapFXSpawner.cs(35,26): warning CS0618: 'Object.FindObjectOfType<T>()' is obsolete: 'Object.FindObjectOfType has been deprecated. Use Object.FindFirstObjectByType instead or if finding any instance is acceptable the faster Object.FindAnyObjectByType'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(494,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(495,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(496,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(497,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\DayNightCycle.cs(169,27): warning CS0618: 'Object.FindObjectsOfType<T>()' is obsolete: 'Object.FindObjectsOfType has been deprecated. Use Object.FindObjectsByType instead which lets you decide whether you need the results sorted or not.  FindObjectsOfType sorts the results by InstanceID but if you do not need this using FindObjectSortMode.None is considerably faster.'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(807,13): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\HumanAgentVisual.cs(444,39): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\HumanAgentVisual.cs(444,59): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\HumanAgentVisual.cs(447,37): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\HumanAgentVisual.cs(487,48): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Visual\HumanAgentVisual.cs(489,29): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(1025,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Assets\Scripts\Competition\ScriptedAIAgent.cs(1049,9): warning CS0618: 'Rigidbody.velocity' is obsolete: 'Please use Rigidbody.linearVelocity instead. (UnityUpgradable) -> linearVelocity'
+Total cache size 267156288
+Total cache size after purge 267156288, took 00:00:00.4037149
+Not rebuilding Data files -- no changes
+
+
+Mono dependencies included in the build
+Dependency assembly - System.Threading.Tasks.dll
+Dependency assembly - Mono.WebBrowser.dll
+Dependency assembly - Microsoft.Web.Infrastructure.dll
+Dependency assembly - System.Reactive.Providers.dll
+Dependency assembly - I18N.Other.dll
+Dependency assembly - System.Web.WebPages.dll
+Dependency assembly - System.ServiceProcess.dll
+Dependency assembly - System.Security.Cryptography.Encryption.ECDiffieHellman.dll
+Dependency assembly - System.Reflection.dll
+Dependency assembly - System.Security.Cryptography.Csp.dll
+Dependency assembly - System.Reactive.Observable.Aliases.dll
+Dependency assembly - System.Drawing.Design.dll
+Dependency assembly - System.Web.WebPages.Razor.dll
+Dependency assembly - System.Data.OracleClient.dll
+Dependency assembly - System.Web.Extensions.Design.dll
+Dependency assembly - Mono.Options.dll
+Dependency assembly - System.Windows.Forms.DataVisualization.dll
+Dependency assembly - System.ServiceModel.Duplex.dll
+Dependency assembly - System.Security.Cryptography.Hashing.dll
+Dependency assembly - Unity.Timeline.dll
+Dependency assembly - System.Net.NameResolution.dll
+Dependency assembly - Microsoft.Win32.Registry.dll
+Dependency assembly - Mono.Cairo.dll
+Dependency assembly - System.AppContext.dll
+Dependency assembly - Mono.Tasklets.dll
+Dependency assembly - System.Data.Entity.dll
+Dependency assembly - System.Xml.Serialization.dll
+Dependency assembly - System.Security.Principal.Windows.dll
+Dependency assembly - System.Threading.AccessControl.dll
+Dependency assembly - System.Security.Cryptography.Cng.dll
+Dependency assembly - System.Resources.Reader.dll
+Dependency assembly - System.Text.Encoding.Extensions.dll
+Dependency assembly - System.Net.Primitives.dll
+Dependency assembly - System.Web.Routing.dll
+Dependency assembly - System.Runtime.Remoting.dll
+Dependency assembly - IBM.Data.DB2.dll
+Dependency assembly - System.IO.FileSystem.DriveInfo.dll
+Dependency assembly - System.Security.Cryptography.X509Certificates.dll
+Dependency assembly - System.Reactive.Runtime.Remoting.dll
+Dependency assembly - System.IO.dll
+Dependency assembly - System.Runtime.dll
+Dependency assembly - System.Workflow.ComponentModel.dll
+Dependency assembly - Microsoft.Win32.Primitives.dll
+Dependency assembly - Commons.Xml.Relaxng.dll
+Dependency assembly - System.EnterpriseServices.dll
+Dependency assembly - System.Web.RegularExpressions.dll
+Dependency assembly - System.Reactive.Experimental.dll
+Dependency assembly - System.Web.Mvc.dll
+Dependency assembly - System.Reactive.PlatformServices.dll
+Dependency assembly - ICSharpCode.SharpZipLib.dll
+Dependency assembly - Assembly-CSharp.dll
+Dependency assembly - System.Diagnostics.Contracts.dll
+Dependency assembly - Unity.Barracuda.BurstBLAS.dll
+Dependency assembly - System.IO.Abstractions.TestingHelpers.dll
+Dependency assembly - System.Net.WebHeaderCollection.dll
+Dependency assembly - System.Data.Linq.dll
+Dependency assembly - System.Core.dll
+Dependency assembly - System.Reactive.Windows.Forms.dll
+Dependency assembly - netstandard.dll
+Dependency assembly - System.Buffers.dll
+Dependency assembly - System.ServiceModel.Internals.dll
+Dependency assembly - System.Net.Requests.dll
+Dependency assembly - System.ComponentModel.EventBasedAsync.dll
+Dependency assembly - System.IO.FileSystem.Watcher.dll
+Dependency assembly - System.Net.WebSockets.Client.dll
+Dependency assembly - System.ServiceModel.Security.dll
+Dependency assembly - System.Web.DynamicData.dll
+Dependency assembly - System.Resources.ResourceManager.dll
+Dependency assembly - System.Xml.XPath.XDocument.dll
+Dependency assembly - System.ComponentModel.dll
+Dependency assembly - System.IdentityModel.Selectors.dll
+Dependency assembly - Unity.Barracuda.ONNX.dll
+Dependency assembly - Google.Protobuf.dll
+Dependency assembly - Mono.Http.dll
+Dependency assembly - System.ServiceModel.dll
+Dependency assembly - System.Web.Abstractions.dll
+Dependency assembly - System.Resources.ReaderWriter.dll
+Dependency assembly - System.Console.dll
+Dependency assembly - System.Configuration.dll
+Dependency assembly - System.Design.dll
+Dependency assembly - System.Transactions.dll
+Dependency assembly - System.Diagnostics.TraceEvent.dll
+Dependency assembly - System.Xml.Linq.dll
+Dependency assembly - System.ServiceModel.Web.dll
+Dependency assembly - System.ServiceProcess.ServiceController.dll
+Dependency assembly - Mono.Messaging.RabbitMQ.dll
+Dependency assembly - System.Diagnostics.Process.dll
+Dependency assembly - System.Net.HttpListener.dll
+Dependency assembly - System.Net.Http.Formatting.dll
+Dependency assembly - System.Web.Http.SelfHost.dll
+Dependency assembly - System.Reflection.Primitives.dll
+Dependency assembly - System.Security.Cryptography.RandomNumberGenerator.dll
+Dependency assembly - Mono.Data.Tds.dll
+Dependency assembly - System.Windows.dll
+Dependency assembly - System.Threading.dll
+Dependency assembly - SystemWebTestShim.dll
+Dependency assembly - System.Reflection.Extensions.dll
+Dependency assembly - System.Diagnostics.Debug.dll
+Dependency assembly - WindowsBase.dll
+Dependency assembly - System.Web.Mobile.dll
+Dependency assembly - System.Threading.ThreadPool.dll
+Dependency assembly - System.ServiceModel.Discovery.dll
+Dependency assembly - CustomMarshalers.dll
+Dependency assembly - System.Security.Cryptography.Hashing.Algorithms.dll
+Dependency assembly - RabbitMQ.Client.dll
+Dependency assembly - System.Data.Services.Client.dll
+Dependency assembly - System.Numerics.Vectors.dll
+Dependency assembly - System.Net.dll
+Dependency assembly - System.Web.Services.dll
+Dependency assembly - System.Reactive.Linq.dll
+Dependency assembly - System.Workflow.Activities.dll
+Dependency assembly - System.Net.Utilities.dll
+Dependency assembly - System.Security.Cryptography.Primitives.dll
+Dependency assembly - System.Interactive.Async.dll
+Dependency assembly - System.ObjectModel.dll
+Dependency assembly - I18N.CJK.dll
+Dependency assembly - Mono.Security.Win32.dll
+Dependency assembly - System.DirectoryServices.dll
+Dependency assembly - System.Drawing.Primitives.dll
+Dependency assembly - System.Globalization.Extensions.dll
+Dependency assembly - System.Reflection.Emit.dll
+Dependency assembly - System.Security.Cryptography.RSA.dll
+Dependency assembly - System.Linq.Expressions.dll
+Dependency assembly - System.Net.Ping.dll
+Dependency assembly - Microsoft.Build.Utilities.v4.0.dll
+Dependency assembly - Mono.Parallel.dll
+Dependency assembly - System.Reactive.Windows.Threading.dll
+Dependency assembly - System.Reflection.Context.dll
+Dependency assembly - System.Security.Cryptography.Encryption.ECDsa.dll
+Dependency assembly - System.Threading.Tasks.Parallel.dll
+Dependency assembly - I18N.Rare.dll
+Dependency assembly - System.Web.Http.WebHost.dll
+Dependency assembly - System.Runtime.Handles.dll
+Dependency assembly - I18N.MidEast.dll
+Dependency assembly - System.Linq.dll
+Dependency assembly - System.Memory.dll
+Dependency assembly - System.IO.Compression.dll
+Dependency assembly - System.Linq.Queryable.dll
+Dependency assembly - Unity.Burst.Unsafe.dll
+Dependency assembly - I18N.dll
+Dependency assembly - System.Diagnostics.Tools.dll
+Dependency assembly - System.Text.RegularExpressions.dll
+Dependency assembly - Microsoft.Build.Engine.dll
+Dependency assembly - System.IdentityModel.dll
+Dependency assembly - System.Runtime.DurableInstancing.dll
+Dependency assembly - System.Runtime.InteropServices.RuntimeInformation.dll
+Dependency assembly - System.Runtime.Serialization.Formatters.dll
+Dependency assembly - System.Xml.ReaderWriter.dll
+Dependency assembly - System.Xaml.dll
+Dependency assembly - Microsoft.Build.dll
+Dependency assembly - System.ComponentModel.Annotations.dll
+Dependency assembly - System.Threading.Tasks.Dataflow.dll
+Dependency assembly - Unity.Barracuda.dll
+Dependency assembly - System.Xml.dll
+Dependency assembly - System.Net.Mail.dll
+Dependency assembly - Accessibility.dll
+Dependency assembly - PEAPI.dll
+Dependency assembly - System.Globalization.Calendars.dll
+Dependency assembly - System.Security.Cryptography.Algorithms.dll
+Dependency assembly - Mono.Data.Sqlite.dll
+Dependency assembly - System.Runtime.Serialization.dll
+Dependency assembly - I18N.West.dll
+Dependency assembly - System.Json.dll
+Dependency assembly - System.ServiceModel.Http.dll
+Dependency assembly - System.Xml.Xsl.Primitives.dll
+Dependency assembly - System.Security.Cryptography.Encoding.dll
+Dependency assembly - System.Diagnostics.FileVersionInfo.dll
+Dependency assembly - WebMatrix.Data.dll
+Dependency assembly - System.ComponentModel.TypeConverter.dll
+Dependency assembly - Unity.ML-Agents.dll
+Dependency assembly - Unity.Multiplayer.Center.Common.dll
+Dependency assembly - System.Security.Claims.dll
+Dependency assembly - System.ServiceModel.Primitives.dll
+Dependency assembly - System.Web.Extensions.dll
+Dependency assembly - System.Net.Http.dll
+Dependency assembly - System.Messaging.dll
+Dependency assembly - System.Text.Encoding.dll
+Dependency assembly - Mono.Security.dll
+Dependency assembly - System.dll
+Dependency assembly - System.ComponentModel.Primitives.dll
+Dependency assembly - System.Runtime.Serialization.Json.dll
+Dependency assembly - System.IO.IsolatedStorage.dll
+Dependency assembly - System.Reflection.Emit.ILGeneration.dll
+Dependency assembly - Unity.ML-Agents.CommunicatorObjects.dll
+Dependency assembly - System.IO.FileSystem.AccessControl.dll
+Dependency assembly - System.Reflection.TypeExtensions.dll
+Dependency assembly - UnityEngine.UI.dll
+Dependency assembly - System.Configuration.Install.dll
+Dependency assembly - Microsoft.Win32.Registry.AccessControl.dll
+Dependency assembly - System.Security.Cryptography.ProtectedData.dll
+Dependency assembly - System.Net.ServicePoint.dll
+Dependency assembly - System.Text.Encoding.CodePages.dll
+Dependency assembly - Grpc.Core.dll
+Dependency assembly - System.Runtime.InteropServices.WindowsRuntime.dll
+Dependency assembly - System.ComponentModel.DataAnnotations.dll
+Dependency assembly - System.Dynamic.dll
+Dependency assembly - System.Collections.dll
+Dependency assembly - Mono.Management.dll
+Dependency assembly - System.Reactive.Core.dll
+Dependency assembly - Mono.Messaging.dll
+Dependency assembly - Mono.Btls.Interface.dll
+Dependency assembly - Unity.VisualScripting.State.dll
+Dependency assembly - System.Threading.Timer.dll
+Dependency assembly - System.Numerics.dll
+Dependency assembly - System.Collections.Concurrent.dll
+Dependency assembly - System.Collections.Specialized.dll
+Dependency assembly - System.Diagnostics.TextWriterTraceListener.dll
+Dependency assembly - cscompmgd.dll
+Dependency assembly - System.Net.Cache.dll
+Dependency assembly - System.Security.AccessControl.dll
+Dependency assembly - System.Security.Cryptography.Encryption.Aes.dll
+Dependency assembly - System.Data.dll
+Dependency assembly - Unity.TextMeshPro.dll
+Dependency assembly - System.Runtime.Caching.dll
+Dependency assembly - System.Runtime.Extensions.dll
+Dependency assembly - System.Net.Sockets.dll
+Dependency assembly - System.IO.Compression.FileSystem.dll
+Dependency assembly - System.Threading.Tasks.Extensions.dll
+Dependency assembly - System.Management.dll
+Dependency assembly - System.Net.AuthenticationManager.dll
+Dependency assembly - System.Deployment.dll
+Dependency assembly - System.Net.Http.WebRequest.dll
+Dependency assembly - System.DirectoryServices.Protocols.dll
+Dependency assembly - System.Reactive.Interfaces.dll
+Dependency assembly - System.Diagnostics.TraceSource.dll
+Dependency assembly - Unity.VisualScripting.Flow.dll
+Dependency assembly - Microsoft.VisualC.dll
+Dependency assembly - Unity.AI.Navigation.dll
+Dependency assembly - System.ServiceModel.NetTcp.dll
+Dependency assembly - System.Reactive.Debugger.dll
+Dependency assembly - System.Drawing.dll
+Dependency assembly - System.Net.NetworkInformation.dll
+Dependency assembly - System.Security.Cryptography.OpenSsl.dll
+Dependency assembly - System.ServiceModel.Activation.dll
+Dependency assembly - System.Xml.XPath.dll
+Dependency assembly - System.Security.Cryptography.DeriveBytes.dll
+Dependency assembly - System.Runtime.Serialization.Formatters.Soap.dll
+Dependency assembly - Unity.Burst.dll
+Dependency assembly - monodoc.dll
+Dependency assembly - Mono.Profiler.Log.dll
+Dependency assembly - System.Web.ApplicationServices.dll
+Dependency assembly - System.Runtime.Loader.dll
+Dependency assembly - Unity.VisualScripting.Core.dll
+Dependency assembly - System.Web.WebPages.Deployment.dll
+Dependency assembly - System.Web.dll
+Dependency assembly - System.Security.dll
+Dependency assembly - System.Net.Http.Rtc.dll
+Dependency assembly - System.Runtime.CompilerServices.VisualC.dll
+Dependency assembly - Novell.Directory.Ldap.dll
+Dependency assembly - System.Diagnostics.StackTrace.dll
+Dependency assembly - System.Globalization.dll
+Dependency assembly - System.Security.Cryptography.Pkcs.dll
+Dependency assembly - System.Net.Security.dll
+Dependency assembly - Microsoft.CSharp.dll
+Dependency assembly - System.Xml.XPath.XmlDocument.dll
+Dependency assembly - System.Collections.NonGeneric.dll
+Dependency assembly - System.Linq.Parallel.dll
+Dependency assembly - Mono.Simd.dll
+Dependency assembly - System.Data.Services.dll
+Dependency assembly - System.Diagnostics.Tracing.dll
+Dependency assembly - System.IO.Compression.ZipFile.dll
+Dependency assembly - System.Json.Microsoft.dll
+Dependency assembly - System.Runtime.InteropServices.dll
+Dependency assembly - System.IO.Pipes.dll
+Dependency assembly - System.Runtime.Serialization.Primitives.dll
+Dependency assembly - System.Xml.XDocument.dll
+Dependency assembly - System.Security.Cryptography.Encryption.dll
+Dependency assembly - Mono.C5.dll
+Dependency assembly - System.Windows.Forms.dll
+Dependency assembly - System.Threading.Thread.dll
+Dependency assembly - SMDiagnostics.dll
+Dependency assembly - Mono.CompilerServices.SymbolWriter.dll
+Dependency assembly - mscorlib.dll
+Dependency assembly - Unity.Mathematics.dll
+Dependency assembly - System.ComponentModel.Composition.dll
+Dependency assembly - System.IO.FileSystem.Primitives.dll
+Dependency assembly - System.ServiceModel.Routing.dll
+Dependency assembly - System.Reflection.DispatchProxy.dll
+Dependency assembly - System.Security.SecureString.dll
+Dependency assembly - System.Dynamic.Runtime.dll
+Dependency assembly - System.Threading.Overlapped.dll
+Dependency assembly - System.IO.FileSystem.dll
+Dependency assembly - Mono.XBuild.Tasks.dll
+Dependency assembly - System.IO.MemoryMappedFiles.dll
+Dependency assembly - System.Net.WebSockets.dll
+Dependency assembly - System.Web.Razor.dll
+Dependency assembly - System.ValueTuple.dll
+Dependency assembly - System.Xml.XmlDocument.dll
+Dependency assembly - System.Data.DataSetExtensions.dll
+Dependency assembly - System.Reflection.Emit.Lightweight.dll
+Dependency assembly - System.Xml.XmlSerializer.dll
+Dependency assembly - Microsoft.Build.Tasks.v4.0.dll
+Dependency assembly - Microsoft.Build.Framework.dll
+Dependency assembly - System.Web.Http.dll
+Dependency assembly - System.IO.UnmanagedMemoryStream.dll
+Dependency assembly - System.Security.Principal.dll
+Dependency assembly - Unity.VisualScripting.Antlr3.Runtime.dll
+Dependency assembly - Mono.CSharp.dll
+Dependency assembly - System.Workflow.Runtime.dll
+Dependency assembly - System.Runtime.Numerics.dll
+Dependency assembly - System.Data.Common.dll
+Dependency assembly - System.Runtime.Serialization.Xml.dll
+Dependency assembly - Mono.Posix.dll
+Dependency assembly - System.Data.SqlClient.dll
+Dependency assembly - System.IO.Abstractions.dll
+Dependency assembly - System.Resources.Writer.dll
+
+Asset Pipeline Refresh (id=86d6da785da28b14cbe2cb90c22fce8d): Total: 0.028 seconds - Initiated by RefreshV2(NoUpdateAssetOptions)
+Starting: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\bee_backend.exe --ipc --dagfile="Library/Bee/Playerb65dd258.dag" --profile="Library/Bee/backend1.traceevents" Player
+WorkingDir: C:/Users/alxbe/Documents/DHBW/Kurse/Studienarbeit/KI_Agenten
+DisplayProgressbar: Incremental Player Build
+C:/Users/alxbe/Documents/DHBW/Kurse/Studienarbeit/KI_Agenten/Library/PackageCache/com.unity.burst@f7a407abf4d5/.Runtime\bcl.exe exited after 5135 ms.
+stdout:
+Starting 1 library requests
+Done
+stderr:
+
+ExitCode: 4 Duration: 6s181ms
+Starting: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\Tools\netcorerun\netcorerun.exe "C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\PlaybackEngines\WindowsStandaloneSupport\WinPlayerBuildProgram.exe" "C:/Program Files/Unity/Hub/Editor/6000.2.6f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/Bee;C:/Program Files/Unity/Hub/Editor/6000.2.6f1/Editor/Data/Tools/BuildPipeline" "Library/Bee/Playerb65dd258.dag.json" "Library/Bee/Playerb65dd258-inputdata.json" "Library\Bee\buildprogram0.traceevents"
+WorkingDir: C:/Users/alxbe/Documents/DHBW/Kurse/Studienarbeit/KI_Agenten
+ExitCode: 0 Duration: 0s542ms
+Starting: C:\Program Files\Unity\Hub\Editor\6000.2.6f1\Editor\Data\bee_backend.exe --ipc --dagfile="Library/Bee/Playerb65dd258.dag" --dagfilejson="Library\Bee\Playerb65dd258.dag.json" --profile="Library/Bee/backend2.traceevents" Player
+WorkingDir: C:/Users/alxbe/Documents/DHBW/Kurse/Studienarbeit/KI_Agenten
+ExitCode: 0 Duration: 0s177ms
+Refreshing native plugins compatible for Editor in 4.11 ms, found 4 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+
+-------------------------------------------------------------------------------
+Build Report
+Information on used Assets is not available, since player data was not rebuilt.
+Do a clean build to view the Asset build report information.
+-------------------------------------------------------------------------------
+Unloading 0 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 57 unused Assets / (0.6 MB). Loaded Objects now: 4735.
+Memory consumption went from 130.4 MB to 129.8 MB.
+Total: 21.430000 ms (FindLiveObjects: 0.634400 ms CreateObjectMapping: 0.497000 ms MarkObjects: 19.532300 ms  DeleteObjects: 0.764300 ms)
+
+DisplayProgressNotification: Build Successful
+Build Finished, Result: Success.
+Total cache size 267156288
+Total cache size after purge 267156288, took 00:00:00.5600463
+##utp:{"type":"PlayerBuildInfo","version":2,"phase":"Immediate","time":1783514024008,"processId":13352,"steps":[{"description":"Preprocess Player","duration":91},{"description":"Prepare For Build","duration":18},{"description":"ProducePlayerScriptAssemblies","duration":5221},{"description":"Verify Build setup","duration":401},{"description":"Prepare assets for target platform","duration":7},{"description":"Prepare splash screen","duration":2},{"description":"Run script only build","duration":96},{"description":"Postprocess built player","duration":7385}],"duration":13221}
+Unloading 0 Unused Serialized files (Serialized files now loaded: 0)
+Loaded scene 'Temp/__Backupscenes/0.backup'
+	Deserialize:            2.037 ms
+	Integration:            536.898 ms
+	Integration of assets:  0.002 ms
+	Thread Wait Time:       0.042 ms
+	Total Operation Time:   538.979 ms
+Unloading 0 unused Assets / (0.7 KB). Loaded Objects now: 4734.
+Memory consumption went from 131.4 MB to 131.4 MB.
+Total: 10.917700 ms (FindLiveObjects: 0.591300 ms CreateObjectMapping: 0.322000 ms MarkObjects: 9.985700 ms  DeleteObjects: 0.017000 ms)
+
+[Build] Status: Succeeded  |  Errors: 0
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+StandaloneBuild:BuildWindows () (at Assets/Editor/StandaloneBuild.cs:18)
+StandaloneBuild:BuildFromCommandLine () (at Assets/Editor/StandaloneBuild.cs:24)
+
+(Filename: Assets/Editor/StandaloneBuild.cs Line: 18)
+
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input System polling thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-alxbe-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-alxbe channel disconnected successfully.
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+Checking for leaked weakptr:
+  Found no leaked weakptrs.
+[Package Manager] Server process was shutdown
+##utp:{"type":"MemoryLeaks","version":2,"phase":"Immediate","time":1783514025509,"processId":13352,"allocatedMemory":14284226,"memoryLabels":[{"Default":28593},{"Permanent":15468},{"NewDelete":67097},{"Thread":4230344},{"Manager":19546},{"VertexData":8},{"Geometry":816},{"VFX":-104},{"Texture":160},{"Shader":78821},{"Material":24},{"GfxDevice":55208},{"Animation":392},{"Audio":4040},{"FontEngine":256},{"Physics":2050},{"Serialization":624},{"Input":14824},{"JobScheduler":35464},{"TextLib":160},{"Mono":32},{"ScriptingNativeRuntime":155060},{"BaseObject":1620208},{"Resource":1304},{"Renderer":2928},{"Transform":4646},{"File":1016},{"WebCam":616},{"Culling":32},{"Terrain":11394},{"Wind":24},{"STL":40},{"String":25684},{"DynamicArray":96423},{"HashMap":77679},{"Utility":2659414},{"Curl":48},{"PoolAlloc":1960},{"AI":40},{"TypeTree":5005},{"ScriptManager":512},{"RuntimeInitializeOnLoadManager":64},{"SpriteAtlas":112},{"GI":7824},{"Director":8240},{"CloudService":10656},{"WebRequest":20164},{"VR":46114},{"SceneManager":496},{"Video":64},{"LazyScriptCache":32},{"Camera":17},{"Secure":2113},{"SerializationCache":1576},{"APIUpdating":10320},{"Subsystems":336},{"VirtualTexturing":57888},{"StaticSafetyDebugInfo":278528},{"Analytics":384},{"Hierarchy":272},{"CoreStats":12424},{"Identifiers":12384},{"Gui":80},{"EditorUtility":80564},{"VersionControl":4},{"Undo":947},{"AssetDatabase":4473116},{"EditorGi":328},{"UnityConnect":24528},{"Upm":1896},{"DrivenProperties":72},{"LocalIPC":211},{"ProfilerEditor":9746},{"CoreBusinessMetrics":4142},{"Licensing":664},{"AssetReference":32},{"IPCStream":32}]}
+~StackAllocator(ALLOC_TEMP_MAIN) m_LastAlloc not NULL. Did you forget to call FreeAllStackAllocations()? To get more information, run app with -diag-temp-memory-leak-validation cmd line argument
