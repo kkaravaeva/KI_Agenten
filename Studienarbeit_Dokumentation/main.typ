@@ -83,9 +83,10 @@ Die vorliegende Arbeit untersucht, welche neuronale Netzwerkarchitektur einem RL
 //   "Kann ein Transformer-basierter RL-Agent in einer selbst gebauten 3D-Labyrinthwelt weiter unten, darunter bitte
 //    generalisierbares Navigations- und Hindernisvermeidungsverhalten erlernen,
 //    das sich auf unbekannte Map-Layouts übertragen lässt?"
-// - Erweiterte Forschungsfragen (aus Forschungsplan_M6_M11):
-//   RQ1 Sensortyp · RQ2 Temporal-Architektur · RQ3 Sensor-Fusion · RQ4 Real-World-Transfer
-// - Hypothesen H1–H4
+// - Forschungsfragen F1-F3 (temporales Gedaechtnis · LSTM vs. Transformer ·
+//   Generalisierung); Uebertragbarkeit nur qualitativ in Kap. 9,
+//   Sensorvergleich -> Ausblick Kap. 10
+// - Hypothesen H1–H3 (gerichtet, zu F1–F3; in 1.x Forschungsfrage ausformuliert)
 Das in dieser Arbeit betrachtete Navigationsproblem weist zwei Eigenschaften auf, die es von den Annahmen klassischer Pfadfindungsalgorithmen grundlegend unterscheiden.
 Zum einen die partielle Observierbarkeit. Der Agent nimmt seine Umgebung ausschließlich über einen Ray-Perception-Sensor wahr: elf Lichtstrahlen, die in einem Winkel von 120° ausgesandt werden und beim Auftreffen auf erkannte Objekte (Wände, Lava, Löcher, Ziel) deren Typ und Entfernung zurückliefern. Ergänzt wird diese Information durch einen 13-dimensionalen Handcoded-Vektor (Eigengeschwindigkeit,Bodentyp unter dem Agenten, normalisierte Richtung zum Ziel). Der Agent besitzt zu keinem Zeitpunkt eine globale Karte seiner Umgebung. Das Navigationsproblem ist damit formal ein Partially Observable Markov Decision Process  (POMDP, Kaelbling et al., 1998 ): Der aktuelle Beobachtungsvektor allein identifiziert den Zustand der Welt nicht eindeutig.
 
@@ -118,6 +119,12 @@ Als Antwort kommen zwei Architekturklassen in Frage — LSTM und Transformer —
 - Vergleich von verschiedenen Architekturen (LSTM, MLP, Transformer) welches funktioniert für diesen Anwendungsfall am besten
 
 == Forschungsfrage
+// ANKERENTSCHEIDUNG (verbindlich): Das Fragensystem dieser Arbeit ist F1-F3.
+// Die frueheren RQ1 (Sensortyp) und RQ3 (Sensor-Fusion) sind KEINE Forschungsfragen
+// mehr — sie verlangen einen Sensormodalitaets-Vergleich, der gestrichen wurde, und
+// existieren nur noch als zurueckgestellte Erweiterung im Ausblick (Kap. 10).
+// Uebertragbarkeit (frueher RQ4) wird qualitativ in Kap. 9 diskutiert — ohne
+// RQ-Label und ohne Metrik.
 Aus der beschriebenen Problemstellung leiten sich drei Forschungsfragen ab, die in dieser Arbeit empirisch beantwortet werden:
 
 F1: Mehrwert temporalen Gedächtnisses:
@@ -137,6 +144,14 @@ F3: Generalisierung auf unbekannte Maps:
 Generalisierung wird auf drei fixierten Evaluation-Maps gemessen, die vor Trainingsbeginn eingefroren und während des gesamten Trainings nicht verwendet wurden. Die Differenz zwischen Trainings- und Generalisierungs-Erfolgsrate dient als Overfitting-Index.
 
 Die drei Forschungsfragen sind bewusst aufeinander aufbauend: F1 klärt, ob Gedächtnis prinzipiell nützt; F2 differenziert zwischen den Gedächtnistypen; F3 bewertet die praktische Robustheit der besten Konfiguration.
+
+Zu den drei Forschungsfragen werden folgende gerichtete Hypothesen aufgestellt:
+// TODO: Richtungen von H2/H3 ggf. gegen den Forschungsplan pruefen
+H1 (zu F1): Agenten mit temporalem Gedächtnis (LSTM, Transformer) erreichen nach Trainingsabschluss eine höhere Erfolgsrate als der gedächtnislose MLP-Basisagent; der Unterschied zeigt sich insbesondere in Layouts mit Sackgassen.
+
+H2 (zu F2): Der Transformer erreicht einen höheren finalen Leistungsscore als das LSTM, benötigt jedoch mehr Trainingsschritte bis zum erstmaligen Erreichen der 80-%-Erfolgsschwelle (langsamere Konvergenz).
+
+H3 (zu F3): Architekturen mit temporalem Gedächtnis weisen einen geringeren Overfitting-Index auf als der MLP-Basisagent, generalisieren also zuverlässiger auf prozedural generierte Maps, die im Training nie gesehen wurden.
 == Ziel der Arbeit    //Finn
 - Alle Probleme adressieren
 - Problem in 3D übersetzten (Game Engine)
@@ -157,7 +172,7 @@ Die drei Forschungsfragen sind bewusst aufeinander aufbauend: F1 klärt, ob Ged�
 //   LSTM-Vergleich, Multi-Area-Training
 // - Was diese Arbeit NICHT leistet: Sim-to-Real Transfer, Multi-Agent-Setup, dynamische Hindernisse
 Um die Vergleichbarkeit der Ergebnisse zu gewährleisten und den experimentellen Aufwand auf die Kernfragen zu fokussieren, werden folgende Einschränkungen bewusst getroffen:
-Sensorik: Ausschließlich Ray-basierte Wahrnehmung. Der Agent verwendet den RayPerceptionSensor3D von Unity ML-Agents in Kombination mit einem manuell kodieren VectorSensor. Kamerabasierte Beobachtungen (Pixel-Tensoren) und Multi-Sensor-Konfigurationen werden in dieser Arbeit nicht untersucht. Diese Einschränkung hat zwei Gründe: Erstens erlaubt die niedrigdimensionale Ray-Repräsentation (Float-Vektoren statt Pixel-Arrays) deutlich kürzere Trainingszeiten und damit eine höhere Anzahl vollständiger Experiment-Wiederholungen. Zweitens isoliert sie die Wirkung der temporalen Architektur von der Wirkung des visuellen Encoders, denn bei Kamera-Agenten wäre unklar, ob beobachtete Unterschiede aus dem Temporal-Modul oder aus dem CNN-Modul stammen.
+Sensorik: Ausschließlich Ray-basierte Wahrnehmung. Der Agent verwendet den RayPerceptionSensor3D von Unity ML-Agents in Kombination mit einem manuell kodierten VectorSensor. Kamerabasierte Beobachtungen (Pixel-Tensoren) und Multi-Sensor-Konfigurationen werden in dieser Arbeit nicht untersucht. Diese Einschränkung ist methodisch begründet: Erstens isoliert die einheitliche Ray-Sensorik aller Agenten die Wirkung der temporalen Architektur von der Wirkung des visuellen Encoders, denn bei Kamera-Agenten wäre unklar, ob beobachtete Unterschiede aus dem Temporal-Modul oder aus dem CNN-Modul stammen. Zweitens erlaubt die niedrigdimensionale Ray-Repräsentation (Float-Vektoren statt Pixel-Arrays) deutlich kürzere Trainingszeiten und damit eine höhere Anzahl vollständiger Experiment-Wiederholungen. Der ursprünglich erwogene Sensormodalitäts-Vergleich (Kamera, Sensor-Fusion) wird als zurückgestellte Erweiterung im Ausblick (Kapitel 10) wieder aufgegriffen.
 
  Als Trainingsalgorithmus wird Proximal Policy Optimization (PPO) verwendet. Alternative Verfahren wie Deep Q-Networks @mnih_human-level_nodate oder Soft Actor-Critic @haarnoja_soft_2018 werden nicht betrachtet. PPO bietet nativen Support für LSTM- und Transformer-Architekturen im Unity ML-Agents Framework und ist als On-Policy-Verfahren mit diskreten Aktionsräumen besonders gut geeignet. DQN ist primär für Value-Based Learning ohne explizite Policy-Parametrisierung ausgelegt. SAC ist für kontinuierliche Aktionsräume optimiert.
 
@@ -338,7 +353,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 //        · Generalisierung als Anforderung  -> NEU 1.3
 //        · Forschungsluecke/Arch.-Vergleich -> NEU 1.5
 //        · (Messbarkeits-Argument NEU 1.4 ist neu, aus Generalisierungs-Inhalt)
-// ALT 1 "Problemstellung/Forschungsfrage" -> NEU 1.5 (RQ1-4, H1-4)
+// ALT 1 "Problemstellung/Forschungsfrage" -> NEU 1.5 (F1-F3, H1-H3)
 // ALT 1 "Zielsetzung und Abgrenzung"      -> NEU 1.6 (1:1)
 // ALT 1 "Aufbau der Arbeit"               -> NEU 1.7 (1:1)
 //
@@ -463,8 +478,10 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 //    3D-Labyrinthwelt generalisierbares Navigations- und Hindernis-
 //    vermeidungsverhalten erlernen, das sich auf unbekannte Map-Layouts
 //    uebertragen laesst?"
-// - Erweiterte Forschungsfragen RQ1-RQ4, Hypothesen H1-H4
-// In 1.5 nur die Haupt-Forschungsfrage plus die vier RQ als Fragen formulieren
+// - Forschungsfragen F1-F3 (Gedaechtnis-Mehrwert, LSTM vs. Transformer,
+//   Generalisierung), Hypothesen H1-H3; Sensorfragen sind KEINE RQ mehr
+//   (-> Ausblick Kap. 10), Uebertragbarkeit qualitativ in Kap. 9
+// In 1.5 nur die Haupt-Forschungsfrage plus F1-F3 als Fragen formulieren
 // Vorwärtsverweis auf 5.1 setzen
 
 
@@ -503,9 +520,12 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 == Wahrnehmung in RL-Agenten
 
-// - Sensortypen: Ray-Sensoren, Kamera (CNN), Vector-Observations
+// - Sensortypen als HINTERGRUND: Ray-Sensoren, Kamera (CNN), Vector-Observations
+//   (Kamera nur theoretische Einordnung — wird NICHT empirisch untersucht;
+//   keine Vergleichserwartung aufbauen)
 // - Beobachtungsraeume und Normalisierung
-// - (liefert die Substanz fuer die Sensor-Entscheidung in 4.4)
+// - Abschnitt laeuft auf die Begruendung der Ray-Wahl in 4.4 zu
+//   (liefert die Substanz fuer diese Entscheidung, nicht fuer einen Vergleich)
 
 == Sequenzmodellierung und Gedaechtnis in RL
 
@@ -555,86 +575,115 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // 4. SYSTEMARCHITEKTUR UND UMGEBUNG  — erst die Welt bauen (vor Methodik)
 //FINN ============================================================================
 = Systemarchitektur und Umgebung
-//was das System kann
-// weicht  von der verbreiteten Erwartung „Methodik vor Implementierung ab, kurz begründen warum "man muss die Welt kennen, um das Experimentaldesign zu verstehen"
+// >>> ZEIGEFINGER-PRINZIP (Leitlinie fuer dieses Kapitel):
+//     Kapitel 4 beschreibt NICHT, was das System kann, sondern was das
+//     EXPERIMENT VORAUSSETZT. Jeder Stichpunkt muss auf ein spaeteres Ergebnis
+//     zeigen koennen. Drei Ausgaenge, keine vierte:
+//       [ARG →Fx/§y.z]      zeigt auf Forschungsfrage/Methodik/Evaluation
+//                           -> bleibt Fliesstext, wird ausargumentiert
+//       [REPRO →Tab/Anhang] zeigt nur auf Reproduzierbarkeit (Konstante/Wert)
+//                           -> raus aus dem Fliesstext, in Tabelle oder Anhang
+//       [STREICHEN]         zeigt auf nichts -> entfaellt
+//     Kapitelzweck (Reihenfolge System vor Methodik): man muss die Welt kennen,
+//     um das Experimentaldesign (Kap. 5) zu verstehen — daher steht die Umgebung
+//     bewusst vor der Methodik.
 == Gesamtueberblick
 
-// - Komponentendiagramm: Unity-Env (Editor/Standalone-Build) <-> Python-Trainer
-//   (mlagents-learn, PPO) <-> TensorBoard; Kopplung ueber ML-Agents-gRPC-Port
-// - je --num-envs ein eigener Unity-Prozess (Headless), eigener Port
-// - Engine Unity + ML-Agents-Package (com.unity.ml-agents 2.0.2 im Projekt)
-// - Code-Layout:
-//     Assets/Scripts/{Map, Agent, Camera, Audio, Competition, Visual}
-//     Assets/Editor/ (Generatoren, Szenen-Builder, Validatoren)
-//     Assets/{Scenes, Prefabs}/
-//     training/  (Python: Patch, Policies, Export, Reports)
-//     config/    (Trainer-YAMLs)
-//     results/   (Trainingslaeufe, Checkpoints, ONNX)
+// KERNAUSSAGE (Fliesstext):
+// - [ARG →§5.2] Ein geschlossener Regelkreis Unity-Umgebung <-> PPO-Trainer <->
+//   TensorBoard bildet EINEN Apparat, in dem MLP, LSTM und Transformer unter
+//   identischer Kopplung laufen -> die Architektur ist die einzige frei variierte
+//   Groesse (Voraussetzung des Vergleichsdesigns).
+// - [ARG →§5.1] Die Umgebung ist der gemeinsame, per Seed reproduzierbare
+//   Pruefstand, in dem F1-F3 ueberhaupt erst messbar werden (Komponentendiagramm
+//   als Abbildung).
+//
+// -> TABELLE/ANHANG (Reproduzierbarkeit):
+// - [REPRO] Engine/Versionen: Unity + com.unity.ml-agents 2.0.2; Kopplung ueber
+//   ML-Agents-gRPC-Port; je --num-envs ein eigener Headless-Unity-Prozess + Port
+// - [REPRO] Code-Layout: Assets/Scripts/{Map,Agent,Camera,Audio,Competition,Visual},
+//   Assets/Editor/ (Generatoren/Szenen-Builder/Validatoren), Assets/{Scenes,Prefabs}/,
+//   training/ (Patch/Policies/Export/Reports), config/ (Trainer-YAMLs),
+//   results/ (Laeufe/Checkpoints/ONNX)
 
 == Map-System
 
 === Datenmodell
-// Achtung Redundanz mit Kapitel 7.1 vermeiden
-// - CellType-Enum, 9 Werte: Empty, Floor, Wall, Obstacle, Goal, SpawnPoint,
-//   Lava, Hole, Platform  (Lava/Hole/Platform sind die Gefahren-/Sprung-Typen)
-// - MapData (ScriptableObject): width, height, flaches Array CellType[] cells,
-//   Indexierung y*width+x; GetCell / SetCell
-// - MapData-Laufzeitfelder (nicht serialisiert): cellHeightOffsets (Platform-Hoehe,
-//   Default 0.75), noRuntimeObstacles-Flag
+// Achtung Redundanz mit Kapitel 7.1 vermeiden -> hier nur die Argument-Ebene
+// KERNAUSSAGE (Fliesstext):
+// - [ARG →F1, Rueckgriff §1.5] Der Zelltyp-Satz enthaelt die Gefahren-Typen Lava
+//   und Hole; zusammen mit Sackgassen erzeugen sie genau die partielle
+//   Observierbarkeit, an der sich temporales Gedaechtnis bewaehren muss.
+// - [ARG →F3, s. 4.2.3] Platform koppelt den Zelltyp an die Loesbarkeit (Lava nur
+//   ueber Platform bzw. bei Tiefe 1 ueberwindbar) -> Grundlage der BFS-Garantie.
+//
+// -> TABELLE/ANHANG (Reproduzierbarkeit):
+// - [REPRO] CellType-Enum vollstaendig (9): Empty, Floor, Wall, Obstacle, Goal,
+//   SpawnPoint, Lava, Hole, Platform
+// - [REPRO] MapData (ScriptableObject): width, height, CellType[] cells, Index
+//   y*width+x, Get/SetCell; Laufzeitfelder cellHeightOffsets (Default 0.75),
+//   noRuntimeObstacles-Flag
 
 === MapGenerator (Runtime)
 
-// - reiner Renderer: nimmt fertige MapData und instanziiert Tiles (kein Bauen)
-// - Prefab-Mapping (BuildPrefabMap): Floor/Obstacle/Goal/SpawnPoint -> floorPrefab,
-//   Wall -> wallPrefab, Lava -> lavaPrefab, Hole -> holePrefab, Platform -> platformPrefab
-// - Tiles aus wiederverwendbarem Tile-Pool (kein Instantiate/Destroy pro Episode)
-// - dynamische Spawn-Wahl: zufaellige Floor/SpawnPoint-Zelle, meidet Lava/Hole-Nachbarn
-// - dynamische Goal-Wahl: zufaellige Zielzelle, verschieden von Spawn
-// - Marker-Objekte (SpawnPoint, Goal) separat instanziiert; Goal +0.5 Y
-// - persistente KillZone (Trigger-Box unter der Map, y=-20) fuer Loch-Faelle
-// - optionales Kamera-Framing (autoFrameCamera, ortho/perspektiv)
-// - WICHTIG: keine Laufzeit-Hindernis-Platzierung, keine BFS-Validierung hier
-//   -> Hindernisbau + Loesbarkeitscheck passieren in der prozeduralen Pipeline (s.u.)
-// - Platzierungs-Modi (Enums):
-//     SpawnPlacementMode    {RandomSpawnPoints, PredefinedSpawnPoints}
-//     GoalPlacementMode     {RandomGoalCells, PredefinedGoalSpawnPoints}
-//     ObstaclePlacementMode {RandomOnFloor, PredefinedSpawnPoints}
-//     MapSelectionMode      {Fixed, Random, Sequential}   // NICHT Curriculum
-// - Curriculum ist ein separater TrainingMode {Standard, Curriculum};
-//   im Curriculum liefert CurriculumTracker.GetNextLayout() die MapData
-// - Multi-Area-Setup: TrainingArea-Prefab, mehrfach in der Szene
-//     Training_MultiArea = 10 Areas, Transformer_Test_V2 = 16 Areas,
-//     Einzel-Szenen (MLP_Training, Transformer_Test) = 1 Area (Parallelisierung
-//     dann ueber --num-envs)
+// KERNAUSSAGE (Fliesstext):
+// - [ARG →§1.4/F3] Der Runtime-Generator ist reiner Renderer; Hindernisbau UND
+//   Loesbarkeitspruefung liegen in der OFFLINE-Pipeline (4.2.3). Erst diese Trennung
+//   erlaubt, Testkarten vor Trainingsbeginn einzufrieren und als ungesehenes Set
+//   zurueckzuhalten -> bei Laufzeit-Generierung nicht garantierbar.
+// - [ARG →§5.4/§7.5] Curriculum ist ein eigener TrainingMode (nicht Teil der
+//   Karten-Auswahlmodi) -> die gestufte Schwierigkeit ist eine kontrollierte
+//   Trainingsbedingung, kein Zufallsartefakt.
+// - [ARG →§5.2/§5.3] Multi-Area (10 bzw. 16 Areas je Szene) sichert je Architektur
+//   denselben Sampling-Durchsatz -> Voraussetzung des fairen Vergleichs.
+//
+// -> TABELLE/ANHANG (Reproduzierbarkeit):
+// - [REPRO] Tile-Pool (kein Instantiate/Destroy je Episode), Prefab-Mapping,
+//   dynamische Spawn-/Goal-Wahl (meidet Lava/Hole-Nachbarn, Goal != Spawn),
+//   Marker (+0.5 Y), optionales Kamera-Framing
+// - [REPRO →§7.2] persistente KillZone (Trigger-Box y=-20) fuer Loch-Faelle
+//   (Terminierungsmechanik)
+// - [REPRO] Platzierungs-Modi-Enums (Spawn-/Goal-/ObstaclePlacementMode,
+//   MapSelectionMode {Fixed,Random,Sequential}); Curriculum-Quelle
+//   CurriculumTracker.GetNextLayout()
+// - [REPRO] Area-Zahlen je Szene (Training_MultiArea 10, Transformer_Test_V2 16,
+//   Einzelszenen 1 + --num-envs)
 
 === Prozedurale Generierung als Umsetzung der Messbarkeitsbedingung
 
-// - UMGERAHMT: Rueckgriff auf 1.4 — hier wird die geforderte Bedingung baulich
-//   eingeloest (nicht als "Feature")
-// - Einstiegspunkt ProceduralLayoutGenerator.GenerateLayout(seed, difficulty):
-//     bis zu 10 Versuche; Pipeline: BuildTopology -> Raeume -> Korridore -> Waende
-//     -> Spawn/Goal -> Coverage-Check (>=15%) -> Cluster -> Platforms -> Pfad-Check
-//   Aufruf aus Editor-Skripten (MapGeneratorEditor, CurriculumV2Builder), nicht Runtime
-// - RoomCorridorGraph: Raum-Korridor-Graph
-//     BORDER-Puffer = 2 (Inhalte nie am Grid-Rand), MIN_CORRIDOR_LEN = 4
-//     2-Tile-breite Korridore (Hauptrichtung + Senkrechte)
-//     Raumtypen Start / Goal / DeadEnd; GoalRoom = am weitesten entfernter Knoten
-//     (Manhattan); Terminal-Korridore enden blind (spaeter Hole); optionale Loops
-// - ObstacleClusterPlacer: Cluster aus Lava/Hole (+ Platform)
-//     Goal-Korridor    -> Lava, Tiefe 1/2/3 (gewichtet), Platform ab Tiefe > 1
-//     DeadEnd/Terminal -> Hole, Tiefe 2 (durch Groesse nicht ueberspringbar)
-//     Loop-Korridor    -> 50% Lava Tiefe 1
-//     DeadEnd-Korridor -> Chance: kein Hindernis / Hole / Lava
-// - SemanticPathfinder: Loesbarkeitscheck (BFS, 4-Nachbarschaft)
-//     Floor/Spawn/Goal/Platform begehbar; Hole nie
-//     Lava begehbar wenn Cluster-Tiefe == 1 (ueberspringbar) ODER Platform vorhanden
-//     -> jede ausgelieferte Map ist garantiert loesbar
-// - Schwierigkeitsgrade (DifficultyLevel, aufsteigend):
-//     Trivial -> TrivialCorr -> TrivialBranch -> TrivialHole -> TrivialHazard
-//     -> Easy -> Medium -> Hard   (+ Sonderstufe TrivialLava)
-//     Trivial-Familie: direkte 7x7-Konstruktion; Easy/Medium/Hard: Graph-Pipeline
-//     DifficultySettings pro Stufe: Grid-Groesse, Korridorzahl, Verzweigungstiefe,
-//     Hindernis-Wahrscheinlichkeiten
+// TRAGENDE WAND — hier steht das Kern-Argument des Kapitels, ueberwiegend Fliesstext.
+// KERNAUSSAGE (Fliesstext):
+// - [ARG →§1.4/F3] Rahmung: prozedurale Generierung loest die in §1.4 geforderte
+//   Messbarkeitsbedingung BAULICH ein — sie ist Bedingung des Generalisierungs-
+//   nachweises, nicht ein "Feature".
+// - [ARG →F3] Der SemanticPathfinder prueft jede Karte per BFS (4-Nachbarschaft) auf
+//   Loesbarkeit -> garantiert, dass ein Scheitern dem AGENTEN und nicht der Karte
+//   zuzuschreiben ist (begehbar: Floor/Spawn/Goal/Platform; Hole nie; Lava nur bei
+//   Tiefe 1 oder mit Platform).
+// - [ARG →§5.5.2/F3] Per Seed systematisch erzeugbare Layouts ermoeglichen ein
+//   zurueckgehaltenes, im Training nie gesehenes Evaluations-Set -> erst dadurch ist
+//   der Overfitting-Index (Trainings- minus Generalisierungs-Erfolgsrate) messbar.
+// - [ARG →§5.4/§7.5, F1/F2] Die aufsteigende Schwierigkeitsleiter definiert die
+//   Curriculum-Progression, deren Wirkung auf die Konvergenz spaeter gemessen wird.
+// - [ARG →F1] Die Hindernis-Semantik erzeugt gezielt Sackgassen und Gefahren
+//   (Terminal-Korridore enden blind mit Hole; Lava als Sprung-Huerde) — also genau
+//   die partielle Observierbarkeit, die Gedaechtnis motiviert.
+//
+// -> ANHANG (Reproduzierbarkeit — Parameterwerte, nicht in den Fliesstext):
+// - [REPRO] Einstieg ProceduralLayoutGenerator.GenerateLayout(seed, difficulty),
+//   bis 10 Versuche; Pipeline BuildTopology->Raeume->Korridore->Waende->Spawn/Goal
+//   ->Coverage >=15%->Cluster->Platforms->Pfad-Check; Aufruf in Editor-Skripten
+//   (MapGeneratorEditor, CurriculumV2Builder), nicht zur Laufzeit
+// - [REPRO] RoomCorridorGraph: BORDER=2, MIN_CORRIDOR_LEN=4, 2-Tile-Korridore,
+//   Raumtypen Start/Goal/DeadEnd, GoalRoom = weitester Manhattan-Knoten, optionale Loops
+// - [REPRO] ObstacleClusterPlacer je Korridortyp: Goal-Korr. Lava Tiefe 1/2/3
+//   (Platform ab Tiefe>1), DeadEnd/Terminal Hole Tiefe 2, Loop 50% Lava Tiefe 1,
+//   DeadEnd-Korr. Chance kein/Hole/Lava
+// - [REPRO] SemanticPathfinder-Regeln (BFS, 4-Nachbarschaft) exakt wie im Argument oben
+// - [REPRO] DifficultyLevel-Leiter (Trivial->TrivialCorr->TrivialBranch->TrivialHole
+//   ->TrivialHazard->Easy->Medium->Hard + Sonderstufe TrivialLava; Trivial-Familie
+//   direkte 7x7-Konstruktion, Easy/Medium/Hard Graph-Pipeline) + DifficultySettings
+//   je Stufe (Grid-Groesse, Korridorzahl, Verzweigungstiefe, Hindernis-W'keiten)
 
 == Agent-System
 // Klasse: LabyrinthAgent : Agent  (Assets/Scripts/Agent/LabyrinthAgent.cs)
@@ -642,99 +691,127 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 === Aktionsraum
 
-// - diskret, 3 Branches mit Groessen [3, 3, 3]
-//     Branch 0 Bewegung: 0 = nichts, 1 = vorwaerts, 2 = rueckwaerts
-//     Branch 1 Drehung : 0 = nichts, 1 = links,     2 = rechts
-//     Branch 2 Sprung  : nur Wert 1 loest Sprung aus -> effektiv binaer
-// - Heuristik (manuelle Steuerung): W/S = vor/zurueck, A/D = drehen, Space = Sprung
-// - kein "SuperSprung": Sprung ist ein einzelner AddForce-Impuls, nur wenn geerdet
+// KERNAUSSAGE (Fliesstext):
+// - [ARG →§5.3.1] Der diskrete Aktionsraum (3 Branches) ist fuer MLP, LSTM und
+//   Transformer IDENTISCH -> kontrollierte Variable, damit Leistungsunterschiede der
+//   Architektur und nicht dem Handlungsraum zuzuschreiben sind.
+//
+// -> TABELLE/ANHANG (Reproduzierbarkeit):
+// - [REPRO] Branch-Semantik [3,3,3] (0 Bewegung: nichts/vor/zurueck, 1 Drehung:
+//   nichts/links/rechts, 2 Sprung: nur Wert 1); Sprung effektiv binaer, einzelner
+//   AddForce-Impuls nur wenn geerdet (kein "SuperSprung")
+//
+// -> STREICHEN:
+// - [STREICHEN] Heuristik-Tastenbelegung (W/S/A/D/Space) — reine Bedienung, zeigt
+//   auf kein Ergebnis
 
 === Observation-Space
 
-// - Vektor-Observations, konfigurationsabhaengig (Flag v24CompatMode)
-// - Volles Set = 31 Werte:
-//     18  Boden-Sensor (9 Positionen x [Typ-Code, norm. Distanz])
-//      3  Eigengeschwindigkeit (lokal, / moveSpeed)
-//      1  isGrounded
-//      1  Distanz zum Ziel (/ maxObservationDistance = 20)
-//      3  Richtung zum Ziel (lokal, normiert)
-//      4  Wand-Raycasts (vorne, rechts, links, hinten; norm. Distanz)
-//      1  Line-of-Sight zum Ziel (0/1)
-// - v24CompatMode (aktuelles Agent-Prefab) = 21 Werte: nur 18 Boden + 3 Velocity
-//   (V24-Transformer wurde ohne die restlichen Obs trainiert)
-// - dazu separater Ray-Sensor (s. Kapitel Sensorik), stacked = 2
-// - NumStackedVectorObservations = 1 fuer den Vektor-Sensor
+// KERNAUSSAGE (Fliesstext):
+// - [ARG →§5.3.1] Der Beobachtungsvektor ist die gemeinsame Eingabe aller drei
+//   Architekturen und muss ueber die Vergleichsgruppen konstant sein — sonst ist ein
+//   F1/F2-Unterschied nicht kausal der Architektur zuzuschreiben.
+// - [ARG →§5.3.2] ABWEICHUNG: der ausgelieferte V24-Transformer wurde mit reduziertem
+//   Set (21 statt 31 Obs, v24CompatMode) trainiert -> dokumentierte, zu begruendende
+//   Abweichung vom gemeinsamen Obs-Satz.
+//
+// -> TABELLE/ANHANG (Reproduzierbarkeit):
+// - [REPRO] Volles Set 31: 18 Boden-Sensor (9x[Typ,Distanz]), 3 Velocity, 1
+//   isGrounded, 1 Zieldistanz (/maxObservationDistance=20), 3 Zielrichtung, 4
+//   Wand-Raycasts, 1 Line-of-Sight
+// - [REPRO] v24CompatMode 21: nur 18 Boden + 3 Velocity
+// - [REPRO] separater Ray-Sensor (s. 4.4) stacked=2; NumStackedVectorObservations=1
 
 === Bewegungs- und Sprungphysik
 
-// - Rigidbody: Masse 1, Drag 0.5, Constraints = FreezeRotation X+Z (nur Y-Drehung)
-// - MoveRotation (turnSpeed 180 Grad/s), MovePosition (moveSpeed 5), AddForce-Impuls
-//   (jumpForce 10.5, nur bei isGrounded)
-// - GroundCheck: Raycast nach unten, geerdet auf Floor/Bridge/Platform/Goal
-// - Wall-Climb-Guard: y > spawnY + wallClimbMaxY (5) -> Penalty (Anti-Kletter-Exploit)
-// - maxUpwardVelocity-Cap (8) in FixedUpdate: begrenzt Aufwaerts-Geschwindigkeit (V11/V12)
+// KERNAUSSAGE (Fliesstext):
+// - [ARG →§7.6.5] Wall-Climb-Guard und maxUpwardVelocity-Cap (eingefuehrt V11/V12)
+//   dokumentieren einen entdeckten Exploit (Hochklettern an Waenden) und seine
+//   Korrektur -> gehoeren zur Iterations-/Pathologie-Argumentation, nicht als blosse
+//   Konstante.
+//
+// -> TABELLE/ANHANG (Reproduzierbarkeit):
+// - [REPRO] Kinematik: turnSpeed 180°/s, moveSpeed 5 (normiert die Velocity-Obs),
+//   jumpForce 10.5 (nur geerdet), Masse 1, FreezeRotation X+Z; GroundCheck-Raycast
+//   auf Floor/Bridge/Platform/Goal; Guard-/Cap-Werte wallClimbMaxY 5,
+//   maxUpwardVelocity 8
+//
+// -> STREICHEN:
+// - [STREICHEN] Drag 0.5 — inzidenteller Engine-Wert, zeigt auf kein Ergebnis
 
-=== (Third-Person-Kamera) // kann man diskutieren ob man es braucht zur not raus, aber schon interessant wegen showcase etc. und um den agenten zu verstehen wie erfunktinoiert
-
-// - ThirdPersonCamera: Smooth-Follow in LateUpdate
-// - Position via SmoothDamp (positionSmoothTime 0.1), Rotation via Slerp (speed 5)
-// - lokaler Offset zum Agenten (Hoehe 3, Distanz 5) -> folgt Blickrichtung
-// - weitere Kameras vorhanden (Front-Follow, Drone, CameraSwitcher) — optional
+// === (Third-Person-Kamera)   [STREICHEN — Ueberschrift bewusst auskommentiert]
+// [STREICHEN] Zeigt auf kein Ergebnis: reines Showcase-/Debug-Hilfsmittel, keine
+//   Voraussetzung des Experiments (SmoothDamp, Slerp und Kamera-Offsets sterben hier).
+//   Falls eine Showcase-Erwaehnung gewuenscht ist -> Video-Demo/Anhang, nicht Kap. 4.
+//   Ehemaliger Inhalt bewusst entfernt: ThirdPersonCamera Smooth-Follow (LateUpdate),
+//   SmoothDamp 0.1, Slerp 5, Offset Hoehe 3/Distanz 5, weitere Kameras
+//   (Front-Follow, Drone, CameraSwitcher).
 
 == Sensorik — und die begruendete Wahl der Ray-Wahrnehmung
 
-// - ENTSCHEIDUNG SICHTBAR MACHEN: warum Ray statt (nur) Kamera fuer die
-//   Basis-Vergleichsgruppe -> CPU-tauglich, robust, direkt interpretierbar
-// - Horizontaler RayPerceptionSensor (ML-Agents-Komponente am Prefab):
-//     11 Rays (RaysPerDirection 5 -> 2*5+1), 120° (MaxRayDegrees 60 = Halbwinkel),
-//     Reichweite 12, Stacked = 2, SphereCast-Radius 0.25
-// - 6 Detectable Tags: Wall, Obstacle, Lava, Hole, Goal, Bridge
-// - Manueller Boden-Sensor (im Agent-Code, kein RayPerceptionSensor):
-//     9 Raycasts nach unten (Reichweite 2), je 2 Werte (Typ-Code + norm. Distanz)
-//     Typ-Codes: Floor +1, Lava -1, Hole -0.5, Bridge +0.5, kein Treffer -1.5
-//     Positionen: unter dem Agenten, vorne 1/2 Zellen, diagonal, seitlich
+// KERNAUSSAGE (Fliesstext — begruendete Entscheidung, nicht Beschreibung):
+// - [ARG →F1/F2, §1.6] Ray als EINHEITLICHE Sensorbasis ALLER drei Agenten isoliert
+//   die Wirkung der temporalen Architektur vom visuellen Encoder — bei Kamera-Agenten
+//   waere unklar, ob Unterschiede aus dem Temporal- oder dem CNN-Modul stammen
+//   (spiegelt die Abgrenzung §1.6; Kamera-Pfad existiert nur im Ausblick Kap. 10,
+//   KEINE zweite Sensorgruppe implizieren).
+// - [ARG →§5.5.3] Die niedrigdimensionale Ray-Repraesentation ist CPU-tauglich und
+//   erlaubt viele vollstaendige Wiederholungen -> Voraussetzung statistischer
+//   Aussagekraft.
+// - [ARG →F3] Typisierte, direkt interpretierbare Treffer (Detectable Tags) erlauben
+//   spaeter die Analyse, WORAN Generalisierung auf ungesehenen Karten scheitert.
+//
+// -> TABELLE/ANHANG (Reproduzierbarkeit):
+// - [REPRO] Horizontaler RayPerceptionSensor: 11 Rays (2*5+1), 120° (MaxRayDegrees
+//   60), Reichweite 12, stacked 2, SphereCast 0.25; 6 Tags (Wall, Obstacle, Lava,
+//   Hole, Goal, Bridge)
+// - [REPRO] Manueller Boden-Sensor (kein RayPerceptionSensor): 9 Raycasts abwaerts
+//   (Reichweite 2), je [Typ-Code, norm. Distanz]; Codes Floor +1/Lava -1/Hole
+//   -0.5/Bridge +0.5/kein Treffer -1.5; Positionen unter/vorne 1-2/diagonal/seitlich
 
 == Reward-System
-// keine DesignEntscheidungen und ihre Wirkung (abgrenzung 7.4)
-// - Architektur: zentrale Vergabe im Agent; externe Objekte (Lava, KillZone)
-//   loesen nur OnTriggerEnter aus, der Agent vergibt den Reward
-// - Kern-Terme (formale Funktion) und Werte:
-//     Ziel erreicht        goalReward       = +30   (Episode-Ende, Erfolg)
-//     Lava-Tod             lavaDeathPenalty = -3    (Episode-Ende)
-//     Loch-Tod (KillZone)  holeDeathPenalty = -3    (Episode-Ende)
-//     Timeout (MaxStep)    timeoutPenalty   = -10
-//     Zeitstrafe/Step      stepPenalty      = -0.002
-//     PBRS-Shaping         F = (prevDist − γ·currDist) · scale
-//                          γ (pbrsGamma) = 1.0, scale (distanceShapingScale) = 0.01
-// - weitere aktive Terme (fuer vollstaendige Funktion noetig):
-//     Lava-Sprung-Versuch  +1.5, dann /4, /8, danach 0 (abklingend, Edge-Trigger)
-//     Lava-Ueberquerung    +8 (nach Landung)
-//     Loch-Ueberflug       -1 (Edge-Trigger; Loecher sollen umgangen werden)
-//     Line-of-Sight        +0.005 (bei freier Sicht zum Ziel)
-//     Wall-Climb           -1 (bei Ueberschreiten der Hoehe)
-// - MaxStep pro Curriculum-Phase (phaseMaxSteps): 600 / 1200 x4 / 1500 / 2000 / 2500
-// - Curiosity ist KEIN Agent-Reward, sondern ein Trainer-Reward-Signal (Config):
-//     nur in Transformer- und LSTM-Curiosity-Config aktiv (strength 0.05),
-//     nicht in der Standard-PPO-Config
-// - Quelle: Reward_Strategie.md
+// Abgrenzung: Herleitung/Wirkung einzelner Terme NICHT hier -> §7.4 (Belohnungsdesign)
+// bzw. §7.6.5 (Pathologien). Kap. 4 zeigt nur die fixe, gemeinsame Funktion.
+// KERNAUSSAGE (Fliesstext):
+// - [ARG →§5.3.1] Die Reward-Funktion ist fuer alle drei Architekturen identisch
+//   fixiert -> gemeinsame Zielvorgabe, damit F1/F2 die Architektur messen und nicht
+//   das Belohnungsdesign.
+// - [ARG →§5.3.2] Curiosity ist KEIN Agent-Reward, sondern ein Trainer-Signal, das
+//   NUR in der Transformer-/LSTM-Config aktiv ist (nicht in Standard-PPO) -> ein
+//   asymmetrisches Reward-Signal, das als notwendige Abweichung begruendet werden muss.
+//
+// -> TABELLE/ANHANG (Reproduzierbarkeit — Werte, Quelle Reward_Strategie.md):
+// - [REPRO] Vergabe zentral im Agent; externe Trigger (Lava, KillZone) melden nur
+//   via OnTriggerEnter
+// - [REPRO] Kern-Terme: goalReward +30, lava/holeDeathPenalty -3, timeoutPenalty -10,
+//   stepPenalty -0.002, PBRS F = (prevDist − γ·currDist) · scale (γ=1.0, scale=0.01)
+// - [REPRO] weitere Terme: Lava-Sprung-Versuch +1.5→/4→/8→0, Lava-Ueberquerung +8,
+//   Loch-Ueberflug -1, Line-of-Sight +0.005, Wall-Climb -1
+// - [REPRO] phaseMaxSteps: 600 / 1200 x4 / 1500 / 2000 / 2500; Curiosity strength 0.05
 
 == Trainingsinfrastruktur
 
-// - Python-venv mit mlagents 0.30.0 (im Patch-Skript benannt), PyTorch 2.0.1
-//   (CUDA-Variante cu118 nur in Doku, nicht im Code verankert -> ggf. pruefen)
-// - Patch-Skript training/patch_mlagents.py: ruestet die venv fuer Custom-Policies
-//   nach (Transformer-Memory): kopiert transformer_memory.py, erweitert settings.py
-//   (memory_type) und networks.py (Transformer-Branch neben LSTM);
-//   start_training.py wendet den Patch automatisch an
-// - Trainer-Konfigurationen (config/):
-//     PPO-Baseline (labyrinth_training.yaml): lr 3e-4, batch 512, buffer 10240,
-//       gamma 0.99, MLP 256x2, normalize false, max_steps 6.4M
-//     Transformer (labyrinth_transformer.yaml): memory_type transformer,
-//       sequence_length 16, memory_size 128, curiosity 0.05, gamma 0.997, max_steps 60M
-//     weitere: labyrinth_lstm*.yaml, model_comparison*.yaml
-// - Parallelisierung: Multi-Area (mehrere TrainingAreas je Szene) + Headless-Builds
-//   via --num-envs; je Worker eigener mlagents-Port und eigene Curriculum-State-Datei
-// - Hardware: <vom Autor einzutragen — CPU/GPU/RAM, Trainingsdauer>
+// KERNAUSSAGE (Fliesstext):
+// - [ARG →§7.6.1] venv-Patch statt Fork von ML-Agents: bewusste Entscheidung fuer die
+//   reproduzierbare Nachruestung der Custom-Transformer-Policy (Detail in 7.6.1).
+// - [ARG →§5.3.2] Die Trainer-Configs unterscheiden sich SYSTEMATISCH zwischen den
+//   Architekturen (Transformer: gamma 0.997 vs. 0.99, max_steps 60M vs. 6.4M,
+//   memory_type/sequence_length, curiosity) -> genau diese YAML-Abweichungen sind der
+//   Gegenstand der Fairness-Begruendung.
+//
+// -> TABELLE/ANHANG (Reproduzierbarkeit):
+// - [REPRO] venv: mlagents 0.30.0, PyTorch 2.0.1 (cu118 nur in Doku, im Code nicht
+//   verankert -> pruefen)
+// - [REPRO] Patch-Skript training/patch_mlagents.py (kopiert transformer_memory.py,
+//   erweitert settings.py/networks.py; start_training.py wendet automatisch an)
+// - [REPRO] Config-Werte: PPO-Baseline (labyrinth_training.yaml: lr 3e-4, batch 512,
+//   buffer 10240, gamma 0.99, MLP 256x2, normalize false, max_steps 6.4M);
+//   Transformer (labyrinth_transformer.yaml: sequence_length 16, memory_size 128,
+//   curiosity 0.05, gamma 0.997, max_steps 60M); weitere labyrinth_lstm*/model_comparison*
+// - [REPRO] Parallelisierung: Multi-Area + Headless via --num-envs, je Worker eigener
+//   Port + eigene Curriculum-State-Datei
+// - [REPRO →§9.2] Hardware (CPU/GPU/RAM, Trainingsdauer) — vom Autor einzutragen,
+//   stuetzt die Hardware-Anforderungen in §9.2
 
 
 // ============================================================================
@@ -744,8 +821,8 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 == Wissenschaftliche Rahmung //DAVID
 //Achtung Redundanz 1.5 ABGRENZEN iwi
-// - Forschungsfragen RQ1-RQ4, Hypothesen H1-H4
-// -  jede RQ auf Metrik + Hypothese + zuständigen Vergleich abbilden (sonst Wiederholung mit 1.5)
+// - Forschungsfragen F1-F3, Hypothesen H1-H3
+// -  jede F-Frage auf Metrik + Hypothese + zuständigen Vergleich abbilden (sonst Wiederholung mit 1.5)
 
 == Vergleichsdesign //maybe besseren Namen finden wird jetzt mit wissenschaflticher Rahmung fussioniert (war davor eigenständige Überschrift, hier soll nur kurz erklärt werden )
 // Transformer, LSTM, MLP 
@@ -771,11 +848,9 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 // - DEINE FRAGE / EXPLIZIT: die YAMLs sind NICHT zu 100% identisch — und das
 //   ist korrekt
-// - Kontrolliert abweichende Parameter:
-//     · memory_type: lstm | transformer  (je nach Agent)
-//     · vis_encode_type: simple           (nur bei Kamera-Agenten)
-//     · Sensor-Konfiguration              (Ray vs. Kamera vs. Kombination)
-// - Begruendung: diese Parameter sind KONSTITUTIV fuer den Vergleichs-
+// - Kontrolliert abweichender Parameter (einziger konstitutiver):
+//     · memory_type: (keins/MLP) | lstm | transformer  (je nach Agent)
+// - Begruendung: dieser Parameter ist KONSTITUTIV fuer den Vergleichs-
 //   gegenstand selbst — man kann Transformer vs. LSTM nicht vergleichen,
 //   ohne memory_type zu aendern. Eine erzwungene 100%-Identitaet waere
 //   nicht "fairer", sondern sinnlos.
@@ -987,7 +1062,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 == Diskussion
 
-// - Bewertung H1-H4; welche Architektur lernt schneller / generalisiert besser
+// - Bewertung H1-H3; welche Architektur lernt schneller / generalisiert besser
 // - Beobachtetes Verhalten (Wall-Hugging, Lava-Avoidance, PBRS-Artefakte)
 
 
@@ -1004,6 +1079,9 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 == Hardware- und Software-Anforderungen
 
 // - Ray-only (CPU, niedrige Kosten) / Kamera (GPU) / Multi-Sensor (robust, teuer)
+//   ACHTUNG: qualitative Kosten-/Nutzen-Einordnung, KEIN Messergebnis dieser Arbeit —
+//   empirisch untersucht wurde nur Ray-only; Kamera/Multi-Sensor klar als
+//   Einordnung markieren
 //das schreibt uns claude dann
 == Bewertungsmatrix
 
@@ -1027,8 +1105,11 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 == Beantwortung der Forschungsfragen
 
-// - RQ1 Sensortyp, RQ2 Temporal-Architektur, RQ3 Sensor-Fusion,
-//   RQ4 praktische Uebertragbarkeit
+// - F1 Mehrwert temporalen Gedaechtnisses (LSTM/Transformer vs. MLP, Erfolgsrate)
+// - F2 Vergleich LSTM vs. Transformer (Konvergenzgeschwindigkeit, finaler Score)
+// - F3 Generalisierung auf ungesehene prozedurale Maps (Overfitting-Index)
+// - Zusaetzlich, OHNE RQ-Label und OHNE Metrik: praktische Uebertragbarkeit als
+//   qualitative Diskussion (Rueckgriff auf Kap. 9)
 
 == Limitationen und Lessons Learned
 // Verweis auf 9.4 (limitation übertragbarkeit) sonst übertragbarkeit nur kurz erwähnen dann verweis.
@@ -1038,7 +1119,10 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 == Ausblick
 
-// - Vollstaendige Trainingsmatrix; CNN-/Multi-Sensor-Pfad (M8-M10)
+// - Vollstaendige Trainingsmatrix
+// - CNN-/Multi-Sensor-Pfad (M8-M10): AUSDRUECKLICH als zurueckgestellte Erweiterung
+//   benennen — urspruenglich geplanter Sensormodalitaets-Vergleich (Kamera,
+//   Sensor-Fusion), bewusst verschoben; Rueckverweis auf Abgrenzung 1.6
 // - Dynamische Hindernisse, Multi-Agent, Sim-to-Real
 
 
