@@ -63,8 +63,8 @@ public class PlayerController : MonoBehaviour
         GroundCheck();
 
         // Maximale Aufwärts-Geschwindigkeit begrenzen (kein Durchfliegen)
-        if (rb.velocity.y > maxUpwardVelocity)
-            rb.velocity = new Vector3(rb.velocity.x, maxUpwardVelocity, rb.velocity.z);
+        if (rb.linearVelocity.y > maxUpwardVelocity)
+            rb.linearVelocity = new Vector3(rb.linearVelocity.x, maxUpwardVelocity, rb.linearVelocity.z);
 
         if (!movementFrozen)
             ProcessMovement();
@@ -126,7 +126,7 @@ public class PlayerController : MonoBehaviour
         if (other.CompareTag("Goal"))
         {
             FreezeMovement();
-            rb.velocity = Vector3.zero;
+            rb.linearVelocity = Vector3.zero;
             onGoalReached?.Invoke();
         }
         else if (other.CompareTag("Lava") || other.CompareTag("KillZone"))
@@ -150,7 +150,7 @@ public class PlayerController : MonoBehaviour
     {
         transform.position = spawnPosition;
         transform.rotation = spawnRotation;
-        rb.velocity        = Vector3.zero;
+        rb.linearVelocity        = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
         jumpQueued         = false;
     }

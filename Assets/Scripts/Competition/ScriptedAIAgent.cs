@@ -189,12 +189,12 @@ public class ScriptedAIAgent : MonoBehaviour
         GroundCheck();
 
         // Aufwärts-Velocity begrenzen
-        if (rb.velocity.y > maxUpwardVelocity)
-            rb.velocity = new Vector3(rb.velocity.x, maxUpwardVelocity, rb.velocity.z);
+        if (rb.linearVelocity.y > maxUpwardVelocity)
+            rb.linearVelocity = new Vector3(rb.linearVelocity.x, maxUpwardVelocity, rb.linearVelocity.z);
 
         if (frozen)
         {
-            rb.velocity = new Vector3(0f, rb.velocity.y, 0f);
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
             return;
         }
 
@@ -253,7 +253,7 @@ public class ScriptedAIAgent : MonoBehaviour
 
             if (wpIdx >= path.Count)
             {
-                rb.velocity = new Vector3(0f, rb.velocity.y, 0f);
+                rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
                 return;
             }
 
@@ -316,7 +316,7 @@ public class ScriptedAIAgent : MonoBehaviour
             {
                 lavaHesitated = true;
                 EnterPause(Random.Range(0.08f, 0.20f));
-                rb.velocity = new Vector3(0f, rb.velocity.y, 0f);
+                rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
                 return;
             }
 
@@ -491,10 +491,10 @@ public class ScriptedAIAgent : MonoBehaviour
         stateTimer -= Time.fixedDeltaTime;
 
         // Sanft abbremsen (kein harter Stop – sieht natürlicher aus)
-        rb.velocity = new Vector3(
-            rb.velocity.x * 0.86f,
-            rb.velocity.y,
-            rb.velocity.z * 0.86f);
+        rb.linearVelocity = new Vector3(
+            rb.linearVelocity.x * 0.86f,
+            rb.linearVelocity.y,
+            rb.linearVelocity.z * 0.86f);
 
         // Minimales Dreh-Rauschen (wirkt wie Orientierungssuche)
         float r = Random.Range(-35f, 35f) * Time.fixedDeltaTime;
@@ -804,7 +804,7 @@ public class ScriptedAIAgent : MonoBehaviour
         if (other.CompareTag("Goal"))
         {
             FreezeMovement();
-            rb.velocity = Vector3.zero;
+            rb.linearVelocity = Vector3.zero;
             onGoalReached?.Invoke();
         }
         else if (other.CompareTag("Lava") || other.CompareTag("KillZone"))
@@ -1022,7 +1022,7 @@ public class ScriptedAIAgent : MonoBehaviour
     public void FreezeMovement()
     {
         frozen      = true;
-        rb.velocity = Vector3.zero;
+        rb.linearVelocity = Vector3.zero;
     }
 
     public void UnfreezeMovement()
@@ -1046,7 +1046,7 @@ public class ScriptedAIAgent : MonoBehaviour
             transform.position = mapGenerator.GetSpawnPosition() + Vector3.up * 0.6f;
             transform.rotation = Quaternion.identity;
         }
-        rb.velocity        = Vector3.zero;
+        rb.linearVelocity        = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
         inJump             = false;
         lavaHesitated      = false;

@@ -455,8 +455,8 @@ public static class CompetitionSceneBuilder
         col.radius = 0.25f;
         var rb = go.AddComponent<Rigidbody>();
         rb.mass        = 1f;
-        rb.drag        = 0.5f;
-        rb.angularDrag = 0.05f;
+        rb.linearDamping        = 0.5f;
+        rb.angularDamping = 0.05f;
         rb.constraints = RigidbodyConstraints.FreezeRotation;
 
         var cap = GameObject.CreatePrimitive(PrimitiveType.Capsule);

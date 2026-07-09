@@ -112,3 +112,9 @@ Assets/Stylized Lava Materials
 
 venv
 venv_mlagents/
+
+# Training-Kit & Archive (grosse Binaerpakete, nicht fuer Git)
+Training_Kit/
+Training_Kit.zip
+Training_Archive/
+curriculum_v2_build_log*.txt

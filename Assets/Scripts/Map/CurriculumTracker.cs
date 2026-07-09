@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -12,9 +13,17 @@ public static class CurriculumTracker
     private static bool initialized;
     private static string stateFilePath;
 
+    // Erfolgs-Gate: Rolling-Fenster über die letzten Episoden-Ergebnisse aller Agenten.
+    // Wird bewusst NICHT persistiert — nach einem Neustart füllt es sich neu, bevor das
+    // Gate wieder greifen kann (verhindert Aufstieg mit veralteten Erfolgsdaten).
+    private static readonly Queue<bool> successResults = new Queue<bool>();
+    private static int successCount;
+
     public static int CurrentPhaseIndex    => currentPhaseIndex;
     public static int EpisodeCountInPhase  => episodeCountInPhase;
     public static int StepCountInPhase     => stepCountInPhase;
+    /// <summary>Aktuelle Erfolgsrate im Gate-Fenster (0 wenn Fenster leer).</summary>
+    public static float GateSuccessRate    => successResults.Count > 0 ? (float)successCount / successResults.Count : 0f;
 
     [Serializable]
     private class CurriculumState
@@ -35,6 +44,23 @@ public static class CurriculumTracker
         stepCountInPhase          = 0;
         initialized               = false;
         stateFilePath             = null;
+        successResults.Clear();
+        successCount              = 0;
+    }
+
+    /// <summary>
+    /// Meldet das Ergebnis einer abgeschlossenen Episode (alle Agenten teilen sich das Fenster).
+    /// </summary>
+    public static void NotifyEpisodeResult(bool success)
+    {
+        if (!initialized || config == null) return;
+        successResults.Enqueue(success);
+        if (success) successCount++;
+        int cap = Mathf.Max(10, config.successWindow);
+        while (successResults.Count > cap)
+        {
+            if (successResults.Dequeue()) successCount--;
+        }
     }
 
     // ML-Agents startet pro --num-envs einen eigenen Unity-Prozess und übergibt jedem
@@ -139,11 +165,21 @@ public static class CurriculumTracker
 
         MapData layout = phase.layouts[currentLayoutIndexInPhase % phase.layouts.Length];
 
+        // Unity-Lebenszeit-Check: "== null" greift (anders als "?.") auch für zerstörte
+        // Objekte. Im Editor kann ein AssetDatabase-Reimport während des Play-Modus die
+        // geladenen MapData-Instanzen zerstören — dann hier sauber abbrechen, statt mit
+        // einer MissingReferenceException den ML-Agents-Episoden-Reset zu zerschießen.
+        if (layout == null)
+        {
+            Debug.LogError($"CurriculumTracker: Layout {currentLayoutIndexInPhase % phase.layouts.Length} in Phase {currentPhaseIndex} ist null/zerstört (Asset-Reimport im Editor?). Play-Modus stoppen und neu starten.");
+            return null;
+        }
+
         currentLayoutIndexInPhase++;
         episodeCountInPhase++;
         SaveState();
 
-        Debug.Log($"[Curriculum] Phase {currentPhaseIndex} ({phase.difficulty}) | Episode {episodeCountInPhase}/{phase.threshold} | Layout: {layout?.name}");
+        Debug.Log($"[Curriculum] Phase {currentPhaseIndex} ({phase.difficulty}) | Episode {episodeCountInPhase}/{phase.threshold} | Layout: {layout.name}");
 
         return layout;
     }
@@ -160,11 +196,31 @@ public static class CurriculumTracker
         if (!config.loopPhases && isLastPhase) return;
 
         CurriculumPhase phase = config.phases[currentPhaseIndex];
-        bool advance = phase.thresholdType == ThresholdType.Episodes
+        bool thresholdReached = phase.thresholdType == ThresholdType.Episodes
             ? episodeCountInPhase >= phase.threshold
             : stepCountInPhase   >= phase.threshold;
 
-        if (!advance) return;
+        if (!thresholdReached) return;
+
+        // Erfolgs-Gate: Nach der Episoden-Schwelle wird die Phase nur verlassen, wenn die
+        // Erfolgsrate im Rolling-Fenster die Mindestrate erreicht — oder der Notausstieg
+        // (threshold × hardCapFactor) greift, damit keine Phase endlos blockiert.
+        if (phase.minSuccessRate > 0f)
+        {
+            int  hardCap    = phase.threshold * Mathf.Max(1, config.hardCapFactor);
+            int  progress   = phase.thresholdType == ThresholdType.Episodes ? episodeCountInPhase : stepCountInPhase;
+            bool windowFull = successResults.Count >= Mathf.Max(10, config.successWindow);
+            float rate      = successResults.Count > 0 ? (float)successCount / successResults.Count : 0f;
+
+            if (progress < hardCap && (!windowFull || rate < phase.minSuccessRate))
+            {
+                if (episodeCountInPhase % 100 == 0)
+                    Debug.Log($"[Curriculum] Gate hält Phase {currentPhaseIndex} ({phase.difficulty}): SuccessRate={rate:P0} (Fenster {successResults.Count}, benötigt {phase.minSuccessRate:P0}) | Fortschritt {progress}/{hardCap} bis Notausstieg");
+                return;
+            }
+
+            Debug.Log($"[Curriculum] Gate passiert für Phase {currentPhaseIndex} ({phase.difficulty}): SuccessRate={rate:P0}, Fortschritt {progress} (Notausstieg bei {hardCap})");
+        }
 
         if (isLastPhase)
             currentPhaseIndex = Mathf.Clamp(config.loopStartPhaseIndex, 0, config.phases.Length - 1);
@@ -174,6 +230,8 @@ public static class CurriculumTracker
         currentLayoutIndexInPhase = 0;
         episodeCountInPhase       = 0;
         stepCountInPhase          = 0;
+        successResults.Clear();
+        successCount              = 0;
         SaveState();
 
         Debug.Log($"[Curriculum] Phase gewechselt → Phase {currentPhaseIndex} ({config.phases[currentPhaseIndex].difficulty})");

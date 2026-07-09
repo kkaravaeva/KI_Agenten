@@ -28,13 +28,13 @@ public class AgentAudio : MonoBehaviour
         _grounded    = Physics.Raycast(transform.position, Vector3.down, GroundRayLen);
 
         // Jump: was grounded last frame, now airborne, moving upward
-        if (_wasGrounded && !_grounded && _rb.velocity.y > JumpMinVelY)
+        if (_wasGrounded && !_grounded && _rb.linearVelocity.y > JumpMinVelY)
             AudioManager.Instance.PlayJump();
 
         // Footstep: grounded and moving fast enough
         if (_grounded)
         {
-            float horizSpeed = new Vector3(_rb.velocity.x, 0f, _rb.velocity.z).magnitude;
+            float horizSpeed = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z).magnitude;
             if (horizSpeed > StepMinSpeed && Time.time - _lastStepTime > StepInterval)
             {
                 _lastStepTime = Time.time;

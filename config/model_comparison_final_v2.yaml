@@ -1,0 +1,146 @@
+env_settings:
+  num_envs: 3
+  seed: 42
+
+# ============================================================================
+# Modellvergleich FINAL v2 (ab 09.07.2026) — Hyperparameter unverändert aus
+# final v1 ("Best vs. Best"). Die Optimierungen liegen auf der Unity-Seite:
+#   - NEU: Zielrichtungs-Vektor als Observation (31 Vektor-Obs, wie milestone-7)
+#   - NEU: Loch-Vermeidungs-Penalty (Edge-Trigger -1), Lava-Sprung-Boni unverändert
+#   - NEU: 8-Phasen-Curriculum mit TrivialHole + TrivialHazard, Gates bis Medium,
+#     Loop Hard->Easy (siehe Assets/Editor/CurriculumV2Builder.cs)
+#
+# Identisch für alle drei Behaviors (Fairness-Ebene):
+#   - Unity-Seite komplett (LabyrinthAgent, Prefab, Sensorik, Rewards, Curriculum)
+#   - max_steps 30M, Seeds, num_envs, Curiosity-Stärke, Checkpoint-/Logging-Takt
+#
+# Pro Architektur verschieden (Lernverfahren-Ebene), Quellen:
+#   - Transformer: 1:1 aus milestone-7 config/labyrinth_transformer.yaml (V14-erprobt)
+#   - LSTM:        aus config/labyrinth_lstm_v7.yaml (letzte LSTM-Iteration)
+#   - MLP:         aus M5-Baseline (labyrinth_training.yaml), drei dokumentierte
+#                  Anpassungen an heutige Episodenlängen (buffer, gamma, horizon)
+# ============================================================================
+
+behaviors:
+
+  # -- Transformer — 1:1 aus milestone-7 (V14-erprobt) -----------------------
+  Transformer_Navigator:
+    trainer_type: ppo
+
+    network_settings:
+      normalize: false
+      hidden_units: 256    # = d_model des Transformers (nhead=4 -> 64 dim/Head)
+      num_layers: 2        # MLP-Schichten vor dem Transformer
+      memory:
+        sequence_length: 16   # Attention-Fenster: 16 vergangene Steps
+        memory_size: 128      # output_size = 128//2 = 64 (LSTM-kompatibel)
+        memory_type: transformer
+
+    hyperparameters:
+      learning_rate: 1.0e-4      # V6-Fix: 3e-4 destabilisierte den Transformer
+      batch_size: 1024
+      buffer_size: 81920
+      beta: 1.0e-3               # V7-Fix: 5e-3 verhinderte Entropie-Konvergenz
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.997             # V13-Fix: Planungshorizont ~330 Steps
+        strength: 1.0
+      curiosity:
+        strength: 0.05
+        gamma: 0.99
+        learning_rate: 3.0e-4
+        network_settings:
+          hidden_units: 128
+          num_layers: 2
+
+    max_steps: 30000000
+    time_horizon: 256
+    summary_freq: 10000
+    keep_checkpoints: 5
+    checkpoint_interval: 200000
+    threaded: true
+
+  # -- LSTM — aus lstm_v7 (letzte LSTM-Optimierungsiteration) ----------------
+  LSTM_Navigator:
+    trainer_type: ppo
+
+    network_settings:
+      normalize: true            # lstm_v2-Lektion: stabilisiert Encoder im Curriculum
+      hidden_units: 256
+      num_layers: 2
+      memory:
+        sequence_length: 16
+        memory_size: 256
+        memory_type: lstm
+
+    hyperparameters:
+      learning_rate: 3.0e-4
+      batch_size: 512
+      buffer_size: 40960
+      beta: 5.0e-3
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.995
+        strength: 1.0
+      curiosity:                 # ergänzt — Fairness-Kriterium R5: alle oder keiner
+        strength: 0.05
+        gamma: 0.99
+        learning_rate: 3.0e-4
+        network_settings:
+          hidden_units: 128
+          num_layers: 2
+
+    max_steps: 30000000
+    time_horizon: 512
+    summary_freq: 10000
+    keep_checkpoints: 5
+    checkpoint_interval: 200000
+    threaded: true
+
+  # -- MLP — M5-Baseline, minimal an heutige Episodenlängen angepasst --------
+  MLP_Navigator:
+    trainer_type: ppo
+
+    network_settings:
+      normalize: false           # wie M5-Baseline
+      hidden_units: 256
+      num_layers: 2
+
+    hyperparameters:
+      learning_rate: 3.0e-4
+      batch_size: 512
+      buffer_size: 40960         # M5: 10240 — zu klein für MaxStep-1200-Episoden (V7-Lektion)
+      beta: 5.0e-3
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.995             # M5: 0.99 — bei 1200-Step-Episoden Ziel unsichtbar (V14-Diagnose)
+        strength: 1.0
+      curiosity:                 # ergänzt — Fairness-Kriterium R5: alle oder keiner
+        strength: 0.05
+        gamma: 0.99
+        learning_rate: 3.0e-4
+        network_settings:
+          hidden_units: 128
+          num_layers: 2
+
+    max_steps: 30000000
+    time_horizon: 512            # M5: 64 — zu kurz für sparse +30-Goal
+    summary_freq: 10000
+    keep_checkpoints: 5
+    checkpoint_interval: 200000
+    threaded: true

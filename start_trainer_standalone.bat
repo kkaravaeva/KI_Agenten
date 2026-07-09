@@ -4,8 +4,8 @@ cd /d "C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten"
 
 set BUILD=Build\KI_Agenten.exe
 set PY="C:\Users\alxbe\KI_Agent\.venv\Scripts\python.exe"
-set CFG=config\model_comparison_standalone.yaml
-set RUN_ID=model_comparison_v4
+set CFG=config\model_comparison_final_v2.yaml
+set RUN_ID=model_comparison_final_v2
 set LOGDIR=trainer_logs
 set LOGFILE=%LOGDIR%\%RUN_ID%.log
 
@@ -28,9 +28,9 @@ if exist "results\%RUN_ID%\LSTM_Navigator\checkpoint.pt" (
          --env "%BUILD%" ^
          --base-port 5004 ^
          --results-dir "results" ^
-         --num-envs 2 ^
+         --num-envs 3 ^
          --no-graphics ^
-         --time-scale 20 ^
+         --time-scale 40 ^
          --timeout-wait 120 ^
          --resume >> "%LOGFILE%" 2>&1
 ) else (
@@ -41,9 +41,9 @@ if exist "results\%RUN_ID%\LSTM_Navigator\checkpoint.pt" (
          --env "%BUILD%" ^
          --base-port 5004 ^
          --results-dir "results" ^
-         --num-envs 2 ^
+         --num-envs 3 ^
          --no-graphics ^
-         --time-scale 20 ^
+         --time-scale 40 ^
          --timeout-wait 120 >> "%LOGFILE%" 2>&1
 )
 

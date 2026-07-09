@@ -441,10 +441,10 @@ public class HumanAgentVisual : MonoBehaviour
     {
         if (_rb == null) return;
 
-        Vector3 hVel    = new Vector3(_rb.velocity.x, 0f, _rb.velocity.z);
+        Vector3 hVel    = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
         float   speed   = hVel.magnitude;
         float   blend   = Mathf.Clamp01(speed / 4.5f);
-        bool    airborne= Mathf.Abs(_rb.velocity.y) > 0.5f
+        bool    airborne= Mathf.Abs(_rb.linearVelocity.y) > 0.5f
                           && !Physics.Raycast(transform.position, Vector3.down, 0.72f);
 
         _walkPhase += Time.deltaTime * speed * 3.5f;
@@ -484,9 +484,9 @@ public class HumanAgentVisual : MonoBehaviour
         // ── Airborne pose ─────────────────────────────────────────────────────
         if (airborne)
         {
-            float ab = Mathf.Clamp01(Mathf.Abs(_rb.velocity.y) * 0.18f);
+            float ab = Mathf.Clamp01(Mathf.Abs(_rb.linearVelocity.y) * 0.18f);
             // Tuck knees up slightly when rising, extend when falling
-            float kneeAng = _rb.velocity.y > 0f ? 25f : -10f;
+            float kneeAng = _rb.linearVelocity.y > 0f ? 25f : -10f;
             if (_lKnee) _lKnee.localRotation = Quaternion.Lerp(_lKnee.localRotation,
                 Quaternion.Euler(kneeAng, 0f, 0f), ab * 0.6f);
             if (_rKnee) _rKnee.localRotation = Quaternion.Lerp(_rKnee.localRotation,
