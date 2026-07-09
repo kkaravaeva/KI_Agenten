@@ -3,8 +3,8 @@ title [TRAINER] ML-Agents Editor-Training v5
 cd /d "C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten"
 
 set PY="C:\Users\alxbe\KI_Agent\.venv\Scripts\python.exe"
-set CFG=config\model_comparison_final_v2.yaml
-set RUN_ID=model_comparison_final_v2
+set CFG=config\model_comparison_final_v3.yaml
+set RUN_ID=model_comparison_final_v3
 set TIME_SCALE=10
 set LOGDIR=trainer_logs
 set LOGFILE=%LOGDIR%\%RUN_ID%.log
