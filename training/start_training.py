@@ -24,8 +24,13 @@ from pathlib import Path
 # ── Konfiguration ──────────────────────────────────────────────────────────────
 
 PROJECT_DIR = Path(__file__).parent.parent   # KI_Agenten/
-VENV        = Path(r"C:\Users\alxbe\KI_Agent\.venv")
-PYTHON      = VENV / "Scripts" / "python.exe"
+
+# venv-Python portabel finden (Laptop oder Desktop); zuerst Kandidaten, dann sys.executable
+_VENV_CANDIDATES = [
+    Path(r"C:\Users\Finnl\mlagents-31008\Scripts\python.exe"),
+    Path(r"C:\Users\alxbe\KI_Agent\.venv\Scripts\python.exe"),
+]
+PYTHON = next((p for p in _VENV_CANDIDATES if p.exists()), Path(sys.executable))
 CONFIG      = "config/model_comparison.yaml"
 DEFAULT_RUN = "model_comparison_v1"
 
@@ -72,7 +77,7 @@ print("=== Model Comparison Training starten ===")
 print(f"  Config:    {config}")
 print(f"  Run-ID:    {run_id}")
 print(f"  Flags:     {flags_str}")
-print(f"  Venv:      {VENV}")
+print(f"  Python:    {PYTHON}")
 print()
 print("  Behaviors in dieser Config:")
 print("    LSTM_Navigator        -> Spalte 0 (LSTM_0/1/2)")

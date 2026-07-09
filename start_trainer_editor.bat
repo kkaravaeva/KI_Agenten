@@ -1,8 +1,12 @@
 @echo off
 title [TRAINER] ML-Agents Editor-Training v5
-cd /d "C:\Users\alxbe\Documents\DHBW\Kurse\Studienarbeit\KI_Agenten"
+cd /d "%~dp0"
 
-set PY="C:\Users\alxbe\KI_Agent\.venv\Scripts\python.exe"
+REM --- venv-Python automatisch finden (portabel: Laptop oder Desktop) ---
+set PY=
+if exist "C:\Users\Finnl\mlagents-31008\Scripts\python.exe" set PY="C:\Users\Finnl\mlagents-31008\Scripts\python.exe"
+if exist "C:\Users\alxbe\KI_Agent\.venv\Scripts\python.exe" set PY="C:\Users\alxbe\KI_Agent\.venv\Scripts\python.exe"
+if not defined PY ( echo FEHLER: Keine mlagents-venv gefunden - Pfad in dieser .bat anpassen. & pause & exit /b 1 )
 set CFG=config\model_comparison_final_v3.yaml
 set RUN_ID=model_comparison_final_v3
 set TIME_SCALE=10
