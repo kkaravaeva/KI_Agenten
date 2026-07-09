@@ -56,7 +56,7 @@
 // ============================================================================
 = Einleitung
 // >>> AUFTEILUNG DIESES KAPITELS (ALT -> NEU):
-//     "Motivation und Kontext"           -> SPLIT: 1.1 Restaurant | 1.2 Abstraktion(+Analogie) | 1.3 Generalisierung | 1.5 Forschungsluecke
+//     "Motivation und Kontext"           -> SPLIT: 1.1 Restaurant | 1.2 Abstraktion(+Analogie) | 1.3 Generalisierung | 1.5 ForschungslÃ¼cke
 //     "Problemstellung/Forschungsfrage"  -> 1.5
 //     "Zielsetzung und Abgrenzung"       -> 1.6
 //     "Aufbau der Arbeit"                -> 1.7
@@ -75,23 +75,24 @@ Autonome Navigation gehört zu den zentralen offenen Problemen der Robotik und d
 Klassische Pfadfindungsalgorithmen wie $A*$ @hart_formal_1968 oder Dijkstras Algorithmus  (Dijkstra, 1959 https://ir.cwi.nl/pub/9256/9256D.pdf) lösen das Navigationsproblem, indem Sie den kürzesten Pfad zwischen zwei Punkten in einem Graphen finden. Ihre
 Grundvoraussetzung ist jedoch, dass der gesamte Umgebungsgraph bekannt und statisch ist. Sobald diese Annahme verletzt wird, weil die Karte nur teilweise bekannt ist oder sich Hindernisse verändern, versagen diese Verfahren und erfordern aufwändige Erweiterungen wie dynamisches Replanning $D*$, @stentz_optimal_1994. Darüber hinaus setzen sie eine exakte Lokalisierung des Agenten innerhalb der Karte voraus, die in realen Systemen ebenfalls mit Unsicherheit behaftet ist.
 
-Reinforcement Learning (RL) bietet einen grundsätzlich anderen Ansatz: Anstatt einen optimalen Pfad auf einer vollständigen Karte zu berechnen, erlernt ein RL-Agent durch wiederholte Interaktion mit seiner Umgebung eine Verhaltensstrategie (Policy), die Beobachtungen auf Aktionen abbildet. Wissen über die Karte ist dabei nicht Voraussetzung, sondern das Resultat des Lernprozesses. Der Agent entwickelt implizit Navigationsstrategien, die auf seine Sensorinformationen zurückgreifen. Mit tiefen neuronalen Netzen als Funktionsapproximatoren (Deep RL) sind in den letzten Jahren bemerkenswerte Ergebnisse in komplexen Navigationsaufgaben erzielt worden @mnih_human-level_nodate. Reinforcement Learning stellt einen vielversprechender Ansatz zur Lösung des autonomen Navigationsproblemes dar.
+Reinforcement Learning (RL) bietet einen grundsätzlich anderen Ansatz: Anstatt einen optimalen Pfad auf einer vollständigen Karte zu berechnen, erlernt ein RL-Agent durch wiederholte Interaktion mit seiner Umgebung eine Verhaltensstrategie (Policy), die Beobachtungen auf Aktionen abbildet. Wissen über die Karte ist dabei nicht Voraussetzung, sondern das Resultat des Lernprozesses. Der Agent entwickelt implizit Navigationsstrategien, die auf seine Sensorinformationen zurückgreifen. Mit tiefen neuronalen Netzen als Funktionsapproximatoren (Deep RL) sind in den letzten Jahren bemerkenswerte Ergebnisse in komplexen Navigationsaufgaben erzielt worden @mnih_human-level_2015. Reinforcement Learning stellt einen vielversprechender Ansatz zur Lösung des autonomen Navigationsproblemes dar.
 Die vorliegende Arbeit untersucht, welche neuronale Netzwerkarchitektur einem RL-Agenten besonders geeignet ist, um in einer prozedural generierten 3D-Labyrinthwelt zuverlässig von einem Startpunkt zu einem Ziel zu navigieren. Als Lernverfahren wird Proximal Policy Optimization @schulman_proximal_2017  eingesetzt, das sich als stabiler Standard für diskrete Aktionsräume in simulierten Umgebungen etabliert hat. Die Umgebung wird in Unity 2021.3 mithilfe des ML-Agents-Frameworks realisiert.
 == Problemstellung
 
-// - Hauptforschungsfrage:
-//   "Kann ein Transformer-basierter RL-Agent in einer selbst gebauten 3D-Labyrinthwelt weiter unten, darunter bitte
-//    generalisierbares Navigations- und Hindernisvermeidungsverhalten erlernen,
+// - Hauptforschungsfrage (Vergleichsformulierung wie 1.1 — kein Transformer-Fokus):
+//   "Welche neuronale Netzwerkarchitektur (MLP, LSTM oder Transformer) ist für
+//    einen RL-Agenten geeignet, um in einer prozedural generierten 3D-Labyrinthwelt
+//    generalisierbares Navigations- und Hindernisvermeidungsverhalten zu erlernen,
 //    das sich auf unbekannte Map-Layouts übertragen lässt?"
-// - Forschungsfragen F1-F3 (temporales Gedaechtnis · LSTM vs. Transformer ·
-//   Generalisierung); Uebertragbarkeit nur qualitativ in Kap. 9,
+// - Forschungsfragen F1-F3 (temporales GedÃ¤chtnis · LSTM vs. Transformer ·
+//   Generalisierung); Ãœbertragbarkeit nur qualitativ in Kap. 9,
 //   Sensorvergleich -> Ausblick Kap. 10
 // - Hypothesen H1–H3 (gerichtet, zu F1–F3; in 1.x Forschungsfrage ausformuliert)
 Das in dieser Arbeit betrachtete Navigationsproblem weist zwei Eigenschaften auf, die es von den Annahmen klassischer Pfadfindungsalgorithmen grundlegend unterscheiden.
-Zum einen die partielle Observierbarkeit. Der Agent nimmt seine Umgebung ausschließlich über einen Ray-Perception-Sensor wahr: elf Lichtstrahlen, die in einem Winkel von 120° ausgesandt werden und beim Auftreffen auf erkannte Objekte (Wände, Lava, Löcher, Ziel) deren Typ und Entfernung zurückliefern. Ergänzt wird diese Information durch einen 13-dimensionalen Handcoded-Vektor (Eigengeschwindigkeit,Bodentyp unter dem Agenten, normalisierte Richtung zum Ziel). Der Agent besitzt zu keinem Zeitpunkt eine globale Karte seiner Umgebung. Das Navigationsproblem ist damit formal ein Partially Observable Markov Decision Process  (POMDP, Kaelbling et al., 1998 ): Der aktuelle Beobachtungsvektor allein identifiziert den Zustand der Welt nicht eindeutig.
+Zum einen die partielle Observierbarkeit. Der Agent nimmt seine Umgebung ausschließlich über einen Ray-Perception-Sensor wahr: elf Raycasts, die in einem Winkel von 120° ausgesandt werden und beim Auftreffen auf erkannte Objekte (Wände, Lava, Löcher, Ziel) deren Typ und Entfernung zurückliefern; über zwei Zeitschritte gestapelt ergeben sie 176 Ray-Beobachtungen. Ergänzt wird diese Information durch einen 31-dimensionalen Handcoded-Vektor: 18 Werte eines nach unten gerichteten Boden-Sensors (9 Punkte mit je Typ-Code und Distanz), 3 Werte Eigengeschwindigkeit, 1 Bodenkontakt-Flag, 1 normalisierte Zieldistanz, 3 Werte Zielrichtung, 4 Wand-Raycasts und 1 Line-of-Sight-Flag. Der Agent besitzt zu keinem Zeitpunkt eine globale Karte seiner Umgebung. Das Navigationsproblem ist damit formal ein Partially Observable Markov Decision Process  (POMDP, Kaelbling et al., 1998 ): Der aktuelle Beobachtungsvektor allein identifiziert den Zustand der Welt nicht eindeutig.
 
 Die zweite Eigenschaft sind Sackgassen und das Gedächtnisproblem. Partielle Observierbarkeit wird kritisch, wenn der Agent in eine Sackgasse gerät.
-Ohne Erinnerung daran, welche Richtungen er bereits erfolglos versucht hat, verhält sich ein gedächtnisloser Agent in einer Sackgasse reaktiv: Er nimmt in jedem Timestep dieselben Ray-Werte wahr und trifft dieselbe Entscheidung(er dreht sich im Kreis oder wechselt zwischen zwei Positionen). Die Beobachtung „Wand links, Wand rechts, Wand vorne" ist ohne temporalen Kontext nicht von der Situation „Wand links, Wand rechts, Wand vorne, und ich bin gerade von hinten hereingekommen" zu unterscheiden. Ein Multilayer Perceptron (MLP), das jeden Timestep unabhängig verarbeitet, ist strukturell außerstande, diese Unterscheidung zutreffen.
+Ohne Erinnerung daran, welche Richtungen er bereits erfolglos versucht hat, verhält sich ein gedächtnisloser Agent in einer Sackgasse reaktiv: Er nimmt in jedem Timestep dieselben Ray-Werte wahr und trifft dieselbe Entscheidung(er dreht sich im Kreis oder wechselt zwischen zwei Positionen). Die Beobachtung „Wand links, Wand rechts, Wand vorne" ist ohne temporalen Kontext nicht von der Situation „Wand links, Wand rechts, Wand vorne, und ich bin gerade von hinten hereingekommen" zu unterscheiden. Ein Multilayer Perceptron (MLP) ohne temporales Gedächtnis ist strukturell außerstande, diese Unterscheidung zu treffen. Zwei gestapelte Beobachtungs-Frames (stacked = 2) und die permanent verfügbare Zielrichtungs-Observation entschärfen die partielle Observierbarkeit zwar lokal; eine Sackgassen-Rückverfolgung erfordert jedoch temporalen Kontext über deutlich mehr als zwei Timesteps — genau diese Lücke sollen LSTM und Transformer füllen.
 Dieser Sachverhalt wirft die Frage der Arbeit auf: Benötigt der Agent ein explizites temporales Gedächtnis, um in partiell observierbaren Labyrinth erfolgreich zu navigieren? Zwei Architekturklassen bieten unterschiedliche Antworten darauf. Long Short-Term Memory-Netze (LSTM, Hochreiter & Schmidhuber, 1997) komprimieren vergangene Beobachtungen in einen kontinuierlichen Hidden State, der von Timestep zu Timestep weitergegeben wird(ein implizites Gedächtnis). Transformer-Encoder (Vaswani et al.,2017) hingegen verarbeiten eine explizite Sequenz der letzten $N$ Beobachtungen und können über Self-Attention-Mechanismen gezielt auf relevante vergangene Zustände zurückgreifen(ein explizites, aber fensterbegrenztes Gedächtnis).
 Ob und in welchem Ausmaß diese Architekturklassen die Navigationsleistung gegenüber einem gedächtnislosen MLP verbessern, und welche der beiden Gedächtnisarchitekturen überlegen ist, ist bislang für Ray-basierte RL-Navigation in prozedural generierten Umgebungen nicht systematisch untersucht worden.
 
@@ -120,10 +121,10 @@ Als Antwort kommen zwei Architekturklassen in Frage — LSTM und Transformer —
 
 == Forschungsfrage
 // ANKERENTSCHEIDUNG (verbindlich): Das Fragensystem dieser Arbeit ist F1-F3.
-// Die frueheren RQ1 (Sensortyp) und RQ3 (Sensor-Fusion) sind KEINE Forschungsfragen
-// mehr — sie verlangen einen Sensormodalitaets-Vergleich, der gestrichen wurde, und
-// existieren nur noch als zurueckgestellte Erweiterung im Ausblick (Kap. 10).
-// Uebertragbarkeit (frueher RQ4) wird qualitativ in Kap. 9 diskutiert — ohne
+// Die frÃ¼heren RQ1 (Sensortyp) und RQ3 (Sensor-Fusion) sind KEINE Forschungsfragen
+// mehr — sie verlangen einen SensormodalitÃ¤ts-Vergleich, der gestrichen wurde, und
+// existieren nur noch als zurÃ¼ckgestellte Erweiterung im Ausblick (Kap. 10).
+// Ãœbertragbarkeit (frÃ¼her RQ4) wird qualitativ in Kap. 9 diskutiert — ohne
 // RQ-Label und ohne Metrik.
 Aus der beschriebenen Problemstellung leiten sich drei Forschungsfragen ab, die in dieser Arbeit empirisch beantwortet werden:
 
@@ -131,12 +132,12 @@ F1: Mehrwert temporalen Gedächtnisses:
 
 "Verbessert zeitliches Gedächtnis (LSTM bzw. Transformer) die Erfolgsrate eines RL-Agenten in partiell observierbaren Labyrinthwelten gegenüber einem gedächtnislosen MLP-Basisagenten?"
 
-Diese Frage prüft die grundlegende Hypothese, dass temporale Kontextinformation für die betrachtete Aufgabe notwendig oder zumindest deutlich vorteilhaft ist. Gemessen wird die Erfolgsrate (Anteil erfolgreich abgeschlossener Episoden) über die letzten 100 Trainings-Episoden nach Trainingsabschluss.
+Diese Frage prüft die grundlegende Hypothese, dass temporale Kontextinformation für die betrachtete Aufgabe notwendig oder zumindest deutlich vorteilhaft ist. Gemessen wird die Erfolgsrate (Anteil erfolgreich abgeschlossener Episoden) in separaten Evaluationsläufen nach Trainingsabschluss; das vollständige Messprotokoll ist in Kapitel 5.5 definiert.
 
 F2: Vergleich LSTM und Transformer:
 "Unterscheiden sich LSTM und Transformer in ihrer Konvergenzgeschwindigkeit und ihrem finalen Leistungsscore bei Ray-basierter Labyrinth-Navigation?"
 
-Diese Frage zielt auf die praktische Wahl zwischen den beiden Gedächtnisarchitekturen. Konvergenzgeschwindigkeit wird operationalisiert als die Anzahl Trainingsschritte bis zum erstmaligen Erreichen einer Erfolgsrate von 80 %. Der finale Score entspricht dem mittleren kumulativen Episoden-Reward in den letzten 100 Trainings-Episoden.
+Diese Frage zielt auf die praktische Wahl zwischen den beiden Gedächtnisarchitekturen. Konvergenzgeschwindigkeit wird operationalisiert als die Anzahl Trainingsschritte bis zum nachhaltigen Überschreiten einer Erfolgsrate von 80 %; der finale Score wird als mittlerer kumulativer Episoden-Reward in separaten Evaluationsläufen erhoben. Die vollständigen Metrik-Definitionen folgen in Kapitel 5.5.
 
 F3: Generalisierung auf unbekannte Maps:
 "Welche der drei Architekturen (MLP, LSTM, Transformer) generalisiert am zuverlässigsten auf prozedural generierte Maps, die während des Trainings nie gesehen wurden?"
@@ -146,10 +147,10 @@ Generalisierung wird auf drei fixierten Evaluation-Maps gemessen, die vor Traini
 Die drei Forschungsfragen sind bewusst aufeinander aufbauend: F1 klärt, ob Gedächtnis prinzipiell nützt; F2 differenziert zwischen den Gedächtnistypen; F3 bewertet die praktische Robustheit der besten Konfiguration.
 
 Zu den drei Forschungsfragen werden folgende gerichtete Hypothesen aufgestellt:
-// TODO: Richtungen von H2/H3 ggf. gegen den Forschungsplan pruefen
+// TODO: Richtungen von H2/H3 ggf. gegen den Forschungsplan prÃ¼fen
 H1 (zu F1): Agenten mit temporalem Gedächtnis (LSTM, Transformer) erreichen nach Trainingsabschluss eine höhere Erfolgsrate als der gedächtnislose MLP-Basisagent; der Unterschied zeigt sich insbesondere in Layouts mit Sackgassen.
 
-H2 (zu F2): Der Transformer erreicht einen höheren finalen Leistungsscore als das LSTM, benötigt jedoch mehr Trainingsschritte bis zum erstmaligen Erreichen der 80-%-Erfolgsschwelle (langsamere Konvergenz).
+H2 (zu F2): Der Transformer erreicht einen höheren finalen Leistungsscore als das LSTM, benötigt jedoch mehr Trainingsschritte bis zum nachhaltigen Überschreiten der 80-%-Erfolgsschwelle (langsamere Konvergenz).
 
 H3 (zu F3): Architekturen mit temporalem Gedächtnis weisen einen geringeren Overfitting-Index auf als der MLP-Basisagent, generalisieren also zuverlässiger auf prozedural generierte Maps, die im Training nie gesehen wurden.
 == Ziel der Arbeit    //Finn
@@ -174,11 +175,11 @@ H3 (zu F3): Architekturen mit temporalem Gedächtnis weisen einen geringeren Ove
 Um die Vergleichbarkeit der Ergebnisse zu gewährleisten und den experimentellen Aufwand auf die Kernfragen zu fokussieren, werden folgende Einschränkungen bewusst getroffen:
 Sensorik: Ausschließlich Ray-basierte Wahrnehmung. Der Agent verwendet den RayPerceptionSensor3D von Unity ML-Agents in Kombination mit einem manuell kodierten VectorSensor. Kamerabasierte Beobachtungen (Pixel-Tensoren) und Multi-Sensor-Konfigurationen werden in dieser Arbeit nicht untersucht. Diese Einschränkung ist methodisch begründet: Erstens isoliert die einheitliche Ray-Sensorik aller Agenten die Wirkung der temporalen Architektur von der Wirkung des visuellen Encoders, denn bei Kamera-Agenten wäre unklar, ob beobachtete Unterschiede aus dem Temporal-Modul oder aus dem CNN-Modul stammen. Zweitens erlaubt die niedrigdimensionale Ray-Repräsentation (Float-Vektoren statt Pixel-Arrays) deutlich kürzere Trainingszeiten und damit eine höhere Anzahl vollständiger Experiment-Wiederholungen. Der ursprünglich erwogene Sensormodalitäts-Vergleich (Kamera, Sensor-Fusion) wird als zurückgestellte Erweiterung im Ausblick (Kapitel 10) wieder aufgegriffen.
 
- Als Trainingsalgorithmus wird Proximal Policy Optimization (PPO) verwendet. Alternative Verfahren wie Deep Q-Networks @mnih_human-level_nodate oder Soft Actor-Critic @haarnoja_soft_2018 werden nicht betrachtet. PPO bietet nativen Support für LSTM- und Transformer-Architekturen im Unity ML-Agents Framework und ist als On-Policy-Verfahren mit diskreten Aktionsräumen besonders gut geeignet. DQN ist primär für Value-Based Learning ohne explizite Policy-Parametrisierung ausgelegt. SAC ist für kontinuierliche Aktionsräume optimiert.
+ Als Trainingsalgorithmus wird Proximal Policy Optimization (PPO) verwendet. Alternative Verfahren wie Deep Q-Networks @mnih_human-level_2015 oder Soft Actor-Critic @haarnoja_soft_2018 werden nicht betrachtet. PPO bietet nativen Support für LSTM- und Transformer-Architekturen im Unity ML-Agents Framework und ist als On-Policy-Verfahren mit diskreten Aktionsräumen besonders gut geeignet. DQN ist primär für Value-Based Learning ohne explizite Policy-Parametrisierung ausgelegt. SAC ist für kontinuierliche Aktionsräume optimiert.
 
 Umgebung: Keine dynamischen Hindernisse. Das Labyrinth enthält ausschließlich statische Hindernisse: Wände, Lavafelder und Bodenlöcher, deren Position pro Episode zufällig neu platziert, aber während einer Episode nicht verändert wird. Bewegliche Hindernisse (rotierende Stacheln, patroullierende Gegner) würden die Komplexität der Aufgabe erheblich erhöhen und die Interpretation der Ergebnisse erschweren. Sie bleiben einer möglichen Weiterentwicklung vorbehalten.
 
-Diese Einschränkungen sind keine Schwäche, sondern methodische Stärke des Designs: Durch die Kontrolle von Sensormodalität und Lernverfahren können beobachtete Leistungsunterschiede kausal der temporalen Architektur zugeschrieben werden.
+Diese Einschränkungen sind keine Schwäche, sondern methodische Stärke des Designs: Die Kontrolle von Sensormodalität und Lernverfahren erlaubt es, beobachtete Leistungsunterschiede primär auf die temporale Architektur zurückzuführen. Ein strenger Kausalanspruch wird jedoch nicht erhoben, da sich die Trainingskonfigurationen der Architekturen in einzelnen Tuning-Parametern (u. a. gamma, max_steps, Curiosity) unterscheiden; diese Abweichungen werden in Abschnitt 5.3 begründet und in Kapitel 10 als Limitation geführt.
 == Aufbau der Arbeit //Optional (Arbeitspakete?)
 
 // - Kurze Übersicht der Kapitel
@@ -188,13 +189,13 @@ Diese Einschränkungen sind keine Schwäche, sondern methodische Stärke des Des
 // 2. THEORETISCHE GRUNDLAGEN
 // ============================================================================
 = Theoretische Grundlagen  //David
-// >>> BLEIBT KAPITEL 2 — nur Reihenfolge/Rahmung geaendert (ALT -> NEU):
+// >>> BLEIBT KAPITEL 2 — nur Reihenfolge/Rahmung geÃ¤ndert (ALT -> NEU):
 //     "Maschinelles Lernen und RL"       -> 2.1
 //     "Proximal Policy Optimization"     -> 2.2
 //     "Wahrnehmung in RL-Agenten"        -> 2.3  (VORGEZOGEN, vor Sequenzmodellierung)
-//     "Sequenzmodellierung fuer RL"      -> 2.4  (LSTM -> 2.4.2, Transformer -> 2.4.3)
+//     "Sequenzmodellierung fÃ¼r RL"      -> 2.4  (LSTM -> 2.4.2, Transformer -> 2.4.3)
 //     "Unity ML-Agents Toolkit"          -> 2.5
-//     (NEU 2.4.1 Gedaechtnisproblem: NEU/kurz; Motivation auch in 1.5)
+//     (NEU 2.4.1 GedÃ¤chtnisproblem: NEU/kurz; Motivation auch in 1.5)
 
 == Künstliche Intelligenz
 Künstliche Intelligenz (KI) bezeichnet den Bereich der Informatik, der sich mit der Entwicklung maschinenbasierter Systeme befasst, die Aufgaben ausführen können, die  menschliche Intelligenz erfordern, wie beispielsweise Problemlösung, Sprachverständnis oder Mustererkennung @bhagwan_comprehensive_2024
@@ -255,26 +256,26 @@ Für diese Arbeit ist die Unterscheidung relevant, da Proximal Policy Optimizati
 // - On-Policy vs. Off-Policy
 
 == Proximal Policy Optimization (PPO)
-Proximal Policy Optimization (PPO) ist ein Policy-Gradient-Verfahren, das zwischen der Datenerhebung durch Interaktion mit der Umgebung und der Optimierung einer sogenannten Surrogate-Zielfunktion wechselt. Im Gegensatz zu einfachen Policy-Gradient-Verfahren erlaubt PPO mehrere Optimierungsschritte auf denselben gesammelten Rollout-Daten, ohne dass die Policy dabei zu stark verändert werden soll [@schulman_proximal_2017;S.1].
+Proximal Policy Optimization (PPO) ist ein Policy-Gradient-Verfahren, das zwischen der Datenerhebung durch Interaktion mit der Umgebung und der Optimierung einer sogenannten Surrogate-Zielfunktion wechselt. Im Gegensatz zu einfachen Policy-Gradient-Verfahren erlaubt PPO mehrere Optimierungsschritte auf denselben gesammelten Rollout-Daten, ohne dass die Policy dabei zu stark verändert werden soll @schulman_proximal_2017[S. 1].
 === Actor-Critic-Framework
 PPO wird in der Praxis häufig im Actor-Critic-Framework eingesetzt. Dabei übernimmt der Actor die Repräsentation der Policy $pi_theta (a | s)$ und bestimmt, mit welcher Wahrscheinlichkeit eine Aktion $a$ in einem Zustand $s$ ausgewählt wird. Der Critic schätzt den langfristigen Nutzen eines Zustands über eine Value-Funktion und dient damit als Bewertungsinstanz für die vom Actor gewählten Aktionen.
 Ein zentrales Konzept hierbei ist der Advantage. Der Advantage beschreibt, ob eine ausgeführte Aktion besser oder schlechter war als vom Critic erwartet. Ist der Advantage positiv, spricht dies dafür, dass die gewählte Aktion in einer vergleichbaren Situation wahrscheinlicher werden sollte. Ist der Advantage negativ, sollte ihre Wahrscheinlichkeit entsprechend reduziert werden. Durch diese Trennung zwischen Actor und Critic kann die Varianz der Policy-Gradient-Schätzung reduziert und das Training stabilisiert werden @sutton_reinforcement_2018.
 === Clipped Surrogate Objective
-Das zentrale Problem klassischer Policy-Gradient-Methoden besteht darin, dass zu große Aktualisierungsschritte die Policy stark verschlechtern können. PPO adressiert dieses Problem durch ein Clipping-Verfahren, das die Wirkung zu großer Änderungen im Policy-Update begrenzt [@schulman_proximal_2017;S.3f].
+Das zentrale Problem klassischer Policy-Gradient-Methoden besteht darin, dass zu große Aktualisierungsschritte die Policy stark verschlechtern können. PPO adressiert dieses Problem durch ein Clipping-Verfahren, das die Wirkung zu großer Änderungen im Policy-Update begrenzt @schulman_proximal_2017[S. 3 f.].
 Dazu wird zunächst das Wahrscheinlichkeitsverhältnis zwischen neuer und alter Policy für die tatsächlich ausgeführte Aktion definiert:
 $ r_t (theta) = frac(pi_theta (a_t | s_t), pi_(theta_"old")(a_t | s_t)) $
 
 Dieses Verhältnis beschreibt, wie stark sich die Wahrscheinlichkeit der gewählten Aktion unter der neuen Policy im Vergleich zur alten Policy verändert hat. Ein Wert von $r_t (theta) = 1$ bedeutet, dass beide Policies die Aktion gleich wahrscheinlich bewerten. Werte größer als 1 bedeuten, dass die neue Policy die Aktion wahrscheinlicher macht; Werte kleiner als 1 bedeuten, dass sie die Aktion weniger wahrscheinlich macht.Die zentrale PPO-Zielfunktion mit Clipping lautet:
 $ L^"CLIP" (theta) = EE_t [  min(    r_t (theta) hat(A)_t,    op("clip")(r_t (theta), 1 - epsilon, 1 + epsilon) hat(A)_t  )] $
-Dabei bezeichnet $hat(A)_t$ den geschätzten Advantage zum Zeitpunkt $t$. Der erste Term entspricht dem ungeclippten Policy-Gradient-Ziel. Der zweite Term begrenzt das Wahrscheinlichkeitsverhältnis auf den Bereich $[1 - epsilon, 1 + epsilon]$. Durch den Minimum-Operator wird verhindert, dass Änderungen der Policy, die zu einer zu starken Verbesserung des Zielfunktionswertes führen würden, unbeschränkt ausgenutzt werden. Dadurch wirkt PPO großen und potenziell destruktiven Policy-Updates entgegen [@schulman_proximal_2017;S.3f]. Ein häufig verwendeter Wert ist $epsilon = 0.2$. Dies bedeutet jedoch nicht, dass sich die gesamte Policy maximal um 20 % ändern darf. Korrekt ist, dass das Wahrscheinlichkeitsverhältnis im geclippten Term auf den Bereich $[0.8, 1.2]$ begrenzt wird [@schulman_proximal_2017;S.3f].
+Dabei bezeichnet $hat(A)_t$ den geschätzten Advantage zum Zeitpunkt $t$. Der erste Term entspricht dem ungeclippten Policy-Gradient-Ziel. Der zweite Term begrenzt das Wahrscheinlichkeitsverhältnis auf den Bereich $[1 - epsilon, 1 + epsilon]$. Durch den Minimum-Operator wird verhindert, dass Änderungen der Policy, die zu einer zu starken Verbesserung des Zielfunktionswertes führen würden, unbeschränkt ausgenutzt werden. Dadurch wirkt PPO großen und potenziell destruktiven Policy-Updates entgegen @schulman_proximal_2017[S. 3 f.]. Ein häufig verwendeter Wert ist $epsilon = 0.2$. Dies bedeutet jedoch nicht, dass sich die gesamte Policy maximal um 20 % ändern darf. Korrekt ist, dass das Wahrscheinlichkeitsverhältnis im geclippten Term auf den Bereich $[0.8, 1.2]$ begrenzt wird @schulman_proximal_2017[S. 3 f.].
 
 === Generalized Advantage Estimation (GAE)
-Für die praktische Schätzung des Advantage wird in PPO häufig Generalized Advantage Estimation (GAE) verwendet. GAE kombiniert Informationen aus mehreren Zeitschritten und steuert über den Parameter $lambda$ den Trade-off zwischen Bias und Varianz der Advantage-Schätzung. Kleine Werte von $lambda$ reduzieren typischerweise die Varianz, können aber stärkeren Bias verursachen. Große Werte verringern den Bias, erhöhen jedoch meist die Varianz. In vielen PPO-Konfigurationen wird $lambda = 0.95$ verwendet [@schulman_high-dimensional_2018;S.1f] [@schulman_proximal_2017;S.10].
+Für die praktische Schätzung des Advantage wird in PPO häufig Generalized Advantage Estimation (GAE) verwendet. GAE kombiniert Informationen aus mehreren Zeitschritten und steuert über den Parameter $lambda$ den Trade-off zwischen Bias und Varianz der Advantage-Schätzung. Kleine Werte von $lambda$ reduzieren typischerweise die Varianz, können aber stärkeren Bias verursachen. Große Werte verringern den Bias, erhöhen jedoch meist die Varianz. In vielen PPO-Konfigurationen wird $lambda = 0.95$ verwendet @schulman_high-dimensional_2018[S. 1 f.] @schulman_proximal_2017[S. 10].
 
 
 === Trainingszyklus und Hyperparameter
 
-Ein PPO-Trainingszyklus besteht typischerweise aus mehreren Schritten. Zunächst sammelt der Agent mit seiner aktuellen Policy Rollouts in der Umgebung. Anschließend werden Advantage-Schätzungen berechnet. Danach wird die Policy über mehrere Epochen mit Minibatches der gesammelten Daten aktualisiert. Nach Abschluss der Optimierung wird die aktualisierte Policy zur neuen alten Policy für die nächste Datensammlung [@schulman_proximal_2017;S.4f].
+Ein PPO-Trainingszyklus besteht typischerweise aus mehreren Schritten. Zunächst sammelt der Agent mit seiner aktuellen Policy Rollouts in der Umgebung. Anschließend werden Advantage-Schätzungen berechnet. Danach wird die Policy über mehrere Epochen mit Minibatches der gesammelten Daten aktualisiert. Nach Abschluss der Optimierung wird die aktualisierte Policy zur neuen alten Policy für die nächste Datensammlung @schulman_proximal_2017[S. 4 f.].
 
 Für diese Arbeit ist PPO besonders geeignet, da es als On-Policy-Verfahren gut zu kontrollierten Simulationsumgebungen passt und im Unity ML-Agents Framework als etablierter Trainingsalgorithmus verfügbar ist. Gegenüber DQN, das wertbasiert und off-policy arbeitet, sowie SAC, das insbesondere für kontinuierliche Aktionsräume verbreitet ist, stellt PPO für die untersuchte Navigationsaufgabe eine robuste und praktikable Wahl dar.
 
@@ -287,7 +288,7 @@ Für diese Arbeit ist PPO besonders geeignet, da es als On-Policy-Verfahren gut 
 == Sequenzmodellierung für RL
 
 
-Der MDP setzt durch die Markov-Eigenschaft voraus, dass der aktuelle Zustand alle für zukünftige Entscheidungen relevanten Informationen enthält. In praktischen Anwendungen ist diese Voraussetzung aus Sicht des Agenten jedoch häufig nicht vollständig erfüllt, da der Agent meist nur eine begrenzte Beobachtung der Umgebung erhält. Sutton und Barto betonen, dass eine Zustandsrepräsentation nicht auf unmittelbare Sensordaten beschränkt sein muss, sondern auch aus vergangenen Wahrnehmungen oder einem internen Gedächtnis aufgebaut werden kann [@sutton_reinforcement_2018;S.49].
+Der MDP setzt durch die Markov-Eigenschaft voraus, dass der aktuelle Zustand alle für zukünftige Entscheidungen relevanten Informationen enthält. In praktischen Anwendungen ist diese Voraussetzung aus Sicht des Agenten jedoch häufig nicht vollständig erfüllt, da der Agent meist nur eine begrenzte Beobachtung der Umgebung erhält. Sutton und Barto betonen, dass eine Zustandsrepräsentation nicht auf unmittelbare Sensordaten beschränkt sein muss, sondern auch aus vergangenen Wahrnehmungen oder einem internen Gedächtnis aufgebaut werden kann @sutton_reinforcement_2018[S. 49].
 
 Bei einem Agenten mit Ray-Sensoren beschreibt ein einzelner Timestep beispielsweise nur einen lokalen Ausschnitt der Umgebung. Dadurch kann der Agent aus einer einzelnen Beobachtung nicht zuverlässig ableiten, ob er sich bereits in einer Sackgasse befindet oder welchen Weg er zuvor genommen hat. Solche Problemstellungen lassen sich als partiell beobachtbare Entscheidungsprobleme auffassen, bei denen vergangene Beobachtungen und Aktionen zusätzliche Informationen für die Entscheidungsfindung liefern können.
 
@@ -295,9 +296,9 @@ Sequenzmodelle wie LSTM oder Transformer können diese zeitlichen Informationen 
 
 
 === Long Short-Term Memory (LSTM)
-Long Short-Term Memory (LSTM) ist eine spezielle Variante rekurrenter neuronaler Netze (Recurrent Neural Networks, RNNs), die entwickelt wurde, um Informationen über lange Zeiträume hinweg speichern und verarbeiten zu können [@goodfellow_deeplearningbookorgcontentsrnnhtml_2026;S.404]. Während klassische RNNs grundsätzlich für die Verarbeitung sequenzieller Daten geeignet sind, stoßen sie bei langen Eingabesequenzen häufig an ihre Grenzen. Ursache hierfür ist das sogenannte Vanishing-Gradient-Problem, bei dem die während des Trainings berechneten Gradienten mit zunehmender Sequenzlänge immer kleiner werden. Dadurch wird es für das Netzwerk schwierig, Abhängigkeiten zwischen weit auseinanderliegenden Zeitschritten zu erlernen und relevante Informationen langfristig zu speichern [@goodfellow_deeplearningbookorgcontentsrnnhtml_2026;S.404].
-Um dieses Problem zu lösen, erweitert LSTM die Architektur klassischer RNNs um eine Speicherstruktur, die als Zellzustand bezeichnet wird. Dieser dient als internes Gedächtnis und ermöglicht die Weitergabe wichtiger Informationen über viele Zeitschritte hinweg. Der Informationsfluss innerhalb des Netzwerks wird dabei durch mehrere lernbare Steuermechanismen, sogenannte Gates, kontrolliert [@goodfellow_deeplearningbookorgcontentsrnnhtml_2026;S.404ff].
-Das Forget Gate entscheidet, welche Informationen aus dem bisherigen Gedächtnis beibehalten und welche verworfen werden. Dadurch kann das Netzwerk nicht mehr relevante Informationen gezielt vergessen. Das Input Gate bestimmt, welche neuen Informationen aus dem aktuellen Eingabeschritt in den Zellzustand aufgenommen werden. Das Output Gate legt schließlich fest, welche Teile des internen Gedächtnisses als Ausgabe an den nächsten Zeitschritt beziehungsweise an nachfolgende Netzwerkschichten weitergegeben werden [@goodfellow_deeplearningbookorgcontentsrnnhtml_2026;S. 406f] .
+Long Short-Term Memory (LSTM) ist eine spezielle Variante rekurrenter neuronaler Netze (Recurrent Neural Networks, RNNs), die entwickelt wurde, um Informationen über lange Zeiträume hinweg speichern und verarbeiten zu können @goodfellow_deep_2016[S. 404]. Während klassische RNNs grundsätzlich für die Verarbeitung sequenzieller Daten geeignet sind, stoßen sie bei langen Eingabesequenzen häufig an ihre Grenzen. Ursache hierfür ist das sogenannte Vanishing-Gradient-Problem, bei dem die während des Trainings berechneten Gradienten mit zunehmender Sequenzlänge immer kleiner werden. Dadurch wird es für das Netzwerk schwierig, Abhängigkeiten zwischen weit auseinanderliegenden Zeitschritten zu erlernen und relevante Informationen langfristig zu speichern @goodfellow_deep_2016[S. 404].
+Um dieses Problem zu lösen, erweitert LSTM die Architektur klassischer RNNs um eine Speicherstruktur, die als Zellzustand bezeichnet wird. Dieser dient als internes Gedächtnis und ermöglicht die Weitergabe wichtiger Informationen über viele Zeitschritte hinweg. Der Informationsfluss innerhalb des Netzwerks wird dabei durch mehrere lernbare Steuermechanismen, sogenannte Gates, kontrolliert @goodfellow_deep_2016[S. 404 ff.].
+Das Forget Gate entscheidet, welche Informationen aus dem bisherigen Gedächtnis beibehalten und welche verworfen werden. Dadurch kann das Netzwerk nicht mehr relevante Informationen gezielt vergessen. Das Input Gate bestimmt, welche neuen Informationen aus dem aktuellen Eingabeschritt in den Zellzustand aufgenommen werden. Das Output Gate legt schließlich fest, welche Teile des internen Gedächtnisses als Ausgabe an den nächsten Zeitschritt beziehungsweise an nachfolgende Netzwerkschichten weitergegeben werden @goodfellow_deep_2016[S. 406 f.].
 Durch das Zusammenspiel dieser Gates kann ein LSTM relevante Informationen über viele Zeitschritte hinweg speichern und gleichzeitig irrelevante Informationen verwerfen. Dadurch eignet sich die Architektur besonders für Aufgaben, bei denen zeitliche Abhängigkeiten eine wichtige Rolle spielen, beispielsweise bei der Sprachverarbeitung, Zeitreihenanalyse oder im Reinforcement Learning.
 Das Gedächtnis eines LSTM wird durch einen kontinuierlich aktualisierten internen Zustand repräsentiert. Welche Informationen gespeichert, überschrieben oder vergessen werden, wird nicht manuell festgelegt, sondern während des Trainings automatisch erlernt. Im Kontext von Reinforcement Learning ermöglicht dies dem Agenten, Informationen aus vergangenen Beobachtungen zu berücksichtigen und dadurch fundiertere Entscheidungen zu treffen. In Unity ML-Agents ist LSTM bereits integriert und kann über die Konfigurationsoption use_recurrent: true aktiviert werden. Dadurch erhält der Agent eine Form von Gedächtnis, die es ihm erlaubt, auch in teilweise beobachtbaren Umgebungen historische Informationen in seine Entscheidungsfindung einzubeziehen.
 // - Hochreiter & Schmidhuber (1997)
@@ -308,14 +309,14 @@ Das Gedächtnis eines LSTM wird durch einen kontinuierlich aktualisierten intern
 === Transformer-Architektur
 Die Transformer-Architektur wurde von Vaswani et al. im Jahr 2017 in der einflussreichen Arbeit "Attention Is All You Need" vorgestellt und hat die Verarbeitung sequenzieller Daten grundlegend verändert @vaswani_attention_2023. Ursprünglich wurde sie für Anwendungen der natürlichen Sprachverarbeitung entwickelt, findet heute jedoch auch in zahlreichen anderen Bereichen des maschinellen Lernens Anwendung.
 Im Gegensatz zu rekurrenten Architekturen wie LSTM verarbeitet ein Transformer eine Sequenz nicht schrittweise, sondern betrachtet alle Elemente eines definierten Sequenzfensters gleichzeitig. Dadurch können Abhängigkeiten zwischen verschiedenen Positionen einer Sequenz parallel analysiert werden, was sowohl die Trainingsgeschwindigkeit erhöht als auch die Modellierung weitreichender Zusammenhänge erleichtert.
-Das zentrale Element der Architektur ist der sogenannte Self-Attention-Mechanismus. Dieser ermöglicht es dem Modell, die Relevanz einzelner Sequenzelemente für die Verarbeitung eines bestimmten Zeitschritts zu bewerten. Jedes Element einer Sequenz kann somit direkt Informationen von allen anderen Elementen berücksichtigen, unabhängig davon, wie weit diese zeitlich voneinander entfernt sind. Auf diese Weise lassen sich langfristige Abhängigkeiten erfassen, ohne die Einschränkungen rekurrenter Strukturen in Kauf nehmen zu müssen [@vaswani_attention_2023;S.6f].
-Zur weiteren Steigerung der Modellkapazität wird häufig Multi-Head-Attention eingesetzt. Dabei werden mehrere Attention-Mechanismen parallel ausgeführt, sodass unterschiedliche Beziehungen und Muster innerhalb derselben Sequenz gleichzeitig erlernt werden können. Die einzelnen Aufmerksamkeitsköpfe fokussieren sich dabei auf verschiedene Aspekte der Eingabedaten und tragen gemeinsam zu einer umfassenderen Repräsentation der Sequenz bei [@vaswani_attention_2023;S.4f].
-Da die Transformer-Architektur keine rekurrenten Verbindungen besitzt und somit keine inhärente Kenntnis über die Reihenfolge der Eingabedaten hat, muss die Positionsinformation explizit bereitgestellt werden. Dies geschieht durch sogenannte Positional Encodings, welche die Position jedes Sequenzelements kodieren und dem Modell ermöglichen, zeitliche oder räumliche Zusammenhänge innerhalb der Daten zu berücksichtigen [@vaswani_attention_2023; S2-6].
+Das zentrale Element der Architektur ist der sogenannte Self-Attention-Mechanismus. Dieser ermöglicht es dem Modell, die Relevanz einzelner Sequenzelemente für die Verarbeitung eines bestimmten Zeitschritts zu bewerten. Jedes Element einer Sequenz kann somit direkt Informationen von allen anderen Elementen berücksichtigen, unabhängig davon, wie weit diese zeitlich voneinander entfernt sind. Auf diese Weise lassen sich langfristige Abhängigkeiten erfassen, ohne die Einschränkungen rekurrenter Strukturen in Kauf nehmen zu müssen @vaswani_attention_2023[S. 6 f.].
+Zur weiteren Steigerung der Modellkapazität wird häufig Multi-Head-Attention eingesetzt. Dabei werden mehrere Attention-Mechanismen parallel ausgeführt, sodass unterschiedliche Beziehungen und Muster innerhalb derselben Sequenz gleichzeitig erlernt werden können. Die einzelnen Aufmerksamkeitsköpfe fokussieren sich dabei auf verschiedene Aspekte der Eingabedaten und tragen gemeinsam zu einer umfassenderen Repräsentation der Sequenz bei @vaswani_attention_2023[S. 4 f.].
+Da die Transformer-Architektur keine rekurrenten Verbindungen besitzt und somit keine inhärente Kenntnis über die Reihenfolge der Eingabedaten hat, muss die Positionsinformation explizit bereitgestellt werden. Dies geschieht durch sogenannte Positional Encodings, welche die Position jedes Sequenzelements kodieren und dem Modell ermöglichen, zeitliche oder räumliche Zusammenhänge innerhalb der Daten zu berücksichtigen @vaswani_attention_2023[S. 2–6].
 Auch im Reinforcement Learning haben Transformer-Modelle in den vergangenen Jahren zunehmend an Bedeutung gewonnen. Parisotto et al. entwickelten mit Gated Transformer-XL (GTrXL) eine speziell angepasste Transformer-Architektur, die stabile Lernprozesse bei sequenziellen Entscheidungsaufgaben ermöglicht und die Anwendung von Transformern im Reinforcement Learning erheblich voranbrachte @parisotto_stabilizing_2019. Aufbauend auf diesen Erfolgen zeigten Chen et al. mit dem Decision Transformer, dass Reinforcement-Learning-Probleme als reine Sequenzmodellierungsaufgaben formuliert werden können. Anstatt eine klassische Wertfunktion oder Policy zu lernen, erzeugt das Modell Aktionen auf Basis vergangener Zustände, Aktionen und angestrebter Returns und nutzt dabei die Stärken der Transformer-Architektur für die Entscheidungsfindung @chen_decision_2021.
 Durch ihre Fähigkeit, langfristige Abhängigkeiten effizient zu modellieren und Sequenzen parallel zu verarbeiten, stellen Transformer mittlerweile eine vielversprechende Alternative zu rekurrenten Architekturen wie LSTM dar und werden zunehmend auch für komplexe Aufgaben im Reinforcement Learning eingesetzt.
 // - Vaswani et al. (2017): Attention is All You Need
 // - Self-Attention, Multi-Head-Attention, Positional Encoding
-// - Anwendung im RL-Kontext: Decision Transformer (Chen 2021), GTrXL (Parisotto 2020)
+// - Anwendung im RL-Kontext: Decision Transformer (Chen 2021), GTrXL (Parisotto 2019)
 // - Vor- und Nachteile gegenüber LSTM
 // - Quelle: Dokumentation/Transformer_Integration.md, Dokumentation/LSTM_Integration.md
 
@@ -331,11 +332,11 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // ##                                                                        ##
 // ##   NEUSTRUKTURIERUNG (Entwurf 2) — narrativ entlang der Kausalkette      ##
 // ##   Restaurant -> Abstraktion -> Generalisierung -> Messbarkeit ->       ##
-// ##   Engine -> Sensorik -> Verarbeitung -> Gedaechtnis -> LSTM/Transf.    ##
+// ##   Engine -> Sensorik -> Verarbeitung -> GedÃ¤chtnis -> LSTM/Transf.    ##
 // ##                                                                        ##
-// ##   HINWEIS: Dieser Block dupliziert die Kapitel-Ueberschriften von      ##
-// ##   oben. Nach dem Review den ALTEN Block (oben) loeschen, damit das     ##
-// ##   Dokument nur EINE Gliederung enthaelt.                               ##
+// ##   HINWEIS: Dieser Block dupliziert die Kapitel-Ãœberschriften von      ##
+// ##   oben. Nach dem Review den ALTEN Block (oben) lÃ¶schen, damit das     ##
+// ##   Dokument nur EINE Gliederung enthÃ¤lt.                               ##
 // ##                                                                        ##
 // ############################################################################
 // ############################################################################
@@ -351,7 +352,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 //        · Serviceroboter/Einsatzkontext   -> NEU 1.1 (Ausgangsszenario)
 //        · reale Umgebung -> Abstraktion    -> NEU 1.2 (+ Analogie-Tab. aus ALT 9.1)
 //        · Generalisierung als Anforderung  -> NEU 1.3
-//        · Forschungsluecke/Arch.-Vergleich -> NEU 1.5
+//        · ForschungslÃ¼cke/Arch.-Vergleich -> NEU 1.5
 //        · (Messbarkeits-Argument NEU 1.4 ist neu, aus Generalisierungs-Inhalt)
 // ALT 1 "Problemstellung/Forschungsfrage" -> NEU 1.5 (F1-F3, H1-H3)
 // ALT 1 "Zielsetzung und Abgrenzung"      -> NEU 1.6 (1:1)
@@ -361,21 +362,21 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // ALT 2 "ML und Reinforcement Learning"   -> NEU 2.1 (1:1)
 // ALT 2 "Proximal Policy Optimization"    -> NEU 2.2 (1:1)
 // ALT 2 "Wahrnehmung in RL-Agenten"       -> NEU 2.3 (VORGEZOGEN vor Sequenzmodell.)
-//        (die Sensor-Substanz speist zusaetzlich die Entscheidung in NEU 4.4)
-// ALT 2 "Sequenzmodellierung fuer RL"     -> NEU 2.4
+//        (die Sensor-Substanz speist zusÃ¤tzlich die Entscheidung in NEU 4.4)
+// ALT 2 "Sequenzmodellierung fÃ¼r RL"     -> NEU 2.4
 //        · LSTM-Unterkapitel                -> NEU 2.4.2
 //        · Transformer-Unterkapitel         -> NEU 2.4.3
-//        · (Gedaechtnisproblem NEU 2.4.1 ist neu/kurz; Motivation auch in 1.5)
+//        · (GedÃ¤chtnisproblem NEU 2.4.1 ist neu/kurz; Motivation auch in 1.5)
 // ALT 2 "Unity ML-Agents Toolkit"         -> NEU 2.5 (1:1)
 //
 // --- STAND DER TECHNIK ---
 // ALT 3 "Stand der Technik"               -> NEU 3 (1:1)
 //
 // --- ACHTUNG: METHODIK (alt 4) und SYSTEMARCHITEKTUR (alt 5) TAUSCHEN ---
-// ALT 5 "Gesamtueberblick"                -> NEU 4.1
+// ALT 5 "GesamtÃ¼berblick"                -> NEU 4.1
 // ALT 5 "Map-System / Datenmodell"        -> NEU 4.2.1
 // ALT 5 "Map-System / MapGenerator"       -> NEU 4.2.2
-// ALT 5 "Prozedurale Map-Generierung"     -> NEU 4.2.3 (UMGERAHMT: Rueckgriff 1.4,
+// ALT 5 "Prozedurale Map-Generierung"     -> NEU 4.2.3 (UMGERAHMT: RÃ¼ckgriff 1.4,
 //                                            "Umsetzung der Messbarkeitsbedingung")
 // ALT 5 "Agent-System" (alle Unterpunkte) -> NEU 4.3
 // ALT 5 "Sensorik"                        -> NEU 4.4 (+ explizite Wahl "warum Ray")
@@ -387,7 +388,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // ALT 4 "Kontrollierte Variablen"         -> NEU 5.3 (Vorspann + 5.3.1)
 //        (NEU 5.3.2 "Notwendige YAML-Abweichungen" ist ZUSATZ; Quelle:
 //         02_Anforderungen_Fairer_Vergleich.md, Abschnitt A.2)
-// ALT 4 "Evaluationsprotokoll"            -> NEU 5.4 (Primaer/General./Statistik)
+// ALT 4 "Evaluationsprotokoll"            -> NEU 5.4 (PrimÃ¤r/General./Statistik)
 //
 // --- MODELLARCHITEKTUREN ---
 // ALT 6 "MLP / LSTM / Transformer / Geplante" -> NEU 6.1 / 6.2 / 6.3 / 6.4
@@ -407,28 +408,28 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // --- EVALUATION (nur FINALE Ergebnisse, keine Doppelung mit 7.6) ---
 // ALT 8 "MLP-Baseline"                    -> NEU 8.1
 // ALT 8 "Transformer-/LSTM-Iterationen"   -> WICHTIG: der ITERATIONS-VERLAUF
-//        (Reward-Kurven V5-V13, Diagnose) gehoert nach NEU 7.6, NICHT hierher.
+//        (Reward-Kurven V5-V13, Diagnose) gehÃ¶rt nach NEU 7.6, NICHT hierher.
 //        In Kap. 8 bleiben nur die abschliessenden Vergleichszahlen.
 // ALT 8 "Paarweise Architektur-Vergleiche" -> NEU 8.2
 // ALT 8 "Generalisierung held-out Maps"   -> NEU 8.3
 // ALT 8 "Statistische Auswertung"         -> NEU 8.4
 // ALT 8 "Diskussion"                      -> NEU 8.5
 //
-// --- UEBERTRAGBARKEIT ---
+// --- ÃœBERTRAGBARKEIT ---
 // ALT 9 "Analogie Labyrinth <-> real"     -> ZWEIGETEILT:
 //        · die Analogie-Tabelle/Rahmung     -> nach vorn zu NEU 1.2
 //        · die praktische Auswertung         -> bleibt NEU 9.1
 // ALT 9 "Hardware-/Software-Anforderungen" -> NEU 9.2 (1:1)
 // ALT 9 "Bewertungsmatrix"                -> NEU 9.3 (1:1)
-// ALT 9 "Limitationen der Uebertragbarkeit"-> NEU 9.4 (1:1)
+// ALT 9 "Limitationen der Ãœbertragbarkeit"-> NEU 9.4 (1:1)
 //
 // --- FAZIT ---
 // ALT 10 (alle Unterpunkte)               -> NEU 10.1-10.4 (1:1)
 //
 // --- ANHANG ---
-// ALT Anhang                              -> NEU Anhang, ZUSAETZLICH:
-//        · YAML-Basis + markierte Abweichungen (stuetzt NEU 5.3.2)
-//        · vollstaendige Iterationstabelle V1-V22 m. TensorBoard (stuetzt 7.6.5)
+// ALT Anhang                              -> NEU Anhang, ZUSÃ„TZLICH:
+//        · YAML-Basis + markierte Abweichungen (stÃ¼tzt NEU 5.3.2)
+//        · vollstÃ¤ndige Iterationstabelle V1-V22 m. TensorBoard (stÃ¼tzt 7.6.5)
 // ----------------------------------------------------------------------------
 
 
@@ -444,11 +445,11 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 == Von der realen Umgebung zur testbaren Abstraktion
 
-// - Uebersetzung realer Umgebung in eine vergleichbare, abstrahierte Welt
+// - Ãœbersetzung realer Umgebung in eine vergleichbare, abstrahierte Welt
 //   -> testbar ohne physischen Roboter
 // - Analogie-Tabelle: Korridor <-> Gang, Lava <-> Stufe/Kabel,
-//   prozedurales Layout <-> veraenderliche Umgebung
-//   (aus altem Kap. "Uebertragbarkeit" nach vorn gezogen)
+//   prozedurales Layout <-> verÃ¤nderliche Umgebung
+//   (aus altem Kap. "Ãœbertragbarkeit" nach vorn gezogen)
 
 == Generalisierung als zentrale Anforderung
 
@@ -461,7 +462,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // - TRAGENDES ARGUMENT 1:
 //   Generalisierung ist nur nachweisbar auf Layouts, die im Training NIE
 //   vorkamen -> setzt systematisch erzeugbare Layouts (prozedurale
-//   Map-Generierung) UND ein zurueckgehaltenes, ungesehenes Test-Set voraus
+//   Map-Generierung) UND ein zurÃ¼ckgehaltenes, ungesehenes Test-Set voraus
 // - Map-Generierung ist damit Bedingung der Messbarkeit, kein Feature
 
 == Offene Fragen und Forschungsfrage
@@ -471,16 +472,17 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 //         welche Herausforderungen bringt die Game-Engine mit?
 //     (b) Welche Sensorik bildet reale Wahrnehmung ab -> warum Ray-basiert?
 //     (c) Wie verarbeitet der Agent Informationen zu Entscheidungen?
-//     (d) Sackgassen: ein gedaechtnisloser Agent laeuft reaktiv gegen die
-//         Wand -> Gedaechtnis noetig
-// - Hauptforschungsfrage:
-//   "Kann ein Transformer-basierter RL-Agent in einer selbst gebauten
+//     (d) Sackgassen: ein gedÃ¤chtnisloser Agent lÃ¤uft reaktiv gegen die
+//         Wand -> GedÃ¤chtnis nÃ¶tig
+// - Hauptforschungsfrage :
+//   "Welche neuronale Netzwerkarchitektur (MLP, LSTM oder Transformer) ist
+//    für einen RL-Agenten geeignet, um in einer prozedural generierten
 //    3D-Labyrinthwelt generalisierbares Navigations- und Hindernis-
-//    vermeidungsverhalten erlernen, das sich auf unbekannte Map-Layouts
-//    uebertragen laesst?"
-// - Forschungsfragen F1-F3 (Gedaechtnis-Mehrwert, LSTM vs. Transformer,
+//    vermeidungsverhalten zu erlernen, das sich auf unbekannte Map-Layouts
+//    übertragen lässt?"
+// - Forschungsfragen F1-F3 (GedÃ¤chtnis-Mehrwert, LSTM vs. Transformer,
 //   Generalisierung), Hypothesen H1-H3; Sensorfragen sind KEINE RQ mehr
-//   (-> Ausblick Kap. 10), Uebertragbarkeit qualitativ in Kap. 9
+//   (-> Ausblick Kap. 10), Ãœbertragbarkeit qualitativ in Kap. 9
 // In 1.5 nur die Haupt-Forschungsfrage plus F1-F3 als Fragen formulieren
 // Vorwärtsverweis auf 5.1 setzen
 
@@ -498,7 +500,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 == Aufbau der Arbeit
 
-// - Kurze Uebersicht der Kapitel
+// - Kurze Ãœbersicht der Kapitel
 
 
 // ============================================================================
@@ -516,7 +518,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 // - Actor-Critic-Framework (Actor-Netz + Critic-Netz)
 // - Schulman et al. (2017): Clipping (ε = 0.2), GAE (λ = 0.95)
-// - Vorteil ggue. Vanilla Policy Gradient (Stabilitaet)
+// - Vorteil ggue. Vanilla Policy Gradient (StabilitÃ¤t)
 
 == Wahrnehmung in RL-Agenten
 
@@ -524,29 +526,29 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 //   (Kamera nur theoretische Einordnung — wird NICHT empirisch untersucht;
 //   keine Vergleichserwartung aufbauen)
 // - Beobachtungsraeume und Normalisierung
-// - Abschnitt laeuft auf die Begruendung der Ray-Wahl in 4.4 zu
-//   (liefert die Substanz fuer diese Entscheidung, nicht fuer einen Vergleich)
+// - Abschnitt lÃ¤uft auf die BegrÃ¼ndung der Ray-Wahl in 4.4 zu
+//   (liefert die Substanz fÃ¼r diese Entscheidung, nicht fÃ¼r einen Vergleich)
 
-== Sequenzmodellierung und Gedaechtnis in RL
+== Sequenzmodellierung und GedÃ¤chtnis in RL
 
-=== Das Gedaechtnisproblem reaktiver Agenten
+=== Das GedÃ¤chtnisproblem reaktiver Agenten
 
 // - TRAGENDES ARGUMENT 2 (KURZ, konzeptionell, 1 Absatz):
-//   Ein gedaechtnisloser Agent kann nicht wissen, aus welcher Richtung er
-//   kam -> reaktives Anlaufen gegen die naechste Wand in Sackgassen
-// - Motiviert, warum ueberhaupt sequenzfaehige Architekturen noetig sind
+//   Ein gedÃ¤chtnisloser Agent kann nicht wissen, aus welcher Richtung er
+//   kam -> reaktives Anlaufen gegen die nÃ¤chste Wand in Sackgassen
+// - Motiviert, warum Ã¼berhaupt sequenzfÃ¤hige Architekturen nÃ¶tig sind
 // - Querverweis auf 1.5 (Frage) und 7.6.4 (empirischer Beleg)
 
 === Long Short-Term Memory (LSTM)
 
 // - Hochreiter & Schmidhuber (1997); Forget-/Input-/Output-Gates
-// - Implizites Gedaechtnis ohne expliziten Sequenz-Buffer
-// - In ML-Agents standardmaessig verfuegbar (use_recurrent: true)
+// - Implizites GedÃ¤chtnis ohne expliziten Sequenz-Buffer
+// - In ML-Agents standardmÃ¤ÃŸig verfÃ¼gbar (use_recurrent: true)
 
 === Transformer-Architektur
 
 // - Vaswani et al. (2017); Self-/Multi-Head-Attention, Positional Encoding
-// - RL-Kontext: Decision Transformer (Chen 2021), GTrXL (Parisotto 2020)
+// - RL-Kontext: Decision Transformer (Chen 2021), GTrXL (Parisotto 2019)
 // - Vor-/Nachteile ggue. LSTM NEUTRAL beschreiben (keine Wertung vorwegnehmen)
 
 == Unity ML-Agents Toolkit
@@ -565,7 +567,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // - RL-Navigation: DeepMind Atari (Mnih 2015), Habitat/AI2-THOR, CARLA
 // - Memory-augmented RL: DNC, GTrXL
 // - Curriculum Learning (Bengio 2009)
-// - Procedural Content Generation fuer RL (Justesen et al. 2018)
+// - Procedural Content Generation fÃ¼r RL (Justesen et al. 2018)
 
 == Forschungslücke
 // - was die zitierten Arbeiten nicht abdecken und was diese Arbeit beiträgt. 
@@ -575,50 +577,50 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // 4. SYSTEMARCHITEKTUR UND UMGEBUNG  — erst die Welt bauen (vor Methodik)
 //FINN ============================================================================
 = Systemarchitektur und Umgebung
-// >>> ZEIGEFINGER-PRINZIP (Leitlinie fuer dieses Kapitel):
+// >>> ZEIGEFINGER-PRINZIP (Leitlinie fÃ¼r dieses Kapitel):
 //     Kapitel 4 beschreibt NICHT, was das System kann, sondern was das
 //     EXPERIMENT VORAUSSETZT. Jeder Stichpunkt muss auf ein spaeteres Ergebnis
-//     zeigen koennen. Drei Ausgaenge, keine vierte:
+//     zeigen kÃ¶nnen. Drei AusgÃ¤nge, keine vierte:
 //       [ARG →Fx/§y.z]      zeigt auf Forschungsfrage/Methodik/Evaluation
-//                           -> bleibt Fliesstext, wird ausargumentiert
+//                           -> bleibt FlieÃŸtext, wird ausargumentiert
 //       [REPRO →Tab/Anhang] zeigt nur auf Reproduzierbarkeit (Konstante/Wert)
-//                           -> raus aus dem Fliesstext, in Tabelle oder Anhang
-//       [STREICHEN]         zeigt auf nichts -> entfaellt
+//                           -> raus aus dem FlieÃŸtext, in Tabelle oder Anhang
+//       [STREICHEN]         zeigt auf nichts -> entfÃ¤llt
 //     Kapitelzweck (Reihenfolge System vor Methodik): man muss die Welt kennen,
 //     um das Experimentaldesign (Kap. 5) zu verstehen — daher steht die Umgebung
 //     bewusst vor der Methodik.
-== Gesamtueberblick
+== GesamtÃ¼berblick
 
-// KERNAUSSAGE (Fliesstext):
+// KERNAUSSAGE (FlieÃŸtext):
 // - [ARG →§5.2] Ein geschlossener Regelkreis Unity-Umgebung <-> PPO-Trainer <->
 //   TensorBoard bildet EINEN Apparat, in dem MLP, LSTM und Transformer unter
 //   identischer Kopplung laufen -> die Architektur ist die einzige frei variierte
-//   Groesse (Voraussetzung des Vergleichsdesigns).
+//   GrÃ¶ÃŸe (Voraussetzung des Vergleichsdesigns).
 // - [ARG →§5.1] Die Umgebung ist der gemeinsame, per Seed reproduzierbare
-//   Pruefstand, in dem F1-F3 ueberhaupt erst messbar werden (Komponentendiagramm
+//   PrÃ¼fstand, in dem F1-F3 Ã¼berhaupt erst messbar werden (Komponentendiagramm
 //   als Abbildung).
 //
 // -> TABELLE/ANHANG (Reproduzierbarkeit):
-// - [REPRO] Engine/Versionen: Unity + com.unity.ml-agents 2.0.2; Kopplung ueber
+// - [REPRO] Engine/Versionen: Unity + com.unity.ml-agents 2.0.2; Kopplung Ã¼ber
 //   ML-Agents-gRPC-Port; je --num-envs ein eigener Headless-Unity-Prozess + Port
 // - [REPRO] Code-Layout: Assets/Scripts/{Map,Agent,Camera,Audio,Competition,Visual},
 //   Assets/Editor/ (Generatoren/Szenen-Builder/Validatoren), Assets/{Scenes,Prefabs}/,
 //   training/ (Patch/Policies/Export/Reports), config/ (Trainer-YAMLs),
-//   results/ (Laeufe/Checkpoints/ONNX)
+//   results/ (LÃ¤ufe/Checkpoints/ONNX)
 
 == Map-System
 
 === Datenmodell
 // Achtung Redundanz mit Kapitel 7.1 vermeiden -> hier nur die Argument-Ebene
-// KERNAUSSAGE (Fliesstext):
-// - [ARG →F1, Rueckgriff §1.5] Der Zelltyp-Satz enthaelt die Gefahren-Typen Lava
+// KERNAUSSAGE (FlieÃŸtext):
+// - [ARG →F1, RÃ¼ckgriff §1.5] Der Zelltyp-Satz enthÃ¤lt die Gefahren-Typen Lava
 //   und Hole; zusammen mit Sackgassen erzeugen sie genau die partielle
-//   Observierbarkeit, an der sich temporales Gedaechtnis bewaehren muss.
-// - [ARG →F3, s. 4.2.3] Platform koppelt den Zelltyp an die Loesbarkeit (Lava nur
-//   ueber Platform bzw. bei Tiefe 1 ueberwindbar) -> Grundlage der BFS-Garantie.
+//   Observierbarkeit, an der sich temporales GedÃ¤chtnis bewÃ¤hren muss.
+// - [ARG →F3, s. 4.2.3] Platform koppelt den Zelltyp an die LÃ¶sbarkeit (Lava nur
+//   Ã¼ber Platform bzw. bei Tiefe 1 Ã¼berwindbar) -> Grundlage der BFS-Garantie.
 //
 // -> TABELLE/ANHANG (Reproduzierbarkeit):
-// - [REPRO] CellType-Enum vollstaendig (9): Empty, Floor, Wall, Obstacle, Goal,
+// - [REPRO] CellType-Enum vollstÃ¤ndig (9): Empty, Floor, Wall, Obstacle, Goal,
 //   SpawnPoint, Lava, Hole, Platform
 // - [REPRO] MapData (ScriptableObject): width, height, CellType[] cells, Index
 //   y*width+x, Get/SetCell; Laufzeitfelder cellHeightOffsets (Default 0.75),
@@ -626,11 +628,11 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 === MapGenerator (Runtime)
 
-// KERNAUSSAGE (Fliesstext):
+// KERNAUSSAGE (FlieÃŸtext):
 // - [ARG →§1.4/F3] Der Runtime-Generator ist reiner Renderer; Hindernisbau UND
-//   Loesbarkeitspruefung liegen in der OFFLINE-Pipeline (4.2.3). Erst diese Trennung
+//   LÃ¶sbarkeitsprÃ¼fung liegen in der OFFLINE-Pipeline (4.2.3). Erst diese Trennung
 //   erlaubt, Testkarten vor Trainingsbeginn einzufrieren und als ungesehenes Set
-//   zurueckzuhalten -> bei Laufzeit-Generierung nicht garantierbar.
+//   zurÃ¼ckzuhalten -> bei Laufzeit-Generierung nicht garantierbar.
 // - [ARG →§5.4/§7.5] Curriculum ist ein eigener TrainingMode (nicht Teil der
 //   Karten-Auswahlmodi) -> die gestufte Schwierigkeit ist eine kontrollierte
 //   Trainingsbedingung, kein Zufallsartefakt.
@@ -641,7 +643,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // - [REPRO] Tile-Pool (kein Instantiate/Destroy je Episode), Prefab-Mapping,
 //   dynamische Spawn-/Goal-Wahl (meidet Lava/Hole-Nachbarn, Goal != Spawn),
 //   Marker (+0.5 Y), optionales Kamera-Framing
-// - [REPRO →§7.2] persistente KillZone (Trigger-Box y=-20) fuer Loch-Faelle
+// - [REPRO →§7.2] persistente KillZone (Trigger-Box y=-20) fÃ¼r Loch-FÃ¤lle
 //   (Terminierungsmechanik)
 // - [REPRO] Platzierungs-Modi-Enums (Spawn-/Goal-/ObstaclePlacementMode,
 //   MapSelectionMode {Fixed,Random,Sequential}); Curriculum-Quelle
@@ -651,27 +653,27 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 === Prozedurale Generierung als Umsetzung der Messbarkeitsbedingung
 
-// TRAGENDE WAND — hier steht das Kern-Argument des Kapitels, ueberwiegend Fliesstext.
-// KERNAUSSAGE (Fliesstext):
-// - [ARG →§1.4/F3] Rahmung: prozedurale Generierung loest die in §1.4 geforderte
+// TRAGENDE WAND — hier steht das Kern-Argument des Kapitels, Ã¼berwiegend FlieÃŸtext.
+// KERNAUSSAGE (FlieÃŸtext):
+// - [ARG →§1.4/F3] Rahmung: prozedurale Generierung lÃ¶st die in §1.4 geforderte
 //   Messbarkeitsbedingung BAULICH ein — sie ist Bedingung des Generalisierungs-
 //   nachweises, nicht ein "Feature".
-// - [ARG →F3] Der SemanticPathfinder prueft jede Karte per BFS (4-Nachbarschaft) auf
-//   Loesbarkeit -> garantiert, dass ein Scheitern dem AGENTEN und nicht der Karte
+// - [ARG →F3] Der SemanticPathfinder prÃ¼ft jede Karte per BFS (4-Nachbarschaft) auf
+//   LÃ¶sbarkeit -> garantiert, dass ein Scheitern dem AGENTEN und nicht der Karte
 //   zuzuschreiben ist (begehbar: Floor/Spawn/Goal/Platform; Hole nie; Lava nur bei
 //   Tiefe 1 oder mit Platform).
-// - [ARG →§5.5.2/F3] Per Seed systematisch erzeugbare Layouts ermoeglichen ein
-//   zurueckgehaltenes, im Training nie gesehenes Evaluations-Set -> erst dadurch ist
+// - [ARG →§5.5.2/F3] Per Seed systematisch erzeugbare Layouts ermÃ¶glichen ein
+//   zurÃ¼ckgehaltenes, im Training nie gesehenes Evaluations-Set -> erst dadurch ist
 //   der Overfitting-Index (Trainings- minus Generalisierungs-Erfolgsrate) messbar.
 // - [ARG →§5.4/§7.5, F1/F2] Die aufsteigende Schwierigkeitsleiter definiert die
 //   Curriculum-Progression, deren Wirkung auf die Konvergenz spaeter gemessen wird.
 // - [ARG →F1] Die Hindernis-Semantik erzeugt gezielt Sackgassen und Gefahren
 //   (Terminal-Korridore enden blind mit Hole; Lava als Sprung-Huerde) — also genau
-//   die partielle Observierbarkeit, die Gedaechtnis motiviert.
+//   die partielle Observierbarkeit, die GedÃ¤chtnis motiviert.
 //
-// -> ANHANG (Reproduzierbarkeit — Parameterwerte, nicht in den Fliesstext):
+// -> ANHANG (Reproduzierbarkeit — Parameterwerte, nicht in den FlieÃŸtext):
 // - [REPRO] Einstieg ProceduralLayoutGenerator.GenerateLayout(seed, difficulty),
-//   bis 10 Versuche; Pipeline BuildTopology->Raeume->Korridore->Waende->Spawn/Goal
+//   bis 10 Versuche; Pipeline BuildTopology->Raeume->Korridore->WÃ¤nde->Spawn/Goal
 //   ->Coverage >=15%->Cluster->Platforms->Pfad-Check; Aufruf in Editor-Skripten
 //   (MapGeneratorEditor, CurriculumV2Builder), nicht zur Laufzeit
 // - [REPRO] RoomCorridorGraph: BORDER=2, MIN_CORRIDOR_LEN=4, 2-Tile-Korridore,
@@ -683,21 +685,24 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // - [REPRO] DifficultyLevel-Leiter (Trivial->TrivialCorr->TrivialBranch->TrivialHole
 //   ->TrivialHazard->Easy->Medium->Hard + Sonderstufe TrivialLava; Trivial-Familie
 //   direkte 7x7-Konstruktion, Easy/Medium/Hard Graph-Pipeline) + DifficultySettings
-//   je Stufe (Grid-Groesse, Korridorzahl, Verzweigungstiefe, Hindernis-W'keiten)
+//   je Stufe (Grid-GrÃ¶ÃŸe, Korridorzahl, Verzweigungstiefe, Hindernis-W'keiten)
 
 == Agent-System
 // Klasse: LabyrinthAgent : Agent  (Assets/Scripts/Agent/LabyrinthAgent.cs)
-// BehaviorName "LabyrinthNavigator", DecisionPeriod 5
+// BehaviorName der drei Vergleichsagenten: MLP_Navigator / LSTM_Navigator /
+//   Transformer_Navigator (voller 31-Obs-Satz, DecisionPeriod 5). Das ausgelieferte
+//   Demo-/Auslieferungsmodell läuft separat unter BehaviorName "LabyrinthNavigator"
+//   (21 Obs) und ist NICHT Teil des F1/F2-Vergleichs.
 
 === Aktionsraum
 
-// KERNAUSSAGE (Fliesstext):
-// - [ARG →§5.3.1] Der diskrete Aktionsraum (3 Branches) ist fuer MLP, LSTM und
+// KERNAUSSAGE (FlieÃŸtext):
+// - [ARG →§5.3.1] Der diskrete Aktionsraum (3 Branches) ist fÃ¼r MLP, LSTM und
 //   Transformer IDENTISCH -> kontrollierte Variable, damit Leistungsunterschiede der
 //   Architektur und nicht dem Handlungsraum zuzuschreiben sind.
 //
 // -> TABELLE/ANHANG (Reproduzierbarkeit):
-// - [REPRO] Branch-Semantik [3,3,3] (0 Bewegung: nichts/vor/zurueck, 1 Drehung:
+// - [REPRO] Branch-Semantik [3,3,3] (0 Bewegung: nichts/vor/zurÃ¼ck, 1 Drehung:
 //   nichts/links/rechts, 2 Sprung: nur Wert 1); Sprung effektiv binaer, einzelner
 //   AddForce-Impuls nur wenn geerdet (kein "SuperSprung")
 //
@@ -707,27 +712,37 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 === Observation-Space
 
-// KERNAUSSAGE (Fliesstext):
-// - [ARG →§5.3.1] Der Beobachtungsvektor ist die gemeinsame Eingabe aller drei
-//   Architekturen und muss ueber die Vergleichsgruppen konstant sein — sonst ist ein
-//   F1/F2-Unterschied nicht kausal der Architektur zuzuschreiben.
-// - [ARG →§5.3.2] ABWEICHUNG: der ausgelieferte V24-Transformer wurde mit reduziertem
-//   Set (21 statt 31 Obs, v24CompatMode) trainiert -> dokumentierte, zu begruendende
-//   Abweichung vom gemeinsamen Obs-Satz.
+// KERNAUSSAGE (FlieÃŸtext):
+// - [ARG →§5.3.1] Der Beobachtungssatz ist die gemeinsame Eingabe der drei
+//   Vergleichsagenten und über alle Gruppen konstant: 31 Vektor-Obs + 176 Ray-Obs,
+//   identisch für MLP_Navigator, LSTM_Navigator und Transformer_Navigator. Die
+//   Konstanz ist nicht nur gefordert, sondern messbar erzwungen — alle drei erhalten
+//   denselben Prefab über den Builder. Damit ist ein F1/F2-Unterschied kausal der
+//   Architektur und nicht dem Beobachtungssatz zuzuschreiben.
+// - [ARG →§5.3.2] KEINE begründungspflichtige Vergleichs-Abweichung, sondern
+//   strukturelle Trennung: der ausgelieferte V24-Transformer (21 Obs, BehaviorName
+//   "LabyrinthNavigator") ist das Demo-/Auslieferungsmodell und NICHT Teil des
+//   Vergleichs. Wegen abweichender Obs-Größe UND abweichendem Behavior-Namen kann
+//   sein .onnx technisch gar nicht in den F1/F2-Vergleich geladen werden — die Trennung
+//   ist strukturell erzwungen, ein V24-Retrain ist nicht nötig. Er wird im
+//   Vergleichskapitel nicht neben F1/F2 gestellt.
 //
 // -> TABELLE/ANHANG (Reproduzierbarkeit):
-// - [REPRO] Volles Set 31: 18 Boden-Sensor (9x[Typ,Distanz]), 3 Velocity, 1
-//   isGrounded, 1 Zieldistanz (/maxObservationDistance=20), 3 Zielrichtung, 4
-//   Wand-Raycasts, 1 Line-of-Sight
-// - [REPRO] v24CompatMode 21: nur 18 Boden + 3 Velocity
-// - [REPRO] separater Ray-Sensor (s. 4.4) stacked=2; NumStackedVectorObservations=1
+// - [REPRO] Vergleichssatz (identisch für alle drei *_Navigator): 31 Vektor-Obs =
+//   18 Boden-Sensor (9x[Typ,Distanz]) + 3 Velocity + 1 isGrounded + 1 Zieldistanz
+//   (/maxObservationDistance=20) + 3 Zielrichtung + 4 Wand-Raycasts + 1 Line-of-Sight;
+//   dazu 176 Ray-Obs aus dem separaten Ray-Sensor (s. 4.4, stacked=2),
+//   NumStackedVectorObservations=1 
+// - [REPRO] Demo-Modell V24 (BehaviorName LabyrinthNavigator, NICHT im Vergleich):
+//   reduziertes 21-Obs-Set (v24CompatMode: nur 18 Boden + 3 Velocity) — separat
+//   dokumentiert, nicht als Vergleichsvariante 
 
 === Bewegungs- und Sprungphysik
 
-// KERNAUSSAGE (Fliesstext):
-// - [ARG →§7.6.5] Wall-Climb-Guard und maxUpwardVelocity-Cap (eingefuehrt V11/V12)
-//   dokumentieren einen entdeckten Exploit (Hochklettern an Waenden) und seine
-//   Korrektur -> gehoeren zur Iterations-/Pathologie-Argumentation, nicht als blosse
+// KERNAUSSAGE (FlieÃŸtext):
+// - [ARG →§7.6.5] Wall-Climb-Guard und maxUpwardVelocity-Cap (eingeführt V11/V12)
+//   dokumentieren einen entdeckten Exploit (Hochklettern an Wänden) und seine
+//   Korrektur -> gehÃ¶ren zur Iterations-/Pathologie-Argumentation, nicht als bloÃŸe
 //   Konstante.
 //
 // -> TABELLE/ANHANG (Reproduzierbarkeit):
@@ -739,24 +754,24 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // -> STREICHEN:
 // - [STREICHEN] Drag 0.5 — inzidenteller Engine-Wert, zeigt auf kein Ergebnis
 
-// === (Third-Person-Kamera)   [STREICHEN — Ueberschrift bewusst auskommentiert]
+// === (Third-Person-Kamera)   [STREICHEN — Ãœberschrift bewusst auskommentiert]
 // [STREICHEN] Zeigt auf kein Ergebnis: reines Showcase-/Debug-Hilfsmittel, keine
 //   Voraussetzung des Experiments (SmoothDamp, Slerp und Kamera-Offsets sterben hier).
 //   Falls eine Showcase-Erwaehnung gewuenscht ist -> Video-Demo/Anhang, nicht Kap. 4.
 //   Ehemaliger Inhalt bewusst entfernt: ThirdPersonCamera Smooth-Follow (LateUpdate),
-//   SmoothDamp 0.1, Slerp 5, Offset Hoehe 3/Distanz 5, weitere Kameras
+//   SmoothDamp 0.1, Slerp 5, Offset HÃ¶he 3/Distanz 5, weitere Kameras
 //   (Front-Follow, Drone, CameraSwitcher).
 
-== Sensorik — und die begruendete Wahl der Ray-Wahrnehmung
+== Sensorik — und die begrÃ¼ndete Wahl der Ray-Wahrnehmung
 
-// KERNAUSSAGE (Fliesstext — begruendete Entscheidung, nicht Beschreibung):
+// KERNAUSSAGE (FlieÃŸtext — begrÃ¼ndete Entscheidung, nicht Beschreibung):
 // - [ARG →F1/F2, §1.6] Ray als EINHEITLICHE Sensorbasis ALLER drei Agenten isoliert
 //   die Wirkung der temporalen Architektur vom visuellen Encoder — bei Kamera-Agenten
-//   waere unklar, ob Unterschiede aus dem Temporal- oder dem CNN-Modul stammen
+//   wÃ¤re unklar, ob Unterschiede aus dem Temporal- oder dem CNN-Modul stammen
 //   (spiegelt die Abgrenzung §1.6; Kamera-Pfad existiert nur im Ausblick Kap. 10,
 //   KEINE zweite Sensorgruppe implizieren).
 // - [ARG →§5.5.3] Die niedrigdimensionale Ray-Repraesentation ist CPU-tauglich und
-//   erlaubt viele vollstaendige Wiederholungen -> Voraussetzung statistischer
+//   erlaubt viele vollstÃ¤ndige Wiederholungen -> Voraussetzung statistischer
 //   Aussagekraft.
 // - [ARG →F3] Typisierte, direkt interpretierbare Treffer (Detectable Tags) erlauben
 //   spaeter die Analyse, WORAN Generalisierung auf ungesehenen Karten scheitert.
@@ -772,36 +787,36 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 == Reward-System
 // Abgrenzung: Herleitung/Wirkung einzelner Terme NICHT hier -> §7.4 (Belohnungsdesign)
 // bzw. §7.6.5 (Pathologien). Kap. 4 zeigt nur die fixe, gemeinsame Funktion.
-// KERNAUSSAGE (Fliesstext):
-// - [ARG →§5.3.1] Die Reward-Funktion ist fuer alle drei Architekturen identisch
+// KERNAUSSAGE (FlieÃŸtext):
+// - [ARG →§5.3.1] Die Reward-Funktion ist fÃ¼r alle drei Architekturen identisch
 //   fixiert -> gemeinsame Zielvorgabe, damit F1/F2 die Architektur messen und nicht
 //   das Belohnungsdesign.
 // - [ARG →§5.3.2] Curiosity ist KEIN Agent-Reward, sondern ein Trainer-Signal, das
 //   NUR in der Transformer-/LSTM-Config aktiv ist (nicht in Standard-PPO) -> ein
-//   asymmetrisches Reward-Signal, das als notwendige Abweichung begruendet werden muss.
+//   asymmetrisches Reward-Signal, das als notwendige Abweichung begrÃ¼ndet werden muss.
 //
 // -> TABELLE/ANHANG (Reproduzierbarkeit — Werte, Quelle Reward_Strategie.md):
 // - [REPRO] Vergabe zentral im Agent; externe Trigger (Lava, KillZone) melden nur
 //   via OnTriggerEnter
 // - [REPRO] Kern-Terme: goalReward +30, lava/holeDeathPenalty -3, timeoutPenalty -10,
 //   stepPenalty -0.002, PBRS F = (prevDist − γ·currDist) · scale (γ=1.0, scale=0.01)
-// - [REPRO] weitere Terme: Lava-Sprung-Versuch +1.5→/4→/8→0, Lava-Ueberquerung +8,
-//   Loch-Ueberflug -1, Line-of-Sight +0.005, Wall-Climb -1
+// - [REPRO] weitere Terme: Lava-Sprung-Versuch +1.5→/4→/8→0, Lava-Ãœberquerung +8,
+//   Loch-Ãœberflug -1, Line-of-Sight +0.005, Wall-Climb -1
 // - [REPRO] phaseMaxSteps: 600 / 1200 x4 / 1500 / 2000 / 2500; Curiosity strength 0.05
 
 == Trainingsinfrastruktur
 
-// KERNAUSSAGE (Fliesstext):
-// - [ARG →§7.6.1] venv-Patch statt Fork von ML-Agents: bewusste Entscheidung fuer die
+// KERNAUSSAGE (FlieÃŸtext):
+// - [ARG →§7.6.1] venv-Patch statt Fork von ML-Agents: bewusste Entscheidung fÃ¼r die
 //   reproduzierbare Nachruestung der Custom-Transformer-Policy (Detail in 7.6.1).
 // - [ARG →§5.3.2] Die Trainer-Configs unterscheiden sich SYSTEMATISCH zwischen den
 //   Architekturen (Transformer: gamma 0.997 vs. 0.99, max_steps 60M vs. 6.4M,
 //   memory_type/sequence_length, curiosity) -> genau diese YAML-Abweichungen sind der
-//   Gegenstand der Fairness-Begruendung.
+//   Gegenstand der Fairness-BegrÃ¼ndung.
 //
 // -> TABELLE/ANHANG (Reproduzierbarkeit):
 // - [REPRO] venv: mlagents 0.30.0, PyTorch 2.0.1 (cu118 nur in Doku, im Code nicht
-//   verankert -> pruefen)
+//   verankert -> prÃ¼fen)
 // - [REPRO] Patch-Skript training/patch_mlagents.py (kopiert transformer_memory.py,
 //   erweitert settings.py/networks.py; start_training.py wendet automatisch an)
 // - [REPRO] Config-Werte: PPO-Baseline (labyrinth_training.yaml: lr 3e-4, batch 512,
@@ -811,7 +826,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // - [REPRO] Parallelisierung: Multi-Area + Headless via --num-envs, je Worker eigener
 //   Port + eigene Curriculum-State-Datei
 // - [REPRO →§9.2] Hardware (CPU/GPU/RAM, Trainingsdauer) — vom Autor einzutragen,
-//   stuetzt die Hardware-Anforderungen in §9.2
+//   stÃ¼tzt die Hardware-Anforderungen in §9.2
 
 
 // ============================================================================
@@ -830,30 +845,40 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 
 
-== Kontrollierte Variablen und begruendete Abweichungen //ALEX
+== Kontrollierte Variablen und begrÃ¼ndete Abweichungen //ALEX
 
-// - VORSPANN (Grundprinzip): pro Vergleich aendert sich nur EINE Variable,
-//   alles andere ist eingefroren -> Messgrundlage fuer die Unterabschnitte.
+// - VORSPANN (Grundprinzip): pro Vergleich Ã¤ndert sich nur EINE Variable,
+//   alles andere ist eingefroren -> Messgrundlage fÃ¼r die Unterabschnitte.
 
 === Identische Parameter //ALEX
 
-// - PPO-Kern identisch fuer alle Agenten: learning_rate 3e-4, batch_size 512,
-//   buffer_size, beta, epsilon 0.2, lambd 0.95, num_epoch, max_steps,
-//   time_horizon, gamma, hidden_units 256, num_layers 2
+// - PPO-Kern identisch fÃ¼r alle Agenten: learning_rate 3e-4, batch_size 512,
+//   buffer_size, beta, epsilon 0.2, lambd 0.95, num_epoch,
+//   time_horizon, hidden_units 256, num_layers 2
+//   (NICHT in dieser Liste: gamma, max_steps, curiosity — die weichen laut
+//   4.5/4.6 zwischen den Architekturen ab -> 5.3.2, dort als Tuning-
+//   Abweichungen geführt)
 // - Reward-Struktur identisch und VOR dem Training eingefroren
-//   (inkl. Curiosity: fuer ALLE an oder fuer KEINEN)
 // - Sensor-Basis und Seeds identisch
 
-=== Notwendige YAML-Abweichungen und ihre Begruendung //ALEX
+=== Notwendige YAML-Abweichungen und ihre BegrÃ¼ndung //ALEX
 
 // - DEINE FRAGE / EXPLIZIT: die YAMLs sind NICHT zu 100% identisch — und das
 //   ist korrekt
 // - Kontrolliert abweichender Parameter (einziger konstitutiver):
 //     · memory_type: (keins/MLP) | lstm | transformer  (je nach Agent)
-// - Begruendung: dieser Parameter ist KONSTITUTIV fuer den Vergleichs-
+// - BegrÃ¼ndung: dieser Parameter ist KONSTITUTIV fÃ¼r den Vergleichs-
 //   gegenstand selbst — man kann Transformer vs. LSTM nicht vergleichen,
-//   ohne memory_type zu aendern. Eine erzwungene 100%-Identitaet waere
+//   ohne memory_type zu Ã¤ndern. Eine erzwungene 100%-IdentitÃ¤t wÃ¤re
 //   nicht "fairer", sondern sinnlos.
+// - DANEBEN nicht-konstitutive Tuning-Abweichungen (dokumentiert in 4.5/4.6):
+//     · gamma: Transformer 0.997 vs. 0.99
+//     · max_steps: Transformer 60M vs. 6.4M
+//     · curiosity: nur in der Transformer-/LSTM-Config aktiv
+// - Konsequenz (offen benennen): wegen dieser Abweichungen KEIN strenger
+//   Kausalanspruch — Leistungsunterschiede (F1/F2) sind nicht allein der
+//   temporalen Architektur zuzuschreiben; Anspruch in 1.6 entsprechend
+//   abgeschwächt, Abweichungen als Limitation in Kap. 10 geführt
 // - Quelle: 02_Anforderungen_Fairer_Vergleich.md (Abschnitt A.2)
 
 == Abweichung in Tuning-Iterationen //KATYA
@@ -865,9 +890,27 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 == Evaluationsprotokoll //FINN
 
-=== Primaermetriken //FINN
-// - Erfolgsrate (letzte 100 Episoden), Konvergenzgeschwindigkeit,
-//   Kollisionsrate, Mean Episodenlaenge, Cumulative Reward
+=== PrimÃ¤rmetriken //FINN
+// - Erfolgsrate, Konvergenzgeschwindigkeit, Kollisionsrate,
+//   Mean Episodenlänge, Cumulative Reward
+// - PRIMÄRE Erfolgsmessung (F1/F2): separate Evaluationsläufe im
+//   Inference-Modus auf einem fixen, für alle drei Architekturen
+//   identischen Map-Set. Grund: der Curriculum-Stand am Trainingsende
+//   kann zwischen den Architekturen differieren — bleibt z. B. der MLP
+//   auf einer früheren Stufe hängen, sind die "letzten 100 Trainings-
+//   Episoden" zwischen den Architekturen nicht vergleichbar; nur ein
+//   identisches Eval-Set macht die Messung architekturübergreifend gültig
+// - Trainings-Erfolgsrate (letzte 100 Episoden) nur als Verlaufs-/
+//   Sekundärmetrik. Einordnung: ERREICHT eine Architektur die finale
+//   Curriculum-Stufe (Hard), sind die letzten 100 Episoden 100 prozedural
+//   generierte Hard-Maps, die im Trainingsverlauf zuvor nicht durchgespielt
+//   wurden — faktisch ungesehene Layouts, keine memorierten Trivial-Layouts
+//   (TODO: Zahl 100 noch NICHT geprüft — verifizieren, ob die letzten 100
+//   Episoden tatsächlich vollständig auf der Hard-Stufe liegen)
+// - Konvergenzkriterium (F2): NACHHALTIGES Überschreiten der 80-%-
+//   Erfolgsrate im gleitenden Fenster, nicht erstmaliges Erreichen
+//   -> robust gegen Rauschen
+// - Eval-Map-Set und Konvergenzkriterium VOR den finalen Läufen fixieren
 
 === Generalisierungsmetriken //FINN //können wir erst nach ergebniss machen
 // - Held-out Maps (nie im Training gesehen); Overfitting-Index
@@ -910,15 +953,15 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // wie das System entstanden ist
 
 == Umgebung: Datenmodell, Layouts und prozedurale Generierung
-// Quelle: frueher M1-2 ZUSAMMENGEFUEHRT mit M6-Generierung.
+// Quelle: frÃ¼her M1-2 ZUSAMMENGEFÃœHRT mit M6-Generierung.
 
 // - Datenmodell der Karte: [was speichert es? warum diese Struktur?]
 // - 5 manuell entworfene Layouts: [wozu? Baseline / Referenz / Test?]
-// - Custom Editor (Preview): [welches Problem loeste er?]
+// - Custom Editor (Preview): [welches Problem lÃ¶ste er?]
 // - Prozedurale Generierung:
-//     - variable Grid-Groesse (BORDER = 2) [warum prozedural statt
+//     - variable Grid-GrÃ¶ÃŸe (BORDER = 2) [warum prozedural statt
 //         weiter manuell? welche Rolle hat BORDER = 2?]
-//     - Terminal-Korridore (echte Sackgassen) [warum noetig?]
+//     - Terminal-Korridore (echte Sackgassen) [warum nÃ¶tig?]
 // - Schwierigkeitsgrade Easy/Medium/Hard (DifficultySettings.Factory)
 //     [welche Parameter variieren? wodurch unterscheiden sie sich?]
 //
@@ -926,7 +969,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 
 == Hindernis- und Terminierungslogik
-// Quelle: frueher M4.
+// Quelle: frÃ¼her M4.
 //
 // - Tag-basierte Hindernisse: Lava, Hole, Bridge, KillZone
 //     [warum tag-basiert? welche Alternative wurde verworfen?]
@@ -937,48 +980,48 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // QUERVERWEIS: die "zentrale Reward-Vergabe" ist eng an diese
 //   Todeslogik gekoppelt, steht aber jetzt unter "Belohnungsdesign"
 //   (siehe ENTSCHEIDUNG dort). Falls hier besser aufgehoben:
-//   den einen Punkt zurueckverschieben.
+//   den einen Punkt zurÃ¼ckverschieben.
 
 
 == Agent und Wahrnehmung
-// Quelle: frueher M3.
+// Quelle: frÃ¼her M3.
 //
 // - Agent-Klasse LabyrinthAgent.cs
 //     (Initialize / OnEpisodeBegin / CollectObservations / ...)
 //     [Aktionsraum? Beobachtungsraum? was passiert je Lifecycle-Hook?]
 // - RayPerceptionSensor3D: [was erfasst er? warum dieser Sensor?]
-// - Boden-Sensor: [welche Information? welches Verhalten ermoeglicht er?]
+// - Boden-Sensor: [welche Information? welches Verhalten ermÃ¶glicht er?]
 // - Sprungkalibrierung: [Ziel? welches Problem ohne sie?]
 //
-// TODO: Dateiname LabyrinthAgent.cs im Fliesstext sparsam nennen,
-//   nicht als Ueberschrift der Darstellung.
+// TODO: Dateiname LabyrinthAgent.cs im FlieÃŸtext sparsam nennen,
+//   nicht als Ãœberschrift der Darstellung.
 
 
 == Belohnungsdesign
 // Designentscheidung und ihre Wirkung (Achtung ABgrenzung 4.6)
-// Quelle: frueher M5 (Reward-Anteil) + zentrale Reward-Vergabe aus M4.
+// Quelle: frÃ¼her M5 (Reward-Anteil) + zentrale Reward-Vergabe aus M4.
 
 //   -> Kopplung an Todeslogik per Querverweis oben markiert.
 //
 // - zentrale Reward-Vergabe: [warum zentral statt verteilt in den
 //     Hindernis-Skripten? welchen Vorteil bringt das?]
 // - Reward-Strategie: [welche Signale? Shaping vs. sparse? warum?]
-// - YAML-Config: [welche zentralen Hyperparameter? Begruendung der Werte?]
+// - YAML-Config: [welche zentralen Hyperparameter? BegrÃ¼ndung der Werte?]
 // - Multi-Area: [warum mehrere Areas? Effekt aufs Training?]
 
 
 == Training und Curriculum
-// Quelle: frueher M5 (Training/Ergebnisse) + M6-Curriculum.
+// Quelle: frÃ¼her M5 (Training/Ergebnisse) + M6-Curriculum.
 //
 // - Trainingsaufbau: TensorBoard verifiziert
-//     [was wurde ueberwacht? welche Metriken?]
+//     [was wurde Ã¼berwacht? welche Metriken?]
 // - Curriculum (CurriculumConfig + CurriculumTracker):
-//     [welche Stufen? welches Kriterium fuer den Uebergang? warum?]
+//     [welche Stufen? welches Kriterium fÃ¼r den Ãœbergang? warum?]
 //
 
 
 
-== Transformer-Integration: von V1 bis zum lauffaehigen Modell //FINN
+== Transformer-Integration: von V1 bis zum lauffÃ¤higen Modell //FINN
 
 // - KERNLEISTUNG, prominent: der 22-fach dokumentierte, messgetriebene
 //   Integrationsprozess. Nach PROBLEMKLASSEN geordnet (nicht rein chronologisch),
@@ -1001,24 +1044,24 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 === Problemklasse B - Inference/Training-Konsistenz
 
 // - PPO-Ratio-Inkonsistenz: Inference (seq=1) != Training (seq=8)
-// - Loesung: Rolling-Memory-Buffer (letzte 7 MLP-Encodings) -> konsistente
-//   Log-Probs, gueltige PPO-Ratio
+// - LÃ¶sung: Rolling-Memory-Buffer (letzte 7 MLP-Encodings) -> konsistente
+//   Log-Probs, gÃ¼ltige PPO-Ratio
 
 === Problemklasse C - Reward-/Curriculum-Pathologien
 
 // - Sparse Reward (Goal in 1 Mio. Steps nie gefunden) -> Trivial-Phase + PBRS
 //   + Distanz-Observation
 // - Wall-Climb (PhysX-Depenetration) -> Guard + maxUpwardVelocity-Cap
-// - Eck-Heuristik/Memorierung -> zufaellige Goal-Platzierung
+// - Eck-Heuristik/Memorierung -> zufÃ¤llige Goal-Platzierung
 // - PBRS farmbar; Discount-Faktor entscheidend
 
-=== Iterationsuebersicht V1-V22 (verdichtete Tabelle)
+=== IterationsÃ¼bersicht V1-V22 (verdichtete Tabelle)
 
-// - Tabelle: Version | Hypothese/Aenderung | Kennzahl-Wirkung (belegt) | Erkenntnis
-// - vollstaendige Tabelle + Einzel-Kennzahlen (TensorBoard-Belege) im Anhang
+// - Tabelle: Version | Hypothese/Ã„nderung | Kennzahl-Wirkung (belegt) | Erkenntnis
+// - vollstÃ¤ndige Tabelle + Einzel-Kennzahlen (TensorBoard-Belege) im Anhang
 // - Auszug bekannter Iterationen:
 //     V5  kein Causal Mask -> kein Lernen
-//     V6  Beta zu hoch, Entropy faellt nicht
+//     V6  Beta zu hoch, Entropy fÃ¤llt nicht
 //     V7  Value Loss kollabiert (Buffer zu klein)
 //     V8  Buffer 40960, Time Horizon 256
 //     V9  8.7 Mio. Steps, Plateau Reward 8.9 (Timeout-Stagnation)
@@ -1041,7 +1084,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 //DAVID ============================================================================
 = Evaluation
 
-// HINWEIS: finale vollstaendige Laeufe 
+// HINWEIS: finale vollstÃ¤ndige LÃ¤ufe 
 // ggf. noch nicht abgeschlossen -> Zwischenergebnisse kennzeichnen.
 
 == MLP-Baseline
@@ -1054,7 +1097,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 == Generalisierung auf held-out Maps
 
-// - 3 unabhaengige Eval-Maps; Erfolgs-/Kollisionsrate, Overfitting-Index
+// - 3 unabhÃ¤ngige Eval-Maps; Erfolgs-/Kollisionsrate, Overfitting-Index
 
 == Statistische Auswertung
 
@@ -1067,13 +1110,13 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 
 
 // ============================================================================
-// 9. UEBERTRAGBARKEIT UND PRAKTISCHE ANWENDBARKEIT  (verweist zurueck auf 1.1/1.2)
+// 9. ÃœBERTRAGBARKEIT UND PRAKTISCHE ANWENDBARKEIT  (verweist zurÃ¼ck auf 1.1/1.2)
 //FINN ============================================================================
-= Uebertragbarkeit und praktische Anwendbarkeit
+= Ãœbertragbarkeit und praktische Anwendbarkeit
 
 == Analogie Labyrinth <-> reale Navigationsszenarien
 
-// - Rueckgriff auf die Rahmung aus 1.1/1.2 (nicht neu einfuehren, auswerten)
+// - RÃ¼ckgriff auf die Rahmung aus 1.1/1.2 (nicht neu einfÃ¼hren, auswerten)
 // - Serviceroboter, Lager-/Indoor-Logistik, Spiele-NPCs
 
 == Hardware- und Software-Anforderungen
@@ -1088,7 +1131,7 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // - Kriterien x Gewichte x Agenten; Empfehlung je Einsatzszenario
 // -  Gewichte müssen begründet werden 
 
-== Limitationen der Uebertragbarkeit
+== Limitationen der Ãœbertragbarkeit
 
 // - 2D-Abstraktion, statische Hindernisse, Sim-to-Real-Gap, idealisierte Sensorik
 
@@ -1101,28 +1144,31 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 == Zusammenfassung
 
 // - Gebaut: 3D-Labyrinth, prozedurale Generierung, Curriculum, Custom-LSTM,
-//   Custom-Transformer, Multi-Area, vollstaendige Evaluations-Pipeline
+//   Custom-Transformer, Multi-Area, vollstÃ¤ndige Evaluations-Pipeline
 
 == Beantwortung der Forschungsfragen
 
-// - F1 Mehrwert temporalen Gedaechtnisses (LSTM/Transformer vs. MLP, Erfolgsrate)
+// - F1 Mehrwert temporalen GedÃ¤chtnisses (LSTM/Transformer vs. MLP, Erfolgsrate)
 // - F2 Vergleich LSTM vs. Transformer (Konvergenzgeschwindigkeit, finaler Score)
 // - F3 Generalisierung auf ungesehene prozedurale Maps (Overfitting-Index)
-// - Zusaetzlich, OHNE RQ-Label und OHNE Metrik: praktische Uebertragbarkeit als
-//   qualitative Diskussion (Rueckgriff auf Kap. 9)
+// - ZusÃ¤tzlich, OHNE RQ-Label und OHNE Metrik: praktische Ãœbertragbarkeit als
+//   qualitative Diskussion (RÃ¼ckgriff auf Kap. 9)
 
 == Limitationen und Lessons Learned
 // Verweis auf 9.4 (limitation übertragbarkeit) sonst übertragbarkeit nur kurz erwähnen dann verweis.
+// - Config-Abweichungen zwischen den Architekturen (gamma, max_steps,
+//   curiosity; vgl. 5.3.2): Vergleich ohne strengen Kausalanspruch —
+//   Unterschiede nicht allein der temporalen Architektur zuschreibbar
 // - PPO + Transformer: Inference/Training-Konsistenz nicht trivial
 // - PBRS nuetzlich aber farmbar; Discount-Faktor entscheidend
 // - Curriculum: Phasenwechsel als Stress-Test; Reward Engineering sensibel
 
 == Ausblick
 
-// - Vollstaendige Trainingsmatrix
-// - CNN-/Multi-Sensor-Pfad (M8-M10): AUSDRUECKLICH als zurueckgestellte Erweiterung
-//   benennen — urspruenglich geplanter Sensormodalitaets-Vergleich (Kamera,
-//   Sensor-Fusion), bewusst verschoben; Rueckverweis auf Abgrenzung 1.6
+// - VollstÃ¤ndige Trainingsmatrix
+// - CNN-/Multi-Sensor-Pfad (M8-M10): AUSDRÃœCKLICH als zurÃ¼ckgestellte Erweiterung
+//   benennen — ursprÃ¼nglich geplanter SensormodalitÃ¤ts-Vergleich (Kamera,
+//   Sensor-Fusion), bewusst verschoben; RÃ¼ckverweis auf Abgrenzung 1.6
 // - Dynamische Hindernisse, Multi-Agent, Sim-to-Real
 
 
@@ -1130,11 +1176,11 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // ANHANG (in appendix.typ)
 // ============================================================================
 // - YAML-Konfigurationen: identische Basis + je Agent MARKIERTE Abweichungen
-//   (stuetzt 5.3.2 "Notwendige YAML-Abweichungen")
-// - Vollstaendige Iterationstabelle V1-V22 mit TensorBoard-Belegen
-//   (stuetzt 7.6.5)
-// - Reward-Tabelle (vollstaendig)
-// - Uebersicht aller bearbeiteten Issues (#2 - #134)
+//   (stÃ¼tzt 5.3.2 "Notwendige YAML-Abweichungen")
+// - VollstÃ¤ndige Iterationstabelle V1-V22 mit TensorBoard-Belegen
+//   (stÃ¼tzt 7.6.5)
+// - Reward-Tabelle (vollstÃ¤ndig)
+// - Ãœbersicht aller bearbeiteten Issues (#2 - #134)
 // - Hardware-/Software-Stack
 // - Repository-Struktur
 
