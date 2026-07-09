@@ -125,7 +125,13 @@ public static class ModelComparisonSceneBuilder
                 bp.BehaviorName              = behaviorName;
                 bp.Model                     = null;
                 bp.BehaviorType              = BehaviorType.Default;
-                bp.BrainParameters.VectorObservationSize = 28;
+                // 31 = voller VectorSensor-Satz (v24CompatMode=false):
+                //   Boden 9x2=18 + Velocity 3 + isGrounded 1 + Zieldistanz 1
+                //   + Zielrichtung 3 + Wand-Raycasts 4 + Line-of-Sight 1.
+                // Muss exakt der Zahl entsprechen, die LabyrinthAgent.CollectObservations
+                // emittiert. Frueher 28 (ohne Zielrichtung) — seit deren Re-Einfuehrung
+                // (v2, CollectObservations) auf 31 gezogen, sonst Obs-Size-Mismatch.
+                bp.BrainParameters.VectorObservationSize = 31;
                 EditorUtility.SetDirty(bp);
             }
             else
