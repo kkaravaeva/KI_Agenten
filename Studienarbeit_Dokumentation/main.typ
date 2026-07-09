@@ -559,75 +559,182 @@ Die Qualität der Wahrnehmung bestimmt maßgeblich, welche Informationen dem Age
 // weicht  von der verbreiteten Erwartung „Methodik vor Implementierung ab, kurz begründen warum "man muss die Welt kennen, um das Experimentaldesign zu verstehen"
 == Gesamtueberblick
 
-// - Komponentendiagramm: Unity-Editor/Build <-> Python-Trainer <-> TensorBoard
-// - Code-Layout: Assets/Scripts/{Map, Agent, Camera}, training/, config/, results/
+// - Komponentendiagramm: Unity-Env (Editor/Standalone-Build) <-> Python-Trainer
+//   (mlagents-learn, PPO) <-> TensorBoard; Kopplung ueber ML-Agents-gRPC-Port
+// - je --num-envs ein eigener Unity-Prozess (Headless), eigener Port
+// - Engine Unity + ML-Agents-Package (com.unity.ml-agents 2.0.2 im Projekt)
+// - Code-Layout:
+//     Assets/Scripts/{Map, Agent, Camera, Audio, Competition, Visual}
+//     Assets/Editor/ (Generatoren, Szenen-Builder, Validatoren)
+//     Assets/{Scenes, Prefabs}/
+//     training/  (Python: Patch, Policies, Export, Reports)
+//     config/    (Trainer-YAMLs)
+//     results/   (Trainingslaeufe, Checkpoints, ONNX)
 
 == Map-System
 
 === Datenmodell
-// Achtung Redundanz mit Kapitel 7.1 vermeiden 
-// - CellType-Enum (Empty, Floor, Wall, Obstacle, Goal, SpawnPoint)
-// - MapData (ScriptableObject, flaches Array, GetCell/SetCell)
+// Achtung Redundanz mit Kapitel 7.1 vermeiden
+// - CellType-Enum, 9 Werte: Empty, Floor, Wall, Obstacle, Goal, SpawnPoint,
+//   Lava, Hole, Platform  (Lava/Hole/Platform sind die Gefahren-/Sprung-Typen)
+// - MapData (ScriptableObject): width, height, flaches Array CellType[] cells,
+//   Indexierung y*width+x; GetCell / SetCell
+// - MapData-Laufzeitfelder (nicht serialisiert): cellHeightOffsets (Platform-Hoehe,
+//   Default 0.75), noRuntimeObstacles-Flag
 
 === MapGenerator (Runtime)
 
-// - Layout-basierte Generierung mit Prefab-Mapping
-// - Spawn-/Goal-/Obstacle-Platzierung dynamisch; BFS-Pfadvalidierung
-// - Modi: SpawnPlacement / GoalPlacement / ObstaclePlacement,
-//   MapSelectionMode (Fixed/Random/Sequential/Curriculum)
-// - Multi-Area-Setup (4-10 parallele TrainingAreas), Tile-Pool
+// - reiner Renderer: nimmt fertige MapData und instanziiert Tiles (kein Bauen)
+// - Prefab-Mapping (BuildPrefabMap): Floor/Obstacle/Goal/SpawnPoint -> floorPrefab,
+//   Wall -> wallPrefab, Lava -> lavaPrefab, Hole -> holePrefab, Platform -> platformPrefab
+// - Tiles aus wiederverwendbarem Tile-Pool (kein Instantiate/Destroy pro Episode)
+// - dynamische Spawn-Wahl: zufaellige Floor/SpawnPoint-Zelle, meidet Lava/Hole-Nachbarn
+// - dynamische Goal-Wahl: zufaellige Zielzelle, verschieden von Spawn
+// - Marker-Objekte (SpawnPoint, Goal) separat instanziiert; Goal +0.5 Y
+// - persistente KillZone (Trigger-Box unter der Map, y=-20) fuer Loch-Faelle
+// - optionales Kamera-Framing (autoFrameCamera, ortho/perspektiv)
+// - WICHTIG: keine Laufzeit-Hindernis-Platzierung, keine BFS-Validierung hier
+//   -> Hindernisbau + Loesbarkeitscheck passieren in der prozeduralen Pipeline (s.u.)
+// - Platzierungs-Modi (Enums):
+//     SpawnPlacementMode    {RandomSpawnPoints, PredefinedSpawnPoints}
+//     GoalPlacementMode     {RandomGoalCells, PredefinedGoalSpawnPoints}
+//     ObstaclePlacementMode {RandomOnFloor, PredefinedSpawnPoints}
+//     MapSelectionMode      {Fixed, Random, Sequential}   // NICHT Curriculum
+// - Curriculum ist ein separater TrainingMode {Standard, Curriculum};
+//   im Curriculum liefert CurriculumTracker.GetNextLayout() die MapData
+// - Multi-Area-Setup: TrainingArea-Prefab, mehrfach in der Szene
+//     Training_MultiArea = 10 Areas, Transformer_Test_V2 = 16 Areas,
+//     Einzel-Szenen (MLP_Training, Transformer_Test) = 1 Area (Parallelisierung
+//     dann ueber --num-envs)
 
 === Prozedurale Generierung als Umsetzung der Messbarkeitsbedingung
 
 // - UMGERAHMT: Rueckgriff auf 1.4 — hier wird die geforderte Bedingung baulich
 //   eingeloest (nicht als "Feature")
-// - RoomCorridorGraph (2-Tile-Korridore, Wand-Saum, BORDER-Puffer)
-// - ObstacleClusterPlacer (Cluster aus Lava/Hole/Platform)
-// - SemanticPathfinder (Loesbarkeitscheck mit Sprung-/Plattform-Semantik)
-// - Schwierigkeitsgrade (Trivial -> ... -> Hard)
+// - Einstiegspunkt ProceduralLayoutGenerator.GenerateLayout(seed, difficulty):
+//     bis zu 10 Versuche; Pipeline: BuildTopology -> Raeume -> Korridore -> Waende
+//     -> Spawn/Goal -> Coverage-Check (>=15%) -> Cluster -> Platforms -> Pfad-Check
+//   Aufruf aus Editor-Skripten (MapGeneratorEditor, CurriculumV2Builder), nicht Runtime
+// - RoomCorridorGraph: Raum-Korridor-Graph
+//     BORDER-Puffer = 2 (Inhalte nie am Grid-Rand), MIN_CORRIDOR_LEN = 4
+//     2-Tile-breite Korridore (Hauptrichtung + Senkrechte)
+//     Raumtypen Start / Goal / DeadEnd; GoalRoom = am weitesten entfernter Knoten
+//     (Manhattan); Terminal-Korridore enden blind (spaeter Hole); optionale Loops
+// - ObstacleClusterPlacer: Cluster aus Lava/Hole (+ Platform)
+//     Goal-Korridor    -> Lava, Tiefe 1/2/3 (gewichtet), Platform ab Tiefe > 1
+//     DeadEnd/Terminal -> Hole, Tiefe 2 (durch Groesse nicht ueberspringbar)
+//     Loop-Korridor    -> 50% Lava Tiefe 1
+//     DeadEnd-Korridor -> Chance: kein Hindernis / Hole / Lava
+// - SemanticPathfinder: Loesbarkeitscheck (BFS, 4-Nachbarschaft)
+//     Floor/Spawn/Goal/Platform begehbar; Hole nie
+//     Lava begehbar wenn Cluster-Tiefe == 1 (ueberspringbar) ODER Platform vorhanden
+//     -> jede ausgelieferte Map ist garantiert loesbar
+// - Schwierigkeitsgrade (DifficultyLevel, aufsteigend):
+//     Trivial -> TrivialCorr -> TrivialBranch -> TrivialHole -> TrivialHazard
+//     -> Easy -> Medium -> Hard   (+ Sonderstufe TrivialLava)
+//     Trivial-Familie: direkte 7x7-Konstruktion; Easy/Medium/Hard: Graph-Pipeline
+//     DifficultySettings pro Stufe: Grid-Groesse, Korridorzahl, Verzweigungstiefe,
+//     Hindernis-Wahrscheinlichkeiten
 
 == Agent-System
+// Klasse: LabyrinthAgent : Agent  (Assets/Scripts/Agent/LabyrinthAgent.cs)
+// BehaviorName "LabyrinthNavigator", DecisionPeriod 5
 
 === Aktionsraum
 
-// -Branches
-// - Aktionen beschreiben
-// - "SuperSprung" ???
+// - diskret, 3 Branches mit Groessen [3, 3, 3]
+//     Branch 0 Bewegung: 0 = nichts, 1 = vorwaerts, 2 = rueckwaerts
+//     Branch 1 Drehung : 0 = nichts, 1 = links,     2 = rechts
+//     Branch 2 Sprung  : nur Wert 1 loest Sprung aus -> effektiv binaer
+// - Heuristik (manuelle Steuerung): W/S = vor/zurueck, A/D = drehen, Space = Sprung
+// - kein "SuperSprung": Sprung ist ein einzelner AddForce-Impuls, nur wenn geerdet
 
 === Observation-Space
 
-// - Welchen haben wir
-// - Vector
-// - RaySensoren (Die nach vorne und der in den boden)
+// - Vektor-Observations, konfigurationsabhaengig (Flag v24CompatMode)
+// - Volles Set = 31 Werte:
+//     18  Boden-Sensor (9 Positionen x [Typ-Code, norm. Distanz])
+//      3  Eigengeschwindigkeit (lokal, / moveSpeed)
+//      1  isGrounded
+//      1  Distanz zum Ziel (/ maxObservationDistance = 20)
+//      3  Richtung zum Ziel (lokal, normiert)
+//      4  Wand-Raycasts (vorne, rechts, links, hinten; norm. Distanz)
+//      1  Line-of-Sight zum Ziel (0/1)
+// - v24CompatMode (aktuelles Agent-Prefab) = 21 Werte: nur 18 Boden + 3 Velocity
+//   (V24-Transformer wurde ohne die restlichen Obs trainiert)
+// - dazu separater Ray-Sensor (s. Kapitel Sensorik), stacked = 2
+// - NumStackedVectorObservations = 1 fuer den Vektor-Sensor
 
 === Bewegungs- und Sprungphysik
 
-// - Rigidbody (MovePosition/MoveRotation/AddForce); Sprungkalibrierung
-// - Wall-Climb-Guard, maxUpwardVelocity-Cap (V11/V12)
+// - Rigidbody: Masse 1, Drag 0.5, Constraints = FreezeRotation X+Z (nur Y-Drehung)
+// - MoveRotation (turnSpeed 180 Grad/s), MovePosition (moveSpeed 5), AddForce-Impuls
+//   (jumpForce 10.5, nur bei isGrounded)
+// - GroundCheck: Raycast nach unten, geerdet auf Floor/Bridge/Platform/Goal
+// - Wall-Climb-Guard: y > spawnY + wallClimbMaxY (5) -> Penalty (Anti-Kletter-Exploit)
+// - maxUpwardVelocity-Cap (8) in FixedUpdate: begrenzt Aufwaerts-Geschwindigkeit (V11/V12)
 
 === (Third-Person-Kamera) // kann man diskutieren ob man es braucht zur not raus, aber schon interessant wegen showcase etc. und um den agenten zu verstehen wie erfunktinoiert
 
-// - Smooth-Follow in LateUpdate, lokaler Agent-Raum
+// - ThirdPersonCamera: Smooth-Follow in LateUpdate
+// - Position via SmoothDamp (positionSmoothTime 0.1), Rotation via Slerp (speed 5)
+// - lokaler Offset zum Agenten (Hoehe 3, Distanz 5) -> folgt Blickrichtung
+// - weitere Kameras vorhanden (Front-Follow, Drone, CameraSwitcher) — optional
 
 == Sensorik — und die begruendete Wahl der Ray-Wahrnehmung
 
 // - ENTSCHEIDUNG SICHTBAR MACHEN: warum Ray statt (nur) Kamera fuer die
 //   Basis-Vergleichsgruppe -> CPU-tauglich, robust, direkt interpretierbar
-// - Horizontaler RayPerceptionSensor: 11 Rays, 120°, 12 Zellen, Stacked = 2
+// - Horizontaler RayPerceptionSensor (ML-Agents-Komponente am Prefab):
+//     11 Rays (RaysPerDirection 5 -> 2*5+1), 120° (MaxRayDegrees 60 = Halbwinkel),
+//     Reichweite 12, Stacked = 2, SphereCast-Radius 0.25
 // - 6 Detectable Tags: Wall, Obstacle, Lava, Hole, Goal, Bridge
-// - Manueller Boden-Sensor: 3 Raycasts mit Typ-Codes
+// - Manueller Boden-Sensor (im Agent-Code, kein RayPerceptionSensor):
+//     9 Raycasts nach unten (Reichweite 2), je 2 Werte (Typ-Code + norm. Distanz)
+//     Typ-Codes: Floor +1, Lava -1, Hole -0.5, Bridge +0.5, kein Treffer -1.5
+//     Positionen: unter dem Agenten, vorne 1/2 Zellen, diagonal, seitlich
 
 == Reward-System
 // keine DesignEntscheidungen und ihre Wirkung (abgrenzung 7.4)
-// - Formale Reward-Funktion (goalReward, lava/hole/timeout, stepPenalty, PBRS)
-// - Aktuelle Werte + PBRS (F = (prevDist − γ·currDist)·scale) + Curiosity
+// - Architektur: zentrale Vergabe im Agent; externe Objekte (Lava, KillZone)
+//   loesen nur OnTriggerEnter aus, der Agent vergibt den Reward
+// - Kern-Terme (formale Funktion) und Werte:
+//     Ziel erreicht        goalReward       = +30   (Episode-Ende, Erfolg)
+//     Lava-Tod             lavaDeathPenalty = -3    (Episode-Ende)
+//     Loch-Tod (KillZone)  holeDeathPenalty = -3    (Episode-Ende)
+//     Timeout (MaxStep)    timeoutPenalty   = -10
+//     Zeitstrafe/Step      stepPenalty      = -0.002
+//     PBRS-Shaping         F = (prevDist − γ·currDist) · scale
+//                          γ (pbrsGamma) = 1.0, scale (distanceShapingScale) = 0.01
+// - weitere aktive Terme (fuer vollstaendige Funktion noetig):
+//     Lava-Sprung-Versuch  +1.5, dann /4, /8, danach 0 (abklingend, Edge-Trigger)
+//     Lava-Ueberquerung    +8 (nach Landung)
+//     Loch-Ueberflug       -1 (Edge-Trigger; Loecher sollen umgangen werden)
+//     Line-of-Sight        +0.005 (bei freier Sicht zum Ziel)
+//     Wall-Climb           -1 (bei Ueberschreiten der Hoehe)
+// - MaxStep pro Curriculum-Phase (phaseMaxSteps): 600 / 1200 x4 / 1500 / 2000 / 2500
+// - Curiosity ist KEIN Agent-Reward, sondern ein Trainer-Reward-Signal (Config):
+//     nur in Transformer- und LSTM-Curiosity-Config aktiv (strength 0.05),
+//     nicht in der Standard-PPO-Config
 // - Quelle: Reward_Strategie.md
 
 == Trainingsinfrastruktur
 
-// - Python venv (mlagents 0.30.0, PyTorch 2.0.1+cu118)
-// - Patch-Skript (training/patch_mlagents.py) fuer Custom-Policies
-// - Multi-Area-/Headless-Parallelisierung; Hardware 
+// - Python-venv mit mlagents 0.30.0 (im Patch-Skript benannt), PyTorch 2.0.1
+//   (CUDA-Variante cu118 nur in Doku, nicht im Code verankert -> ggf. pruefen)
+// - Patch-Skript training/patch_mlagents.py: ruestet die venv fuer Custom-Policies
+//   nach (Transformer-Memory): kopiert transformer_memory.py, erweitert settings.py
+//   (memory_type) und networks.py (Transformer-Branch neben LSTM);
+//   start_training.py wendet den Patch automatisch an
+// - Trainer-Konfigurationen (config/):
+//     PPO-Baseline (labyrinth_training.yaml): lr 3e-4, batch 512, buffer 10240,
+//       gamma 0.99, MLP 256x2, normalize false, max_steps 6.4M
+//     Transformer (labyrinth_transformer.yaml): memory_type transformer,
+//       sequence_length 16, memory_size 128, curiosity 0.05, gamma 0.997, max_steps 60M
+//     weitere: labyrinth_lstm*.yaml, model_comparison*.yaml
+// - Parallelisierung: Multi-Area (mehrere TrainingAreas je Szene) + Headless-Builds
+//   via --num-envs; je Worker eigener mlagents-Port und eigene Curriculum-State-Datei
+// - Hardware: <vom Autor einzutragen — CPU/GPU/RAM, Trainingsdauer>
 
 
 // ============================================================================
