@@ -18,9 +18,9 @@ except ImportError:
     raise SystemExit("tensorboard nicht installiert")
 
 PROJECT_DIR = Path(__file__).parent.parent
-RUN_ID      = "model_comparison_final_v2"
+RUN_ID      = "model_comparison_final_v3"
 RESULTS_DIR = PROJECT_DIR / "results" / RUN_ID
-ANALYSE_DIR = PROJECT_DIR / "Analyse" / "final_v2"
+ANALYSE_DIR = PROJECT_DIR / "Analyse" / "final_v3"
 ANALYSE_DIR.mkdir(parents=True, exist_ok=True)
 
 BEHAVIORS = ["LSTM_Navigator", "Transformer_Navigator", "MLP_Navigator"]
