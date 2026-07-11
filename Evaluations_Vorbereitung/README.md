@@ -19,16 +19,23 @@ Finale Modelle des 3-Wege-Vergleichs (MLP / LSTM / Transformer) nach
 Der Transformer lässt sich **nicht als ONNX exportieren** — das Tracing von
 `nn.MultiheadAttention` schlägt fehl, und Barracuda könnte die Datei ohnehin
 nicht laden (bekanntes Problem, vgl. `Transformer_v24_opset18_backup.onnx`).
-Der vorgesehene Weg ist ML-Agents-Inference über Python:
+Der vorgesehene Weg ist ML-Agents-Inference über Python — **getestet am
+11.07.2026** (alle 3 Brains verbunden, „Not Training", Steps laufen über die
+30M hinaus weiter):
 
+**Variante A — mit Unity-Editor (zum Zuschauen/Debuggen):**
 1. `inference_setup\start_inference.bat` doppelklicken
-2. In Unity die Szene **Training Area** öffnen und **Play** drücken
-3. Alle drei Behaviors (auch MLP und LSTM) laufen dann mit ihren finalen
-   30M-Gewichten — ohne Lern-Updates, Port 5004
+2. In Unity die Szene **Training Area** öffnen und **Play** drücken (Port 5004)
 
-Das Setup ist selbständig: Config + `results`-Struktur mit den finalen
-`checkpoint.pt` liegen im Ordner, der Launcher zeigt per `--results-dir` darauf.
-Benötigt nur die Trainings-venv (`C:\Users\Finnl\mlagents-31008`).
+**Variante B — ohne Editor, ein Klick:**
+- `inference_setup\start_inference_build.bat` doppelklicken → startet den
+  Standalone-Build (`Build\KI_Agenten.exe`) sichtbar in Echtzeit (Port 5005)
+
+In beiden Fällen laufen **alle drei Behaviors** (auch MLP und LSTM) mit ihren
+finalen 30M-Gewichten, ohne Lern-Updates. Das Setup ist selbständig: Config +
+`results`-Struktur mit den finalen `checkpoint.pt` liegen im Ordner, der
+Launcher zeigt per `--results-dir` darauf. Benötigt die Trainings-venv
+(`C:\Users\Finnl\mlagents-31008`); Variante B zusätzlich den Projekt-Build.
 
 ## ONNX in Unity verwenden
 
