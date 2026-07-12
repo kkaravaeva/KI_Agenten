@@ -509,3 +509,81 @@ Quellen je Zeile: `results/<run>/configuration.yaml` (cfg), Checkpoint-Dateiname
 4. Endstand und TB-Metriken des laufenden model_comparison_final_v3-Trainings (Lauf war während der Extraktion aktiv).
 5. Ob die im Watchdog/Build referenzierte `Build\KI_Agenten.exe` aus dem aktuellen Commit gebaut wurde (Build/ nicht versioniert; build.log liegt bei, wurde als Nicht-Quellartefakt nicht ausgewertet).
 6. Sämtliche Aussagen der Markdown-/Typst-Dokumentation (verbotene Quellen; gegen dieses SSOT abzugleichen).
+
+---
+
+## 13. Nachtrag: Finale Vergleichsläufe und Generalisierungstests (Stand 2026-07-12)
+
+**Abgrenzung zum Haupt-SSOT:** Die Abschnitte 0–12 sind ein Snapshot vom **2026-07-10** (final_v3 damals aktiv bei ~17 M Steps, §11). Dieser Nachtrag ergänzt Entwicklungen bis 2026-07-12 und löst mehrere in §12 als *NICHT VORHANDEN* geführte Punkte auf. Evidenzregeln wie im Haupt-SSOT: Belege aus Code/Assets/Configs/`results/`; für v3-Trainingszahlen ist die einzige verfügbare Quelle das generierte Report-Artefakt `Analyse/final_v3/report_*.pdf` (Roh-tfevents nicht committet) — Provenienz je Aussage markiert. Die in diesem Nachtrag beschriebenen C#-Dateien und Layout-Assets sind **Working-Tree-Ergänzungen, noch nicht committet** (Status wie `watchdog_final_v3.py` in §0).
+
+### 13.1 Es existieren ZWEI finale Vergleichsläufe (nicht einer)
+
+| Lauf | Config | Steps (Endstand) | Envs | Abschlusskriterium | Rechner/Ort | Beleg |
+|---|---|---|---|---|---|---|
+| **model_comparison_final_v2** | `config/model_comparison_final_v2.yaml` | **16 600 000** (~5,53 M/Behavior-Loop) | 3 | „5 volle Curriculum-Loops je Env“, dann Stopp (kein 30-M-Budget ausgeschöpft) | alxbe-Rechner | `results/model_comparison_final_v2/` (Checkpoints -16599xxx.pt/.onnx); Endpunkt-Protokoll `results/model_comparison_final_v2/loop5_stop_protokoll.txt` (Env-Abschlüsse 15:08/16:05/16:45 am 2026-07-11) |
+| **model_comparison_final_v3** | `config/model_comparison_final_v3.yaml` | **30 000 000** (vollständig) | 5 (`--num-envs 5`, Watchdog §10.4) | volles 30-M-Budget | Finnl-Rechner (GPU) | `Evaluations_Vorbereitung/` auf `origin/ModelTrainingComparsion` (Commit `b253f6d`, Finn Ludwig, 2026-07-11); Checkpoints `checkpoints/{MLP-30000089,LSTM-30003930,Transformer-30006822}.pt`; Laufzeit „31h 11m“ (Report-Artefakt `Analyse/final_v3/report_2026-07-11_09-49.pdf` S.1) |
+
+**Auflösung Naming-Kollision zur Doku:** Die Trainer-Abweichungstabelle der Typst-Doku (Transformer beta 5.0e-4/constant, lr_schedule constant, curiosity 0.02) beschreibt **final_v3**, nicht final_v2 — vgl. SSOT §9.2 „Diff final_v2 → final_v3“ (nur Transformer_Navigator geändert). final_v2 und final_v3 unterscheiden sich **ausschließlich in vier Transformer-Hyperparametern**; MLP- und LSTM-Behavior sind byte-identisch zwischen beiden Configs.
+
+**Aktualisierung §11 (Lauf-Inventar):** Der dort als „Lauf aktiv, ~17 M“ inventarisierte `model_comparison_final_v3` ist zwischenzeitlich bei **30 M abgeschlossen** (2026-07-11 ~07:42, Report-Artefakt). Die finalen v3-Checkpoints liegen versioniert unter `Evaluations_Vorbereitung/checkpoints/` (die `results/`-Variante bleibt gitignored). **NICHT AUFLÖSBAR bleibt** der Endstand aus dem Haupt-SSOT damit teil-aufgelöst: v3 = 30 M vollständig; v2 = 16,6 M (Loop-5-Stopp).
+
+### 13.2 Generalisierungstest-Infrastruktur (löst §12-NICHT-VORHANDEN #2 auf)
+
+Neu im Working Tree (nicht committet):
+
+- **`Assets/Scripts/Map/DifficultyLevel.cs:12`** — neuer Enum-Wert `Giant = 9` (Out-of-Distribution-Stufe). Zugehörige `DifficultySettings` (`:81–96`): Grid **40–50 × 48–60** (Hard max: 37 × 45, §6.4), Level1-Korridore 8–12, MaxBranchDepth 6, MaxTotalRooms 42, LoopProbability 0.35, BranchProbability 0.75, GoalLavaDepth3Chance 0.25.
+- **`Assets/Editor/GeneralizationSceneBuilder.cs`** (Menü `Training/Generalisierungstest bauen (Maps + Szene)`, `:41`): erzeugt Held-out-Layouts mit **eigenem Seed-Bereich `SEED_BASE = 900000`** (`:26`, disjunkt zu allen Trainings-Seeds: Curriculum `42000+…` §7.3, MapGeneratorEditor `Random 0–999999`), Plan `(Easy 50, Medium 50, Hard 50, Giant 5)` (`:28–34`), Ausgabe `Assets/Layouts/Generalization/Layout_GEN_<Diff>_NNN.asset` (`:25`); baut die Testszene `Assets/Scenes/Generalization Test.unity` (`:24`) als Ableitung der Trainingsszene, reduziert auf **3 Areale mit je 1 Agent** (EvalArea_MLP/LSTM/Transformer). Zwei weitere Menüpunkte: `Generalisierungstest: Modelle zuweisen + Build` (ONNX-Zuweisung + Standalone-Build nach `Build_Gen/`) und `Generalisierungstest: Build für Python-Inferenz` (setzt BehaviorType=Default, Modell=null → Steuerung über Python-Trainer).
+- **`Assets/Scripts/Evaluation/GeneralizationEvalManager.cs`** — Orchestrierung. Protokoll: `episodesPerMap = 5` (`:41`), `randomSeedBase = 777` (`:43`), **paarweise faire Seeds** `seed = randomSeedBase*1000 + m*100 + ep` pro Episode identisch über alle drei Areale (`:88` → identische Spawn/Ziel-Würfe je Architektur), `timeScale = 5` (`:45`; Zeitlimits gelten in simulierten Sekunden), Zeitlimits je Kategorie 45/75/110/**180**s (Easy/Medium/Hard/Giant, `:48–51`); Tod oder Timeout = Fehlschlag. Ausgabe CSV `results/generalization/generalization_results.csv`, Spalten `map;kategorie;episode;agent;erfolg;zeitSekunden` (`:17–18, 77`). Nach Abschluss `Application.Quit()`.
+- **Held-out-Kartenbestand auf Platte:** `Assets/Layouts/Generalization/` = **155** Assets (Easy 50, Medium 50, Hard 50, Giant 5; Dateizählung 2026-07-12). Getrennt von allen Curriculum-Pools (§7.1) und den TrivialBranch/Layout_01–05-Beständen (§7.3).
+
+**Testumfang je Lauf:** 155 Karten × 5 Episoden × 3 Architekturen = **2 325 Bewertungsepisoden** (CSV-Zeilen 2 326 inkl. Header, belegt für v2).
+
+**Betriebsart (beide Tests):** Python-Inferenz `mlagents.trainers.learn <cfg> --run-id <id> --inference --resume --env Build_Gen\KI_Agenten_GenTest.exe --num-envs 1 --time-scale 5 --no-graphics`. Grund gegen ONNX-in-Unity: Der Transformer-Graph ist mit Barracuda 2.0.0 nicht lauffähig (nicht unterstützter `If`-Operator per Graph-Chirurgie entfernbar, aber `Reshape` der Attention sprengt Barracudas 4D-Tensormodell) — konsistent mit §10.4/Abschluss und mit `Evaluations_Vorbereitung/README` (nur MLP+LSTM als ONNX vorhanden, Transformer nur Python).
+
+### 13.3 Ergebnisse Generalisierungstest — final_v2 (löst §12-#3 teil-auf)
+
+Quelle: `results/generalization/generalization_results_run1.csv` (2 325 Episoden, vollständig). Erfolgsrate = Anteil Episoden mit Zielerreichung, je Kategorie 250 Episoden/Architektur (Giant: 25).
+
+| Kategorie | LSTM | MLP | Transformer |
+|---|---|---|---|
+| Easy (50) | **90,4 %** | 64,0 % | 57,2 % |
+| Medium (50) | **88,4 %** | 61,6 % | 56,0 % |
+| Hard (50) | **69,6 %** | 36,4 % | 29,6 % |
+| Giant (5, OOD) | **48,0 %** | 16,0 % | 8,0 % |
+
+Rangfolge final_v2: **LSTM ≫ MLP > Transformer**, konsistent über alle Kategorien; Generalisierungslücke gegenüber Trainings-Blockmitteln ≈ 0.
+
+### 13.4 Ergebnisse Generalisierungstest — final_v3 (Finns 30-M-Modelle)
+
+**Setup-Besonderheit (BELEGT, reproduzierbar):** Finns Checkpoints wurden auf GPU gespeichert (CUDA-Tensoren; vgl. §11-Indiz torch 2.0.1+**cu118**). Direktes Laden auf CPU-Maschine wirft `RuntimeError: Attempting to deserialize object on a CUDA device`. Fix: `torch.load(f, map_location='cpu')` + `torch.save` je Checkpoint. Danach `--resume` sauber („Resuming from step 30006822/30003930/30000089“). results-Struktur: `results/finn_v3_gentest/<Behavior>/checkpoint.pt` (CPU-konvertierte Kopien der `Evaluations_Vorbereitung/checkpoints/`), run-id `finn_v3_gentest`, base-port 5008.
+
+**Abgeschlossen 2026-07-12 ~03:4x.** Quelle: `results/generalization/generalization_results_finn_v3.csv` (2 325 Episoden, vollständig). Identische Testharness wie final_v2 (§13.3) — dieselbe Szene, dieselben 155 Held-out-Maps, dieselben paarweisen Seeds.
+
+| Kategorie | LSTM | MLP | Transformer |
+|---|---|---|---|
+| Easy (50) | 8,0 % | 78,4 % | **84,4 %** |
+| Medium (50) | 4,0 % | **83,6 %** | 79,6 % |
+| Hard (50) | 0,8 % | **63,6 %** | 56,4 % |
+| Giant (5, OOD) | 0,0 % | 40,0 % | **52,0 %** |
+
+Karten-Abdeckung (≥1 Erfolg / 5-von-5 perfekt): LSTM Easy 15/50 (0 perfekt), Medium 9/50, Hard 2/50, Giant 0/5; MLP/Transformer je 43–49 von 50 pro Kategorie.
+
+**Befund (vollständige Rangfolge-Umkehr gegenüber final_v2):** In final_v3 **kollabiert das LSTM** (0–8 % über alle Kategorien), während MLP und Transformer dominieren (Transformer auf Easy und Giant vorn, MLP auf Medium/Hard). **Kontrolle:** Dieselbe Harness lieferte für final_v2 ein LSTM mit 90,4 % (Easy) — der Unterschied liegt also **eindeutig in den Modellgewichten, nicht im Testaufbau**. Der v3-LSTM zeigt zudem eine extreme Trainings-→-Held-out-Lücke (Training-Rolling ~57,5 % laut §13.5 vs. Held-out 4–8 %), MLP/Transformer dagegen kleine Lücken — konsistent mit einer späten LSTM-Instabilität/Überanpassung in v3 (Rolling < Beste-Success am Laufende, §13.5).
+
+### 13.5 Trainings-Unterschied v2 ↔ v3 (Report-Artefakt-Provenienz)
+
+Quelle: `Analyse/final_v3/report_*.pdf` (36 Stundenreports, page-1-Tabellen; generierte Artefakte, keine Hand-Doku). „Beste Success“ = bestes je erreichtes Rolling-Success-Niveau (monoton).
+
+| Beste-Success (Endstand) | LSTM | MLP | Transformer |
+|---|---|---|---|
+| final_v2 (16,6 M, `results/…final_v2` tfevents) | ~85 % | ~63 % | ~49 % |
+| final_v3 (30 M, Report 2026-07-11_09-49 S.1) | 74,3 % | **88,6 %** | 79,0 % |
+
+**Befund:** Die Architektur-Rangfolge ist **nicht laufstabil**. In final_v2 dominiert das LSTM, in final_v3 der MLP (LSTM Schlusslicht). Da MLP-/LSTM-Config zwischen v2 und v3 identisch sind (§13.1), stammt die Differenz aus Trainingsbudget (30 M vs. 16,6 M), venv-/mlagents-Version (v3: `C:\Users\Finnl\mlagents-31008`) oder Stochastik — **empirische Untermauerung der in §12-#4 als NICHT VORHANDEN geführten Mehr-Seed-Anforderung.**
+
+### 13.6 Aktualisierung §12 (aufgelöste NICHT-VORHANDEN-Punkte)
+
+- §12-#2 „Eval-/Test-/Holdout-Layout-Sets; Checkpoint-Evaluations-Pipeline auf fixem Map-Set“ → **jetzt VORHANDEN** (§13.2: 155 Held-out-Maps + GeneralizationEvalManager + Build_Gen, Working Tree).
+- §12-#3 „Overfitting-Index“ → **teilweise VORHANDEN** als Messung (Trainings- minus Held-out-Erfolg, §13.3 ≈ 0 für v2); als Code-Metrik weiterhin nicht implementiert.
+- §12-#4 „Mehrere Seeds/Läufe je Architektur“ → weiterhin **NICHT VORHANDEN** als Konfiguration, aber es liegen nun **zwei vollständige Läufe** (v2/v3) mit divergierender Rangfolge vor (§13.5) — de facto ein Reproduzierbarkeits-Signal, kein kontrollierter Seed-Sweep.
+- §12-#7 „ONNX-Exporte der drei final-Behaviors“ → für **MLP/LSTM VORHANDEN** (`Evaluations_Vorbereitung/onnx/`, opset 10/11); **Transformer weiterhin NICHT** (Barracuda-inkompatibel, §13.2).

@@ -9,6 +9,7 @@ public enum DifficultyLevel
     Medium        = 6,
     Hard          = 7,
     TrivialLava   = 8,  // flacher Raum mit 1-Zellen-Lava-Wand quer → Sprung erzwungen
+    Giant         = 9,  // Generalisierungstest: größer und komplexer als Hard, nie im Training
 }
 
 public struct DifficultySettings
@@ -75,6 +76,23 @@ public struct DifficultySettings
                     DeadEndNoObstacleChance = 0.35f,
                     DeadEndHoleChance       = 0.10f,
                     GoalLavaDepth3Chance    = 0.10f
+                };
+
+            case DifficultyLevel.Giant:
+                return new DifficultySettings
+                {
+                    GridWidthMin  = 40, GridWidthMax  = 50,
+                    GridHeightMin = 48, GridHeightMax = 60,
+                    Level1CorridorsMin = 8, Level1CorridorsMax = 12,
+                    MaxBranchDepth = 6,
+                    MaxTotalRooms  = 42,
+                    TerminalFromStartMin = 3, TerminalFromStartMax = 5,
+                    TerminalLengthMin = 4,    TerminalLengthMax = 14,
+                    LoopProbability       = 0.35f,
+                    BranchProbability     = 0.75f,
+                    DeadEndNoObstacleChance = 0.20f,
+                    DeadEndHoleChance       = 0.14f,
+                    GoalLavaDepth3Chance    = 0.25f
                 };
 
             default: // Hard

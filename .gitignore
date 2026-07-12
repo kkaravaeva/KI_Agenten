@@ -118,3 +118,15 @@ Training_Kit/
 Training_Kit.zip
 Training_Archive/
 curriculum_v2_build_log*.txt
+
+# Generalisierungstest-Artefakte (nicht versionieren)
+Build_Gen/
+Assets/Models/FinalV2/
+gen_test_run_log.txt
+gen_*.txt
+scene_probe_log.txt
+finn_gentest_*.txt
+curriculum_v2_build_log*.txt
+gen_scene_build_log*.txt
+gen_assign_build_log*.txt
+gen_build_pyinf_log.txt
