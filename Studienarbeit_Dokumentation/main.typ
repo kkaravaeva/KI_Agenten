@@ -789,7 +789,17 @@ Schließlich erzeugt die Hindernis-Semantik der Pipeline gezielt Situationen, di
 == Agent-System
 
 Die gesamte Agentenlogik (Beobachtungsaufbau, Aktionsausführung und Belohnungsvergabe) liegt in der Klasse LabyrinthAgent (`Assets/Scripts/Agent/LabyrinthAgent.cs`) und ist für alle Architekturen identisch. Die drei Vergleichsagenten unterscheiden sich ausschließlich durch ihren Behavior-Namen und die dahinterliegende Netzarchitektur (@tab:behaviors). 
-
+  #figure(
+    table(
+      columns: 4,
+      align: (left, left, left, center),
+      [*Behavior-Name*], [*Rolle*], [*Beobachtungen*], [*DecisionPeriod*],
+      [MLP_Navigator], [Vergleichsagent (F1--F3)], [31 Vektor + 176 Ray (@tab:sensorspez)], [5],
+      [LSTM_Navigator], [Vergleichsagent (F1--F3)], [31 Vektor + 176 Ray (@tab:sensorspez)], [5],
+      [Transformer_Navigator], [Vergleichsagent (F1--F3)], [31 Vektor + 176 Ray (@tab:sensorspez)], [5],
+    ),
+    caption: [Behaviors des Agent-Systems: die drei Vergleichsagenten.],
+  ) <tab:behaviors>
 
 
 === Aktionsraum
@@ -1243,7 +1253,7 @@ Der Transformer-Agent ist einer der beiden gedächtnisbehafteten Vergleichskandi
 
 Die Wahrnehmung des Agenten ist lokal und kurzreichweitig: Ray-Sensor, Boden-Sensor und Wand-Raycasts erfassen jeweils nur die unmittelbare Umgebung (vollständige Spezifikation in @tab:sensorspez), eine globale Karte steht zu keinem Zeitpunkt zur Verfügung. Hinzu kommt, dass eine Einzelbeobachtung kaum zeitliche Tiefe besitzt: Die Vektor-Beobachtungen werden nicht gestapelt (`NumStackedVectorObservations = 1`, @sec:obsspace), das einzige Stacking liegt mit dem Faktor 2 im Ray-Sensor. Ein einzelner Beobachtungsvektor beschreibt damit im Wesentlichen den aktuellen Moment.
 
-Der zeitliche Kontext entsteht deshalb erst im Speicher-Modul, das eine Sequenz der jeweils letzten 16 Encoder-Ausgaben verarbeitet. Da der Decision Requester nur alle fünf Simulationsschritte eine neue Entscheidung anfordert (@tab:behaviors), liegen aufeinanderfolgende Sequenzelemente fünf Simulationsschritte auseinander. Das Attention-Fenster überspannt somit die letzten 16 Entscheidungspunkte des Agenten. Die konzeptionelle Begründung, warum partielle Beobachtbarkeit ein solches Gedächtnis erfordert, liefern @sec:sequenzmodellierung und @sec:partielle-beobachtbarkeit. Dieser Abschnitt beschreibt die konkrete Umsetzung.
+Der zeitliche Kontext entsteht deshalb erst im Speicher-Modul, das eine Sequenz der jeweils letzten 16 Encoder-Ausgaben verarbeitet. Da der Decision Requester nur alle fünf Simulationsschritte eine neue Entscheidung anfordert (@<tab:behaviors>), liegen aufeinanderfolgende Sequenzelemente fünf Simulationsschritte auseinander. Das Attention-Fenster überspannt somit die letzten 16 Entscheidungspunkte des Agenten. Die konzeptionelle Begründung, warum partielle Beobachtbarkeit ein solches Gedächtnis erfordert, liefern @sec:sequenzmodellierung und @sec:partielle-beobachtbarkeit. Dieser Abschnitt beschreibt die konkrete Umsetzung.
 
 === Eingabeverarbeitung: Beobachtungssequenz und Embedding
 
