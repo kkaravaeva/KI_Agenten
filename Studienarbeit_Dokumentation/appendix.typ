@@ -36,4 +36,26 @@
 ) <tab:iterationen>
 // ---- Ende Tabelle -------------------------------------------------------
 
+  // ---- Overfitting-Index (Detail) ----------------------------------------
+#figure(
+  table(
+    columns: (auto, auto, auto, auto, auto),
+    align: (left, left, right, right, right),
+    table.header(
+      [*Architektur*], [*Kategorie*], [*Training-Ende*], [*Held-out*], [*Index*],
+    ),
+    [MLP], [Easy (Phase 5)], [84,7 %], [78,4 %], [+6,3 pp],
+    [MLP], [Medium (Phase 6)], [71,9 %], [83,6 %], [−11,7 pp],
+    [MLP], [Hard (Phase 7)], [61,8 %], [63,6 %], [−1,8 pp],
+    [LSTM], [Easy (Phase 5)], [74,3 %], [8,0 %], [+66,3 pp],
+    [LSTM], [Medium (Phase 6)], [65,9 %], [4,0 %], [+61,9 pp],
+    [LSTM], [Hard (Phase 7)], [57,5 %], [0,8 %], [+56,7 pp],
+    [Transformer], [Easy (Phase 5)], [78,6 %], [84,4 %], [−5,8 pp],
+    [Transformer], [Medium (Phase 6)], [69,8 %], [79,6 %], [−9,8 pp],
+    [Transformer], [Hard (Phase 7)], [58,4 %], [56,4 %], [+2,0 pp],
+  ),
+  caption: [Overfitting-Index final_v3 (30 Mio. Steps) je Architektur und Kategorie: rollierende Trainings-Erfolgsrate (200-Episoden-Fenster) am Ende der jeweils passenden Curriculum-Phase, Held-out-Erfolgsrate über 50 Karten je Kategorie sowie deren Differenz (Index = Training minus Held-out; positiv bedeutet Überanpassung). Die Kategorie Giant besitzt kein trainingsseitiges Pendant und bleibt daher ohne Index.],
+) <tab:overfitting_detail>
+// ---- Ende Overfitting-Index (Detail) -----------------------------------
+
 ]
