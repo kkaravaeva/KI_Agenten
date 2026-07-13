@@ -41,7 +41,7 @@
 
   align(center, text(weight: "semibold", font: heading-font, 2.2em, title))
   v(4em)
-  align(center, text(weight: "semibold", font: heading-font, 1.5em, "Projektarbeit T3000"))
+  align(center, text(weight: "semibold", font: heading-font, 1.5em, "Studienarbeit"))
   v(0.5em)
   align(center, text(1.2em, [#if (language == "de") {
     [aus dem Studiengang #authors.map(author => author.course-of-studies).dedup().join(" | ")]
