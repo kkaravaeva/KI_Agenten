@@ -679,7 +679,7 @@ Dieses Kapitel beschreibt das entwickelte System in seinem finalen Zustand als V
 
 == Gesamtüberblick
 
-Das Gesamtsystem besteht aus einem geschlossenen Regelkreis zwischen Unity, dem PPO-Trainer und TensorBoard. Während die Unity-Umgebung Beobachtungen und Belohnungssignale bereitstellt, optimiert der Python-Trainer die Policy und übermittelt die daraus resultierenden Aktionen zurück an die Simulation. TensorBoard zeichnet den Trainingsverlauf auf. Alle drei verglichenen Architekturen werden innerhalb derselben Systemumgebung und unter identischen Bedingungen trainiert. Die Netzarchitektur ist damit die einzige Variable, die zwischen den Vergleichsgruppen verändert wird. Das Vergleichsdesign wird in Kapitel 5 erläutert.
+Das Gesamtsystem besteht aus einem geschlossenen Regelkreis zwischen Unity, dem PPO-Trainer und TensorBoard. Während die Unity-Umgebung Beobachtungen und Belohnungssignale bereitstellt, optimiert der Python-Trainer die Policy und übermittelt die daraus resultierenden Aktionen zurück an die Simulation. TensorBoard zeichnet den Trainingsverlauf auf. Das Vergleichsdesign wird in Kapitel 5 erläutert.
 
 #figure(
   image("assets/Komponentendiagramm des Trainingssystems.png", width: 100%),
@@ -806,7 +806,7 @@ Die gesamte Agentenlogik (Beobachtungsaufbau, Aktionsausführung und Belohnungsv
 
 === Aktionsraum
 
-Der Agent handelt über einen diskreten Aktionsraum mit drei Branches (Bewegung, Drehung und Sprung) (@tab:aktionsraum). Der Aktionsraum ist für MLP, LSTM und Transformer identisch und damit eine kontrollierte Variable des Vergleichs. Beobachtete Leistungsunterschiede sind somit durch die Netzarchitektur begründet. Das Vergleichsdesign, das auf dieser Konstanz aufbaut, wird in Kapitel 5 entwickelt.
+Der Agent handelt über einen diskreten Aktionsraum mit drei Branches (Bewegung, Drehung und Sprung) (@tab:aktionsraum). Der Aktionsraum ist für MLP, LSTM und Transformer identisch (kontrollierte Variable des Vergleichs, Abschnitt 5.3).
 
 #figure(
   table(
@@ -822,7 +822,7 @@ Der Agent handelt über einen diskreten Aktionsraum mit drei Branches (Bewegung,
 
 === Observation-Space <sec:obsspace>
 
-Alle drei Vergleichsagenten erhalten denselben Beobachtungssatz: 31 Vektor-Beobachtungen und 176 Ray-Beobachtungen. Der Szenen-Builder weist MLP_Navigator, LSTM_Navigator und Transformer_Navigator über dasselbe Prefab identische Eingaben zu. Die Agenten erhalten identische Eingaben. Beobachtete Leistungsunterschiede können jedoch sowohl aus der Netzarchitektur als auch aus den in @sec:yaml-abweichungen dokumentierten architekturspezifischen Trainerparametern resultieren.
+Alle drei Vergleichsagenten erhalten denselben Beobachtungssatz: 31 Vektor-Beobachtungen und 176 Ray-Beobachtungen. Der Szenen-Builder weist MLP_Navigator, LSTM_Navigator und Transformer_Navigator über dasselbe Prefab identische Eingaben zu (kontrollierte Variable des Vergleichs, Abschnitt 5.3). Beobachtete Leistungsunterschiede können jedoch sowohl aus der Netzarchitektur als auch aus den in @sec:yaml-abweichungen dokumentierten architekturspezifischen Trainerparametern resultieren.
 
 Die vollständige Spezifikation des Beobachtungssatzes enthält @tab:sensorspez (@sec:sensorik). Für alle Agenten gilt außerdem `NumStackedVectorObservations = 1`, sodass die Vektor-Beobachtungen nicht zusätzlich gestapelt werden.
 
@@ -879,7 +879,7 @@ Die Beschränkung auf Ray-basierte Wahrnehmung ist methodisch begründet. Ersten
 
 == Reward-System <sec:reward-system>
 
-Die Belohnungsfunktion ist für alle drei Architekturen identisch und wurde vor Beginn der Vergleichsläufe festgeleg (@tab:reward). Sie bildet damit die gemeinsame Zielvorgabe des Experiments. F1 und F2 sollen Unterschiede der Netzarchitektur messen, nicht des Belohnungsdesigns. Das Vergleichsdesign, das auf dieser Konstanz aufbaut, wird in Kapitel 5 entwickelt. Die Herleitung der einzelnen Terme sowie ihre beobachtete Wirkung sind bewusst nicht Gegenstand dieses Kapitels. Sie gehören zur Entstehungsgeschichte des Systems und werden in Kapitel 7 behandelt. Hier wird ausschließlich die gemeinsame, im Experiment unveränderte Belohnungsfunktion beschrieben.
+Die Belohnungsfunktion ist für alle drei Architekturen identisch (kontrollierte Variable des Vergleichs, Abschnitt 5.3) und wurde vor Beginn der Vergleichsläufe festgelegt (@tab:reward). Sie bildet damit die gemeinsame Zielvorgabe des Experiments. F1 und F2 sollen Unterschiede der Netzarchitektur messen, nicht des Belohnungsdesigns. Die Herleitung der einzelnen Terme sowie ihre beobachtete Wirkung sind bewusst nicht Gegenstand dieses Kapitels. Sie gehören zur Entstehungsgeschichte des Systems und werden in Kapitel 7 behandelt. Hier wird ausschließlich die gemeinsame, im Experiment unveränderte Belohnungsfunktion beschrieben.
 
 Vom Belohnungssystem des Agenten zu unterscheiden ist das Curiosity-Signal, denn es ist kein Bestandteil der Reward-Funktion, sondern ein trainerseitiges intrinsisches Signal. In der Vergleichskonfiguration ist Curiosity in allen drei Behaviors aktiv, die Asymmetrie zwischen den Architekturen liegt in der Signalstärke. Diese Abweichung wird in @sec:yaml-abweichungen begründet und dokumentiert (@tab:yaml-abweichungen).
 
