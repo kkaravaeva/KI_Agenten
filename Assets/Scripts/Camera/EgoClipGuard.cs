@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// Fades the screen to black when the ego camera is inside or very close to
@@ -13,6 +14,9 @@ public class EgoClipGuard : MonoBehaviour
     public float fadeEndDist   = 0.04f;
     [Tooltip("Fade transition speed")]
     public float fadeSpeed     = 16f;
+
+    [Tooltip("Wenn true, wird nicht abgeblendet (z.B. während eines Kamera-Flugs).")]
+    public bool  suppressed    = false;
 
     Camera     _cam;
     Texture2D  _blackTex;
@@ -42,15 +46,19 @@ public class EgoClipGuard : MonoBehaviour
         }
         else
         {
-            var agent = Object.FindObjectOfType<LabyrinthAgent>();
-            if (agent != null)
-                _agentCols = agent.GetComponentsInChildren<Collider>(includeInactive: true);
+            // Mehr-Agenten-Vergleich (Generalisierungstest): Kollider ALLER Agenten
+            // sammeln, damit die POV-Kamera nicht am eigenen/fremden Agentenkörper
+            // abdunkelt — nur echte Wände sollen den Fade auslösen.
+            var cols = new List<Collider>();
+            foreach (var agent in Object.FindObjectsByType<LabyrinthAgent>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                cols.AddRange(agent.GetComponentsInChildren<Collider>(true));
+            _agentCols = cols.ToArray();
         }
     }
 
     void Update()
     {
-        if (!_cam.enabled) { _alpha = 0f; return; }
+        if (!_cam.enabled || suppressed) { _alpha = Mathf.Lerp(_alpha, 0f, Time.deltaTime * fadeSpeed); return; }
 
         float dist   = NearestWallDist();
         float span   = Mathf.Max(fadeStartDist - fadeEndDist, 0.001f);

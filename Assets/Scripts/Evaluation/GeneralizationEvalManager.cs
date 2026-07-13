@@ -29,6 +29,8 @@ public class GeneralizationEvalManager : MonoBehaviour
         [HideInInspector] public int   state;       // 0 = läuft, 1 = Erfolg, 2 = gescheitert
         [HideInInspector] public float finishTime;
         [HideInInspector] public int   successTotal;
+        [HideInInspector] public int   attempted;   // gestartete Maps (für HUD)
+        [HideInInspector] public bool  laneDone;
     }
 
     [Header("Areale (eines je Architektur)")]
@@ -54,6 +56,7 @@ public class GeneralizationEvalManager : MonoBehaviour
     public TMP_Text hudLabel;
 
     private readonly List<string> csvRows = new List<string>();
+    private string _hudText = "Generalisierungstest — Play drücken";
 
     private IEnumerator Start()
     {
@@ -73,63 +76,64 @@ public class GeneralizationEvalManager : MonoBehaviour
             a.agent.onAgentDied   += () => { if (a.state == 0) { a.state = 2; a.finishTime = Time.time; a.agent.FreezeMovement(); } };
         }
 
+        // Erfolgs-HUD wird jetzt per IMGUI (OnGUI) gezeichnet, damit es bündig unter
+        // dem Architektur-Balken der Kamera liegt — das überlappende Canvas-Label aus.
+        if (hudLabel != null) hudLabel.gameObject.SetActive(false);
+
         Time.timeScale = timeScale;
         csvRows.Add("map;kategorie;episode;agent;erfolg;zeitSekunden");
         yield return new WaitForSeconds(1f);   // ML-Agents-Initialisierung abwarten
 
+        // Jede Architektur läuft UNABHÄNGIG durch alle Maps — kein gegenseitiges Warten.
+        // Nach Erfolg/Tod/Timeout kommt für diese Bahn sofort die nächste Map.
+        foreach (var area in areas)
+            StartCoroutine(RunLane(area));
+
+        // Warten, bis alle Bahnen fertig sind.
+        yield return new WaitUntil(() =>
+        {
+            foreach (var area in areas) if (!area.laneDone) return false;
+            return true;
+        });
+
+        WriteResults();
+    }
+
+    // Eine Architektur läuft eigenständig durch alle Held-out-Maps.
+    private IEnumerator RunLane(EvalArea area)
+    {
         for (int m = 0; m < maps.Length; m++)
         {
             var map = maps[m];
             string category = CategoryOf(map);
             float timeout = TimeoutFor(category);
 
-            for (int ep = 0; ep < episodesPerMap; ep++)
-            {
-                int seed = randomSeedBase * 1000 + m * 100 + ep;
+            // Deterministischer Seed pro Map (gleiche Karte m ergibt für jede Architektur
+            // dieselbe Spawn-/Zielwahl — nur eben zeitlich unabhängig statt synchron).
+            Random.InitState(randomSeedBase * 1000 + m * 100);
+            area.mapGenerator.GenerateMap(map);
 
-                // Alle Areale erhalten dieselbe Map und denselben Seed →
-                // identische Spawn-/Zielpositionen über die Architekturen.
-                foreach (var area in areas)
-                {
-                    Random.InitState(seed);
-                    area.mapGenerator.GenerateMap(map);
-                }
-                foreach (var area in areas)
-                {
-                    area.state = 0;
-                    area.agent.RefreshGoal();
-                    area.agent.RespawnAtStart();
-                    area.agent.UnfreezeMovement();
-                }
+            area.state = 0;
+            area.agent.RefreshGoal();
+            area.agent.RespawnAtStart();
+            area.agent.UnfreezeMovement();
+            area.attempted = m + 1;
+            RefreshHud();
 
-                float start = Time.time;
-                yield return new WaitUntil(() =>
-                    AllDone() || Time.time - start > timeout);
+            float start = Time.time;
+            yield return new WaitUntil(() => area.state != 0 || Time.time - start > timeout);
 
-                foreach (var area in areas)
-                {
-                    bool success = area.state == 1;
-                    if (area.state == 0) { area.state = 2; area.agent.FreezeMovement(); }  // Timeout
-                    if (success) area.successTotal++;
-                    float t = success ? area.finishTime - start : timeout;
-                    csvRows.Add($"{map.name};{category};{ep + 1};{area.label};{(success ? 1 : 0)};{t:F1}");
-                }
+            bool success = area.state == 1;
+            if (area.state == 0) { area.state = 2; area.agent.FreezeMovement(); }  // Timeout
+            if (success) area.successTotal++;
+            float t = success ? area.finishTime - start : timeout;
+            csvRows.Add($"{map.name};{category};1;{area.label};{(success ? 1 : 0)};{t:F1}");
 
-                UpdateHud(m, ep);
-                yield return new WaitForSeconds(0.25f);
-            }
-            Debug.Log($"[EvalManager] Map {m + 1}/{maps.Length} ({map.name}) abgeschlossen. " +
-                      string.Join(" | ", System.Array.ConvertAll(areas, x => $"{x.label}: {x.successTotal}")));
+            RefreshHud();
+            yield return new WaitForSeconds(0.25f);
         }
-
-        WriteResults();
-    }
-
-    private bool AllDone()
-    {
-        foreach (var area in areas)
-            if (area.state == 0) return false;
-        return true;
+        area.laneDone = true;
+        Debug.Log($"[EvalManager] {area.label} fertig: {area.successTotal}/{maps.Length} Maps bestanden.");
     }
 
     private static string CategoryOf(MapData map)
@@ -149,14 +153,26 @@ public class GeneralizationEvalManager : MonoBehaviour
         _        => secondsEasy,
     };
 
-    private void UpdateHud(int mapIdx, int epIdx)
+    // Pro Architektur: bestandene / bisher gestartete Maps (Bahnen laufen unabhängig).
+    private void RefreshHud()
     {
-        if (hudLabel == null) return;
         var sb = new StringBuilder();
-        sb.AppendLine($"Generalisierungstest — Map {mapIdx + 1}/{maps.Length}, Episode {epIdx + 1}/{episodesPerMap}");
+        sb.AppendLine($"Generalisierungstest — Held-out ({maps.Length} Maps)");
         foreach (var area in areas)
-            sb.AppendLine($"{area.label}: {area.successTotal} Erfolge");
-        hudLabel.text = sb.ToString();
+            sb.AppendLine($"{area.label}: {area.successTotal} / {area.attempted}");
+        _hudText = sb.ToString();
+        if (hudLabel != null) hudLabel.text = _hudText;
+    }
+
+    // Erfolgs-HUD bündig UNTER dem Architektur-Balken der Kamera (der bei y=10..110 liegt).
+    private void OnGUI()
+    {
+        GUI.color = new Color(0f, 0f, 0f, 0.6f);
+        GUI.DrawTexture(new Rect(10f, 116f, 560f, 132f), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+        var style = new GUIStyle(GUI.skin.label) { fontSize = 20 };
+        style.normal.textColor = Color.white;
+        GUI.Label(new Rect(24f, 122f, 536f, 122f), _hudText, style);
     }
 
     private void WriteResults()
@@ -168,10 +184,11 @@ public class GeneralizationEvalManager : MonoBehaviour
 
         var sb = new StringBuilder("[EvalManager] TEST ABGESCHLOSSEN — Erfolge gesamt: ");
         foreach (var area in areas)
-            sb.Append($"{area.label}={area.successTotal}/{maps.Length * episodesPerMap}  ");
+            sb.Append($"{area.label}={area.successTotal}/{maps.Length}  ");
         sb.Append($"| CSV: {path}");
         Debug.Log(sb.ToString());
-        if (hudLabel != null) hudLabel.text = sb.ToString();
+        _hudText = sb.ToString();
+        if (hudLabel != null) hudLabel.text = _hudText;
 
         // Headless-/Batch-Betrieb: Player nach Abschluss beenden (im Editor wirkungslos)
         Application.Quit();

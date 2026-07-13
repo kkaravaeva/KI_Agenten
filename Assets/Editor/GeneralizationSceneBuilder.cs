@@ -124,6 +124,383 @@ public static class GeneralizationSceneBuilder
         Debug.Log($"[GeneralizationSceneBuilder] Build (Python-Inferenz): {report.summary.result} | Errors: {report.summary.totalErrors}");
     }
 
+    /// <summary>
+    /// Bereitet die vorhandene Generalisierungstest-Szene zum LIVE-Zuschauen im
+    /// Editor auf (kein Build): Alle drei Behaviors laufen per Python-Inferenz
+    /// (Default, kein ONNX — der Transformer-Graph ist Barracuda-inkompatibel),
+    /// die Kamera bekommt denselben Umschalter wie das Training
+    /// (ModelComparisonCameraController: 0/Tab Übersicht, 1-3 Top-Down, 4-6 POV),
+    /// die drei Architektur-Labels bleiben erhalten, und der EvalManager läuft
+    /// mit timeScale 1 (zuschau-tauglich, im Inspector änderbar).
+    ///
+    /// Ablauf danach:
+    ///   1. Trainer im Inferenz-Modus starten (wartet auf Unity):
+    ///        python -m mlagents.trainers.learn config/model_comparison_final_v2.yaml \
+    ///          --run-id model_comparison_final_v2 --inference --resume --base-port 5004
+    ///   2. In Unity die Szene "Generalization Test" öffnen und Play drücken.
+    /// </summary>
+    [MenuItem("Training/Generalisierungstest: Editor-Ansicht vorbereiten (Python-Inferenz)")]
+    public static void PrepareEditorWatch()
+    {
+        var scene = EditorSceneManager.OpenScene(TARGET_SCENE, OpenSceneMode.Single);
+
+        // 1. Alle drei Behaviors auf Python-Inferenz stellen (Default, kein Modell).
+        int set = 0;
+        foreach (var agent in Object.FindObjectsByType<LabyrinthAgent>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            var bp = agent.GetComponent<BehaviorParameters>();
+            if (bp == null) continue;
+            var so = new SerializedObject(bp);
+            so.FindProperty("m_Model").objectReferenceValue = null;
+            so.FindProperty("m_BehaviorType").enumValueIndex = (int)BehaviorType.Default;
+            so.ApplyModifiedProperties();
+            EditorUtility.SetDirty(bp);
+            set++;
+        }
+
+        // 2. Kamera-Umschalter wie im Training auf die vorhandene Kamera legen.
+        var cam = Object.FindFirstObjectByType<Camera>();
+        if (cam == null)
+            Debug.LogWarning("[GeneralizationSceneBuilder] Keine Kamera in der Szene gefunden.");
+        else
+        {
+            if (cam.GetComponent<ModelComparisonCameraController>() == null)
+                cam.gameObject.AddComponent<ModelComparisonCameraController>();
+            // POV-Kamera nicht durch Wände sehen (messe2-Fix): blendet schwarz,
+            // sobald die Ego-Kamera in Wandgeometrie ragt.
+            if (cam.GetComponent<EgoClipGuard>() == null)
+                cam.gameObject.AddComponent<EgoClipGuard>();
+            EditorUtility.SetDirty(cam.gameObject);
+        }
+
+        // 3. Zuschau-Geschwindigkeit (1 = Echtzeit; im Inspector des Managers änderbar).
+        var mgr = Object.FindFirstObjectByType<GeneralizationEvalManager>();
+        if (mgr != null)
+        {
+            mgr.timeScale = 1f;
+            // Fürs Video: jede der 155 Maps läuft genau EINMAL durch (statt 5 Episoden).
+            mgr.episodesPerMap = 1;
+            // Kürzere Timeouts fürs Video: ein hängender/gestorbener Agent hält die
+            // bereits fertigen (eingefrorenen) Areale deutlich kürzer auf. Bleibt
+            // synchron (alle 3 auf derselben Map) und damit fair vergleichbar.
+            mgr.secondsEasy   = 20f;
+            mgr.secondsMedium = 30f;
+            mgr.secondsHard   = 40f;
+            mgr.secondsGiant  = 60f;
+            EditorUtility.SetDirty(mgr);
+        }
+
+        // 4. Architektur-Labels mittig über die Areale legen (behebt Überlappung).
+        PositionModelLabels();
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, TARGET_SCENE);
+        AssetDatabase.SaveAssets();
+        Debug.Log($"[GeneralizationSceneBuilder] Editor-Ansicht bereit: {set} Behaviors auf Python-Inferenz, " +
+                  $"Kamera-Umschalter{(cam != null ? "" : " (KEINE Kamera!)")} + timeScale 1 gesetzt. " +
+                  "Jetzt Trainer (--inference --resume) starten, dann Play drücken.");
+    }
+
+    // Legt die drei World-Space-Labels (LSTM/Transformer/MLP) mittig ÜBER ihrem
+    // jeweiligen Areal ab — anhand der tatsächlichen MapGenerator-Position, damit
+    // sie sich nicht überlappen und alle drei erscheinen (fehlende werden erstellt).
+    static void PositionModelLabels()
+    {
+        var specs = new (string behavior, string name, Color color)[]
+        {
+            ("LSTM_Navigator",        "LSTM",        new Color(0.2f, 0.5f, 1.0f)),
+            ("Transformer_Navigator", "Transformer", new Color(1.0f, 0.6f, 0.1f)),
+            ("MLP_Navigator",         "MLP",         new Color(0.2f, 0.8f, 0.3f)),
+        };
+        var agents = Object.FindObjectsByType<LabyrinthAgent>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+        foreach (var (behavior, name, color) in specs)
+        {
+            Vector3 anchor = Vector3.zero; bool found = false;
+            foreach (var a in agents)
+            {
+                var bp = a.GetComponent<BehaviorParameters>();
+                if (bp == null || bp.BehaviorName != behavior) continue;
+                var areaRoot = a.transform.parent != null ? a.transform.parent : a.transform;
+                var gen = areaRoot.GetComponentInChildren<MapGenerator>(true);
+                anchor = (gen != null ? gen.transform : areaRoot).position;
+                found = true; break;
+            }
+            if (!found)
+            {
+                Debug.LogWarning($"[GeneralizationSceneBuilder] Kein Areal für {behavior} gefunden — Label übersprungen.");
+                continue;
+            }
+
+            var labelRoot = GameObject.Find($"Label_{name}") ?? CreateLabelObject(name, color);
+            // WICHTIG: Bei einem Root-World-Space-Canvas bestimmt localPosition die
+            // Weltposition — NICHT anchoredPosition (das gilt nur mit Eltern-RectTransform).
+            // transform.position würde die X in anchoredPosition schreiben und alle Labels
+            // lägen sichtbar auf (0,0) übereinander. Deshalb anchoredPosition nullen und
+            // localPosition direkt setzen.
+            var rt = labelRoot.GetComponent<RectTransform>();
+            if (rt != null) { rt.anchoredPosition = Vector2.zero; rt.sizeDelta = new Vector2(760f, 150f); }
+            var tmp = labelRoot.GetComponentInChildren<TMPro.TextMeshProUGUI>(true);
+            if (tmp != null) tmp.enableWordWrapping = false;   // "Transformer" einzeilig
+            labelRoot.transform.localScale = Vector3.one * 0.08f;
+            labelRoot.transform.localPosition = new Vector3(anchor.x + 12f, 11f, anchor.z - 6f);
+            labelRoot.transform.localRotation = Quaternion.Euler(45f, 0f, 0f);
+            EditorUtility.SetDirty(labelRoot);
+        }
+    }
+
+    static GameObject CreateLabelObject(string name, Color color)
+    {
+        var labelRoot = new GameObject($"Label_{name}");
+        var canvas = labelRoot.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        labelRoot.GetComponent<RectTransform>().sizeDelta = new Vector2(760f, 150f); // breit genug für "Transformer" einzeilig
+
+        var bgGo = new GameObject("Background");
+        bgGo.transform.SetParent(labelRoot.transform, false);
+        var bgImage = bgGo.AddComponent<Image>();
+        bgImage.color = new Color(0f, 0f, 0f, 0.55f);
+        var bgRt = bgGo.GetComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
+        bgRt.offsetMin = Vector2.zero; bgRt.offsetMax = Vector2.zero;
+
+        var textGo = new GameObject("Text");
+        textGo.transform.SetParent(labelRoot.transform, false);
+        var tmp = textGo.AddComponent<TextMeshProUGUI>();
+        tmp.text = name; tmp.fontSize = 100f; tmp.fontStyle = FontStyles.Bold;
+        tmp.color = color; tmp.alignment = TextAlignmentOptions.Center;
+        tmp.enableWordWrapping = false;   // "Transformer" nie umbrechen
+        var textRt = textGo.GetComponent<RectTransform>();
+        textRt.anchorMin = Vector2.zero; textRt.anchorMax = Vector2.one;
+        textRt.offsetMin = Vector2.zero; textRt.offsetMax = Vector2.zero;
+
+        Debug.Log($"[GeneralizationSceneBuilder] Label '{name}' erstellt.");
+        return labelRoot;
+    }
+
+    /// <summary>
+    /// Wendet den „Messe-Look" auf die Generalisierungstest-Szene an (fürs Video):
+    /// Lava-Textur, mittelalterliche Wand-Textur, HDR-Himmel und Grasboden.
+    /// Nutzt bewusst NICHT „Apply Full Polish" — das würde ein eigenes Kamera-Rig
+    /// installieren und den 3-Wege-Umschalter (ModelComparisonCameraController)
+    /// überschreiben; stattdessen nur „Nur HDR Sky".
+    /// Der Grasboden wird als großer statischer Untergrund über ALLE drei Areale
+    /// gelegt (die OutdoorGround-Folgekomponente würde ihn sonst auf ein Areal
+    /// zentrieren und die anderen beiden über Leere schweben lassen).
+    /// Beim Ausführen erscheinen ~3 Bestätigungsdialoge (mit OK bestätigen).
+    /// </summary>
+    [MenuItem("Training/Generalisierungstest: Video-Look anwenden (Texturen+Himmel+Boden)")]
+    public static void ApplyVideoLook()
+    {
+        var scene = EditorSceneManager.OpenScene(TARGET_SCENE, OpenSceneMode.Single);
+
+        // 1. Material-Texturen — wirken auf die Kacheln ALLER drei Areale.
+        RunMenu("Tools/Texturen/Lava-Textur anwenden");
+        TuneLavaMaterial();   // molten-Look: kräftigeres Glühen, dunklere Basalt-Basis
+        RunMenu("Tools/Texturen/Mittelalterliche Wand-Textur anwenden");
+        SetupWallAndGoalMaterials();   // Goal leuchtend grün + texturierte Materialien den Kachel-Prefabs zuweisen
+        SetupFloorMaterial();          // Steinboden (mossy_cobblestone) auf Floor- und Platform-Kacheln
+        SetupHoleMaterial();           // Löcher als dunkler Abgrund
+
+        // 2. HDR-Himmel (ohne Kamera-Rig).
+        RunMenu("Tools/Visual Polish/Nur HDR Sky anwenden");
+
+        // 3. Grasboden erzeugen, dann als großen statischen Boden über alle Areale legen.
+        RunMenu("Tools/Boden/Gras-Boden einrichten");
+        FixGroundForThreeAreas();
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, TARGET_SCENE);
+        AssetDatabase.SaveAssets();
+        Debug.Log("[GeneralizationSceneBuilder] Video-Look angewendet: Lava-/Wand-Textur, HDR-Himmel, Grasboden über 3 Areale.");
+    }
+
+    static void RunMenu(string path)
+    {
+        if (!EditorApplication.ExecuteMenuItem(path))
+            Debug.LogWarning($"[GeneralizationSceneBuilder] Menü nicht gefunden/fehlgeschlagen: {path}");
+    }
+
+    // Macht die Lava realistischer (molten): stärkeres, wärmeres HDR-Glühen der Risse
+    // über die Emission-Map, dunklere Basalt-Basis, etwas mehr Oberflächenrelief.
+    static void TuneLavaMaterial()
+    {
+        foreach (var matPath in new[] { "Assets/Materials/M_Lava01.mat", "Assets/Materials/Lava_Mat.mat" })
+        {
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            if (mat == null) continue;
+
+            mat.EnableKeyword("_EMISSION");
+            mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            // Helleres, leicht gelbstichiges Glühen für flüssige Lava (statt nur orange-rot).
+            mat.SetColor("_EmissionColor", new Color(6.5f, 1.6f, 0.15f));
+            // Dunkle Basalt-Basis, damit die glühenden Risse stärker kontrastieren.
+            mat.SetColor("_Color", new Color(0.35f, 0.30f, 0.28f));
+            mat.SetFloat("_Glossiness", 0.06f);
+            mat.SetFloat("_Metallic",   0.00f);
+            if (mat.HasProperty("_BumpScale")) mat.SetFloat("_BumpScale", 1.3f);
+            EditorUtility.SetDirty(mat);
+        }
+        AssetDatabase.SaveAssets();
+    }
+
+    // Goal leuchtend grün (messe2) + weist die texturierten Materialien den Kachel-
+    // Prefabs zu. Wand- und Goal-Prefab nutzen sonst das Unity-Default-Material,
+    // d.h. das Texturieren von Wall_Mat/Goal_Mat allein wäre wirkungslos.
+    static void SetupWallAndGoalMaterials()
+    {
+        var goalMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Goal_Mat.mat");
+        if (goalMat != null)
+        {
+            goalMat.EnableKeyword("_EMISSION");
+            goalMat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            goalMat.SetColor("_Color",         new Color(0.05f, 0.85f, 0.30f)); // mystisches Grün-Cyan
+            goalMat.SetColor("_EmissionColor", new Color(0.20f, 3.50f, 0.70f)); // kräftiges magisches Leuchten
+            goalMat.SetFloat("_Glossiness", 0.35f);
+            goalMat.SetFloat("_Metallic",   0.00f);
+            EditorUtility.SetDirty(goalMat);
+        }
+        AssetDatabase.SaveAssets();
+
+        AssignMaterialToPrefab("Assets/Prefabs/Map/Wall.prefab",
+            AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Wall_Mat.mat"));
+        AssignMaterialToPrefab("Assets/Prefabs/Map/Goal.prefab", goalMat);
+        AddMysticGlowToGoal();   // pulsierendes, mystisches Leuchten
+    }
+
+    // Hängt die MysticGlow-Komponente an das Goal-Prefab (pulsierende Emission).
+    static void AddMysticGlowToGoal()
+    {
+        const string path = "Assets/Prefabs/Map/Goal.prefab";
+        var root = PrefabUtility.LoadPrefabContents(path);
+        if (root == null) return;
+        var rend = root.GetComponentInChildren<Renderer>(true);
+        if (rend != null && rend.GetComponent<MysticGlow>() == null)
+            rend.gameObject.AddComponent<MysticGlow>();
+        PrefabUtility.SaveAsPrefabAsset(root, path);
+        PrefabUtility.UnloadPrefabContents(root);
+        Debug.Log("[GeneralizationSceneBuilder] MysticGlow am Goal-Prefab.");
+    }
+
+    // Löcher als Abgrund: sehr dunkles, mattes Material (verschluckt Licht → wirkt tief).
+    static void SetupHoleMaterial()
+    {
+        const string prefabPath = "Assets/Prefabs/Map/Obstacles/Hole_Placeholder.prefab";
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        if (prefab == null) { Debug.LogWarning("[GeneralizationSceneBuilder] Hole_Placeholder.prefab nicht gefunden."); return; }
+        var rend = prefab.GetComponentInChildren<Renderer>(true);
+        var mat = rend != null ? rend.sharedMaterial : null;
+        if (mat == null) { Debug.LogWarning("[GeneralizationSceneBuilder] Kein Hole-Material gefunden."); return; }
+
+        mat.SetColor("_Color", new Color(0.012f, 0.012f, 0.018f)); // fast schwarz = Abgrund
+        mat.SetFloat("_Glossiness", 0.0f);
+        mat.SetFloat("_Metallic",   0.0f);
+        mat.DisableKeyword("_EMISSION");
+        mat.SetColor("_EmissionColor", Color.black);
+        if (mat.HasProperty("_SpecColor")) mat.SetColor("_SpecColor", Color.black);
+        EditorUtility.SetDirty(mat);
+        AssetDatabase.SaveAssets();
+        Debug.Log($"[GeneralizationSceneBuilder] Abgrund-Material auf {mat.name} gesetzt.");
+    }
+
+    // Steinboden: Floor_Mat mit mossy_cobblestone (Poly Haven, CC0) texturieren und
+    // dem Floor-Prefab zuweisen (nutzte Default-Material). Platform-Kacheln nutzen
+    // ebenfalls Floor_Mat und werden dadurch automatisch mit-texturiert.
+    static void SetupFloorMaterial()
+    {
+        const string diffPath = "Assets/Textures/Medieval/mossy_cobblestone/mossy_cobblestone_diff.jpg";
+        const string norPath  = "Assets/Textures/Medieval/mossy_cobblestone/mossy_cobblestone_nor.jpg";
+
+        var floorMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Floor_Mat.mat");
+        if (floorMat == null) { Debug.LogWarning("[GeneralizationSceneBuilder] Floor_Mat.mat nicht gefunden."); return; }
+
+        EnsureNormalMapImport(norPath);
+        var diff = AssetDatabase.LoadAssetAtPath<Texture2D>(diffPath);
+        var nor  = AssetDatabase.LoadAssetAtPath<Texture2D>(norPath);
+
+        if (diff != null) floorMat.SetTexture("_MainTex", diff);
+        if (nor != null)
+        {
+            floorMat.EnableKeyword("_NORMALMAP");
+            floorMat.SetTexture("_BumpMap", nor);
+            floorMat.SetFloat("_BumpScale", 1.0f);
+        }
+        floorMat.SetColor("_Color", Color.white);
+        floorMat.SetFloat("_Glossiness", 0.10f);
+        floorMat.SetFloat("_Metallic",   0.00f);
+        // Bodenkachel ist 1x1 Unit → 1 Steintextur pro Kachel.
+        floorMat.SetTextureScale("_MainTex", Vector2.one);
+        floorMat.SetTextureScale("_BumpMap", Vector2.one);
+        EditorUtility.SetDirty(floorMat);
+        AssetDatabase.SaveAssets();
+
+        AssignMaterialToPrefab("Assets/Prefabs/Map/Floor.prefab", floorMat);
+    }
+
+    static void EnsureNormalMapImport(string path)
+    {
+        var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (imp == null || imp.textureType == TextureImporterType.NormalMap) return;
+        imp.textureType = TextureImporterType.NormalMap;
+        imp.SaveAndReimport();
+    }
+
+    // Weist ALLEN MeshRenderer-Materialslots eines Prefabs ein Material zu (persistiert im Prefab).
+    static void AssignMaterialToPrefab(string prefabPath, Material mat)
+    {
+        if (mat == null) { Debug.LogWarning($"[GeneralizationSceneBuilder] Material null für {prefabPath}"); return; }
+        var root = PrefabUtility.LoadPrefabContents(prefabPath);
+        if (root == null) { Debug.LogWarning($"[GeneralizationSceneBuilder] Prefab nicht ladbar: {prefabPath}"); return; }
+
+        int slots = 0;
+        foreach (var r in root.GetComponentsInChildren<MeshRenderer>(true))
+        {
+            var mats = r.sharedMaterials;
+            for (int i = 0; i < mats.Length; i++) mats[i] = mat;
+            r.sharedMaterials = mats;
+            slots += mats.Length;
+        }
+        PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+        PrefabUtility.UnloadPrefabContents(root);
+        Debug.Log($"[GeneralizationSceneBuilder] '{mat.name}' auf {slots} Materialslot(s) in {System.IO.Path.GetFileName(prefabPath)} gesetzt.");
+    }
+
+    // Entfernt die laufzeit-folgende OutdoorGround-Komponente und legt die Grasboden-
+    // Plane als großen statischen Untergrund zentriert über alle drei Areale.
+    static void FixGroundForThreeAreas()
+    {
+        foreach (var og in Object.FindObjectsByType<OutdoorGround>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            Object.DestroyImmediate(og);
+
+        var plane = GameObject.Find("OutdoorGround");
+        if (plane == null)
+        {
+            Debug.LogWarning("[GeneralizationSceneBuilder] Grasboden-Plane 'OutdoorGround' nicht gefunden — bitte 'Tools/Boden/Gras-Boden einrichten' separat ausführen.");
+            return;
+        }
+
+        // Zentroid aller MapGeneratoren (= Mitte der drei Areale).
+        var gens = Object.FindObjectsByType<MapGenerator>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Vector3 c = Vector3.zero;
+        foreach (var g in gens) c += g.transform.position;
+        if (gens.Length > 0) c /= gens.Length;
+
+        plane.transform.position   = new Vector3(c.x, -0.02f, c.z);
+        plane.transform.localScale = new Vector3(200f, 1f, 200f); // 2000×2000 Einheiten — deckt alle Areale + Rand
+        EditorUtility.SetDirty(plane);
+
+        // Textur-Tiling dichter setzen → Gras wirkt kleiner/feiner statt gestreckt.
+        var mat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Ground_Mat.mat");
+        if (mat != null)
+        {
+            float worldSize = plane.transform.localScale.x * 10f;
+            float tiling = worldSize / 1.5f;   // ~1 Grastextur je 1,5 Einheiten (vorher je 4)
+            mat.SetTextureScale("_MainTex", new Vector2(tiling, tiling));
+            mat.SetTextureScale("_BumpMap", new Vector2(tiling, tiling));
+            EditorUtility.SetDirty(mat);
+        }
+    }
+
     [MenuItem("Training/Generalisierungstest bauen (Maps + Szene)")]
     public static void BuildAll()
     {
